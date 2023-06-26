@@ -8,5 +8,5 @@ public class ProgressResponse {
 	private int missionsCompleted;
 	private int sessionsCompleted;
 	private int abandonedAttempts;
-	private int completedSessions;
+	private int sessionsCompletedPerWeek;
 }

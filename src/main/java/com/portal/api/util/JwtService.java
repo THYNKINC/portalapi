@@ -66,11 +66,11 @@ public class JwtService {
         return authResult.idToken();
     }
 
-    public Jwt decodeJwtFromRequest(HttpServletRequest request, boolean isAdmin) {
+    public Jwt decodeJwtFromRequest(HttpServletRequest request, boolean adminRequired) {
         String bearerToken = extractBearerToken(request);
         Jwt jwt = jwtDecoder.decode(bearerToken);
         
-        if(isAdmin) {
+        if(adminRequired) {
         	List<String> groups = jwt.getClaim("cognito:groups");
         	if(!groups.contains(GROUP_NAME_ADMIN)) {
         		return null;
