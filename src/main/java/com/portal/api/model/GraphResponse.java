@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class GraphResponse {
 
-	private double timestamp;
+	private Long timestamp;
 	private double value;
 }

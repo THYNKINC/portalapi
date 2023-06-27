@@ -24,6 +24,7 @@ import com.portal.api.model.Parent;
 import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
+import com.portal.api.model.SessionData;
 import com.portal.api.model.SessionResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.model.AttentionResponse;
@@ -61,26 +62,35 @@ import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.index.query.TermsQueryBuilder;
+import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.Sum;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
-
+import org.opensearch.search.sort.SortOrder;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.joda.time.DateTime;
+
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.security.cert.X509Certificate;
-
+import java.time.ZonedDateTime;
 
 import javax.validation.Valid;
 
@@ -273,65 +283,59 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/missions/{missionId}")
-    public MissionResponse childMission(@PathVariable("username") String username, @PathVariable("missionId") String id, HttpServletRequest request) throws Exception {
+    public List<SessionData> childMission(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
     	
-    	SessionResponse session1 = new SessionResponse();
-    	session1.setSession("session1");
-    	session1.setStatus("unknown status");
+    	SearchResponse searchResponse = missionsInternal(username, missionId); 
     	
-    	SessionResponse session2 = new SessionResponse();
-    	session2.setSession("session2");
-    	session2.setStatus("unknown status");
+    	List<SessionData> sessionDataList = new ArrayList<>();
+
+    	for (SearchHit hit : searchResponse.getHits().getHits()) {
+    	    Map<String, Object> sourceAsMap = hit.getSourceAsMap();
+
+    	    String sessionId = (String) sourceAsMap.get("session_start");
+    	    String eventType = (String) sourceAsMap.get("event_type");
+
+    	    SessionData sessionData = new SessionData();
+    	    sessionData.setSessionId(sessionId);
+    	    sessionData.setEventType(eventType);
+
+    	    sessionDataList.add(sessionData);
+    	}
     	
-    	List<SessionResponse> sessions = new ArrayList<>();
-    	sessions.add(session1);
-    	sessions.add(session2);
-    	
-    	
-    	MissionResponse missionResponse = new MissionResponse();
-    	missionResponse.setRating(65.2);
-    	missionResponse.setStatus("unknown status");
-    	missionResponse.setSessions(sessions);
-    	
-    	List<String> badges = new ArrayList<>();
-    	badges.add("badge1");
-    	badges.add("badge2");
-    	badges.add("badge5");
-    	
-    	BadgesResponse badgesResponse = new BadgesResponse();
-    	badgesResponse.setBadges(badges);
-    	
-    	return missionResponse;
+    	return sessionDataList;
     }
     
     @GetMapping("/children/{username}/sessions/{sessionId}/power")
-    public PowerResponse childMissionPower(@PathVariable("username") String username, 
+    public List<GraphResponse> childMissionPower(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
     	
-    	GraphResponse graphResponse1 = new GraphResponse();
-    	graphResponse1.setTimestamp(1679740020);
-    	graphResponse1.setValue(0.0);
+    	SearchResponse searchResponse = powerInternal(username, sessionId); 
     	
-    	GraphResponse graphResponse2 = new GraphResponse();
-    	graphResponse2.setTimestamp(1679740050);
-    	graphResponse2.setValue(991.0);
+    	Aggregations aggregations = searchResponse.getAggregations();
+
+    	Histogram interval = aggregations.get("intervals");
+    	List<GraphResponse> graphResponseList = new ArrayList<>();
+
+    	for (Histogram.Bucket entry : interval.getBuckets()) {
+    		ZonedDateTime keyAsZonedDateTime = (ZonedDateTime) entry.getKey(); // This gets the key as a ZonedDateTime object.
+    	    Long key = keyAsZonedDateTime.toInstant().toEpochMilli(); // This converts the ZonedDateTime to a timestamp (Long).   	   
+    	    
+    	    Max max = entry.getAggregations().get("power");
+    	    Double value = max.getValue();
+    	    
+    	    if(value != null && !Double.isNaN(value) && !Double.isInfinite(value)) {
+    	    	GraphResponse graphResponse = new GraphResponse();
+    	    	graphResponse.setTimestamp(key);
+    	    	graphResponse.setValue(value);
+    	    
+    	        graphResponseList.add(graphResponse);
+    	    }
+    	}
     	
-    	GraphResponse graphResponse3 = new GraphResponse();
-    	graphResponse3.setTimestamp(1679740080);
-    	graphResponse3.setValue(1027.0);
-    	
-    	List<GraphResponse> graphResponses = new ArrayList<>();
-    	graphResponses.add(graphResponse1);
-    	graphResponses.add(graphResponse2);
-    	graphResponses.add(graphResponse3);
-    	
-    	PowerResponse powerResponse = new PowerResponse();
-    	powerResponse.setWrtTime(graphResponses);
- 	
-    	return powerResponse;
+    	return graphResponseList;
     }
     
     @GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
@@ -356,15 +360,15 @@ public class PortalController {
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
     	
     	GraphResponse graphResponse1 = new GraphResponse();
-    	graphResponse1.setTimestamp(1679740020);
+    	graphResponse1.setTimestamp(1679740020L);
     	graphResponse1.setValue(23.5);
     	
     	GraphResponse graphResponse2 = new GraphResponse();
-    	graphResponse2.setTimestamp(1679740050);
+    	graphResponse2.setTimestamp(1679740050L);
     	graphResponse2.setValue(72.4);
     	
     	GraphResponse graphResponse3 = new GraphResponse();
-    	graphResponse3.setTimestamp(1679740080);
+    	graphResponse3.setTimestamp(1679740080L);
     	graphResponse3.setValue(38.7);
     	
     	List<GraphResponse> graphResponses = new ArrayList<>();
@@ -480,20 +484,58 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
     
-    @GetMapping("/opensearch/power")
-    public SearchResponse power(HttpServletRequest request) throws Exception {
+    @GetMapping("/opensearch/missions")
+    public SearchResponse missionsl(String userId, String missionId) throws Exception {
+    	return missionsInternal("388357544", "5.2"); 
+    }
+    
+    public SearchResponse missionsInternal(String userId, String missionId) throws Exception {
     	
     	SSLContext sslContext = opensearchService.getSSLContext();
         BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
         
+        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+
+     // Create queries
+     BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+             .must(QueryBuilders.termQuery("MissionID", missionId))
+             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStartEnd"))
+             .must(QueryBuilders.matchQuery("user_id", userId));
+
+     // Set up the source builder
+     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+     searchSourceBuilder.query(boolQuery);
+     searchSourceBuilder.size(20);
+     searchSourceBuilder.sort("timestamp", SortOrder.DESC);
+
+     // Add the fields to the request
+     searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type" }, new String[] {});
+
+     // Add the source builder to the request
+     searchRequest.source(searchSourceBuilder);
+
+        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    }
+    
+    @GetMapping("/opensearch/power")
+    public SearchResponse power(HttpServletRequest request) throws Exception {
+    	return powerInternal("388357544", "2023-04-24 16:28:16.566");
+    }
+    	
+    public SearchResponse powerInternal(String userId, String sessionId) throws Exception {
+    	SSLContext sslContext = opensearchService.getSSLContext();
+        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+        
      // Build the match queries
-        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", "2023-03-28 13:37:07.845");
+        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
         QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
+        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
 
         // Combine the match queries into a boolean query
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
                 .must(sessionStartQuery)
-                .must(sessionTypeQuery);
+                .must(sessionTypeQuery)
+                .must(userIdQuery);
 
         // Build the aggregation queries
         MaxAggregationBuilder powerAgg = AggregationBuilders.max("power").field("Score");
