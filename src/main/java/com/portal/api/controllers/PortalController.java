@@ -499,7 +499,7 @@ public class PortalController {
      // Create queries
      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
              .must(QueryBuilders.termQuery("MissionID", missionId))
-             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStartEnd"))
+             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
              .must(QueryBuilders.matchQuery("user_id", userId));
 
      // Set up the source builder
