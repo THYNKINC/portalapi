@@ -7,5 +7,5 @@ import lombok.Data;
 @Data
 public class BadgesResponse {
 
-	private List<String> badges;
+	private List<Badge> badges;
 }

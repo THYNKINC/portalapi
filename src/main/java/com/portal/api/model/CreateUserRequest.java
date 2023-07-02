@@ -21,7 +21,6 @@ public class CreateUserRequest {
     @NotNull(message = "Last name must not be null")
     private String lastName;
 
-    @NotNull(message = "Parent must not be null")
     private String parent;
     
 }

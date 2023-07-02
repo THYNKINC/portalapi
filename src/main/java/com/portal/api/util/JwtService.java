@@ -66,14 +66,14 @@ public class JwtService {
         return authResult.idToken();
     }
 
-    public Jwt decodeJwtFromRequest(HttpServletRequest request, boolean adminRequired) {
+    public Jwt decodeJwtFromRequest(HttpServletRequest request, boolean adminRequired) throws Exception {
         String bearerToken = extractBearerToken(request);
         Jwt jwt = jwtDecoder.decode(bearerToken);
         
         if(adminRequired) {
         	List<String> groups = jwt.getClaim("cognito:groups");
         	if(!groups.contains(GROUP_NAME_ADMIN)) {
-        		return null;
+        		throw new Exception("You must be an admin to use this endpoint");
         	}
         }
         return jwt;
