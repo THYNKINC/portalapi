@@ -20,6 +20,8 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
+import org.opensearch.client.core.CountRequest;
+import org.opensearch.client.core.CountResponse;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -59,6 +61,22 @@ public class OpensearchService {
 	    	// #TODO turn search response into a proper response object
 	        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
 	        return searchResponse;
+	    }  
+	    
+	}
+	
+	public CountResponse count(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, CountRequest countRequest) throws IOException {
+		
+		// Build the rest client
+	    try (RestHighLevelClient client = new RestHighLevelClient(
+	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+	                            .setDefaultCredentialsProvider(credentialsProvider)
+	                            .setSSLContext(sslContext)
+	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
+	
+	    	CountResponse countResponse = client.count(countRequest, RequestOptions.DEFAULT);
+	        return countResponse;
 	    }  
 	    
 	}

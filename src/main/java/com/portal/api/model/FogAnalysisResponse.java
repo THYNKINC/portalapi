@@ -1,13 +1,14 @@
 package com.portal.api.model;
 
+import java.util.List;
+
 import lombok.Data;
 
 @Data
 public class FogAnalysisResponse {
 
-	private String performance;
-	private String attention;
 	private int frozenDishes;
 	private int decodedMolecules;
+	private List<StartEnd> dishes;
 	
 }
