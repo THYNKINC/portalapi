@@ -569,7 +569,7 @@ public class PortalController {
 
         // Build the aggregation query
         TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions")
-                .field("MissionID")
+                .field("TaskID")
                 .size(15);
 
         // Build the search source with the boolean query, the aggregation, and the size
@@ -604,10 +604,16 @@ public class PortalController {
              .must(QueryBuilders.termQuery("MissionID", missionId))
              .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStartEnd"))
              .must(QueryBuilders.matchQuery("user_id", userId));
+     
+  // Build the aggregation query
+     TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions")
+             .field("TaskID")
+             .size(15);
 
      // Set up the source builder
      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
      searchSourceBuilder.query(boolQuery);
+     searchSourceBuilder.aggregation(missionsAgg);
      searchSourceBuilder.size(20);
      searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
