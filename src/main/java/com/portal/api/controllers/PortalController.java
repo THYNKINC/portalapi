@@ -72,12 +72,15 @@ import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.index.query.TermsQueryBuilder;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.SearchHits;
+import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.Aggregations;
+import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
+import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
@@ -297,8 +300,9 @@ public class PortalController {
     	System.out.println("MISSIONS");
     	searchResponse = completedMissionsInternal(username); 
     	
-    	SearchHits hits = searchResponse.getHits();
-    	int missionsCount = (int) hits.getTotalHits().value;
+    	Aggregation aggregation = searchResponse.getAggregations().get("missions");
+	    ParsedStringTerms stringTerms = (ParsedStringTerms) aggregation;
+	    int missionsCount = (int) stringTerms.getBuckets().size();
     	
     	ProgressResponse progressResponse = new ProgressResponse();
     	progressResponse.setAbandonedAttempts(0);
@@ -546,7 +550,7 @@ public class PortalController {
     
     @GetMapping("/opensearch/completed-missions")
     public SearchResponse completedMissions(HttpServletRequest request) throws Exception {
-    	return completedMissionsInternal("388357544"); 
+    	return completedMissionsInternal("1942396312");
     }
     
     public SearchResponse completedMissionsInternal(String userId) throws Exception {
