@@ -36,6 +36,7 @@ import com.portal.api.model.BadgesResponse;
 import com.portal.api.model.Child;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
+import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 import com.portal.api.util.OpensearchService;
 
@@ -145,7 +146,7 @@ public class PortalController {
     
     @GetMapping("/me")
     public Parent getParent(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	return mongoService.getParent(jwt.getClaim("cognito:username"));		
     }
     
@@ -235,7 +236,7 @@ public class PortalController {
     
     @GetMapping("/children")
     public List<Child> getChildren(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	
     	Parent parent = mongoService.getParent(jwt.getClaim("cognito:username"));
     	return parent.getChildren();
@@ -244,7 +245,7 @@ public class PortalController {
     @PostMapping("/children")
     public void createChild(@Valid @RequestBody CreateChildRequest createChildRequest, HttpServletRequest request) throws Exception {
         
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	
     	CreateUserRequest createUserRequest = new CreateUserRequest();
     	createUserRequest.setEmail(jwt.getClaim("email"));
@@ -274,7 +275,7 @@ public class PortalController {
     
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse;
     	Aggregations aggregations;
@@ -315,7 +316,7 @@ public class PortalController {
     
     @GetMapping("/children/{username}/recent-mission")
     public RecentMissionResponse childRecentMission(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	recentMissionResponse.setMissionNumber(4);
@@ -326,8 +327,8 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/badges")
-    public BadgesResponse childBadges(@PathVariable("username") String id, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    public BadgesResponse childBadges(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	//TODO this is a mock, we need to get this from Mongo
     	List<Badge> badges = new ArrayList<>();
@@ -347,9 +348,11 @@ public class PortalController {
     
     @GetMapping("/children/{username}/missions/{missionId}")
     public List<SessionData> childMission(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = missionsInternal(username, missionId); 
+    	String convertedMissionId = MappingService.getValue(missionId);
+    	
+    	SearchResponse searchResponse = missionsInternal(username, convertedMissionId); 
     	
     	List<SessionData> sessionDataList = new ArrayList<>();
 
@@ -373,7 +376,7 @@ public class PortalController {
     public List<GraphResponse> childMissionPower(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = powerInternal(username, sessionId); 
     	
@@ -405,7 +408,7 @@ public class PortalController {
     public FogAnalysisResponse childMissionFogAnalysis(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	CountResponse countResponse = decodedMoleculesInternal(username, sessionId);
     	CustomSearchResponse customSearchResponse = frozenDishesInternal(username, sessionId);
@@ -436,7 +439,7 @@ public class PortalController {
     public AttentionResponse childMissionAttention(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = attentionInternal(username, sessionId); 
     	
@@ -602,18 +605,12 @@ public class PortalController {
      // Create queries
      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
              .must(QueryBuilders.termQuery("TaskID", missionId))
-             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStastEnd"))
+             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
              .must(QueryBuilders.matchQuery("user_id", userId));
-     
-  // Build the aggregation query
-     TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions")
-             .field("TaskID")
-             .size(15);
 
      // Set up the source builder
      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
      searchSourceBuilder.query(boolQuery);
-     searchSourceBuilder.aggregation(missionsAgg);
      searchSourceBuilder.size(20);
      searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
