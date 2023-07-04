@@ -7,9 +7,7 @@ import javax.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class CreateUserRequest {
-	
-	private String username;
+public class CreateParentRequest {
 
 	@NotNull(message = "Password must not be null")
     @Size(min = 8, max = 20, message = "Password length should be between 8 and 20")
@@ -27,7 +25,5 @@ public class CreateUserRequest {
     @NotNull(message = "Last name must not be null")
     @Size(min = 1, max = 50, message = "Last name length should be between 1 and 50")
     private String lastName;
-
-    private String parent;
     
 }

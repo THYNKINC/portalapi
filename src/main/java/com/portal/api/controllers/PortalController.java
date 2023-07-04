@@ -16,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.portal.api.model.CreateChildRequest;
+import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
@@ -36,6 +37,7 @@ import com.portal.api.model.BadgesResponse;
 import com.portal.api.model.Child;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
+import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 import com.portal.api.util.OpensearchService;
 
@@ -145,7 +147,7 @@ public class PortalController {
     
     @GetMapping("/me")
     public Parent getParent(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	return mongoService.getParent(jwt.getClaim("cognito:username"));		
     }
     
@@ -178,7 +180,7 @@ public class PortalController {
     }
     
     @PostMapping("/signup")
-    public void createParent(@Valid @RequestBody CreateUserRequest createUserRequest, HttpServletRequest request) throws Exception {
+    public void createParent(@Valid @RequestBody CreateParentRequest createParentRequest, HttpServletRequest request) throws Exception {
     	
     	// Create a CognitoIdentityProviderClient
     	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
@@ -188,12 +190,12 @@ public class PortalController {
 
     	SignUpRequest signUpRequest = SignUpRequest.builder()
     	        .clientId(APP_CLIENT_ID)
-    	        .username(createUserRequest.getEmail())
-    	        .password(createUserRequest.getPassword())
+    	        .username(createParentRequest.getEmail())
+    	        .password(createParentRequest.getPassword())
     	        .userAttributes(
-    	                AttributeType.builder().name("email").value(createUserRequest.getEmail()).build(),
-    	                AttributeType.builder().name("family_name").value(createUserRequest.getLastName()).build(),
-    	                AttributeType.builder().name("given_name").value(createUserRequest.getFirstName()).build()
+    	                AttributeType.builder().name("email").value(createParentRequest.getEmail()).build(),
+    	                AttributeType.builder().name("family_name").value(createParentRequest.getLastName()).build(),
+    	                AttributeType.builder().name("given_name").value(createParentRequest.getFirstName()).build()
     	        )
     	        .build();
     	
@@ -207,7 +209,7 @@ public class PortalController {
     	// Add user to user group
     	AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
     	        .userPoolId(USER_POOL_ID)
-    	        .username(createUserRequest.getEmail())
+    	        .username(createParentRequest.getEmail())
     	        .groupName(GROUP_NAME_USER)
     	        .build();
     	
@@ -215,7 +217,7 @@ public class PortalController {
     	
     	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
     	        .userPoolId(USER_POOL_ID)
-    	        .username(createUserRequest.getEmail())
+    	        .username(createParentRequest.getEmail())
     	        .build();
     	
     	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
@@ -225,9 +227,9 @@ public class PortalController {
     	
     	Parent parent = new Parent();
     	parent.setChildren(new ArrayList<>());
-    	parent.setEmail(createUserRequest.getEmail());
-    	parent.setFirstName(createUserRequest.getFirstName());
-    	parent.setLastName(createUserRequest.getLastName());
+    	parent.setEmail(createParentRequest.getEmail());
+    	parent.setFirstName(createParentRequest.getFirstName());
+    	parent.setLastName(createParentRequest.getLastName());
     	parent.setUsername(signUpResponse.userSub());
     	
     	mongoService.upsertParent(parent);
@@ -235,7 +237,7 @@ public class PortalController {
     
     @GetMapping("/children")
     public List<Child> getChildren(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	
     	Parent parent = mongoService.getParent(jwt.getClaim("cognito:username"));
     	return parent.getChildren();
@@ -244,7 +246,7 @@ public class PortalController {
     @PostMapping("/children")
     public void createChild(@Valid @RequestBody CreateChildRequest createChildRequest, HttpServletRequest request) throws Exception {
         
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	
     	CreateUserRequest createUserRequest = new CreateUserRequest();
     	createUserRequest.setEmail(jwt.getClaim("email"));
@@ -274,7 +276,7 @@ public class PortalController {
     
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse;
     	Aggregations aggregations;
@@ -315,7 +317,7 @@ public class PortalController {
     
     @GetMapping("/children/{username}/recent-mission")
     public RecentMissionResponse childRecentMission(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	recentMissionResponse.setMissionNumber(4);
@@ -326,8 +328,8 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/badges")
-    public BadgesResponse childBadges(@PathVariable("username") String id, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    public BadgesResponse childBadges(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	//TODO this is a mock, we need to get this from Mongo
     	List<Badge> badges = new ArrayList<>();
@@ -347,9 +349,11 @@ public class PortalController {
     
     @GetMapping("/children/{username}/missions/{missionId}")
     public List<SessionData> childMission(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = missionsInternal(username, missionId); 
+    	String convertedMissionId = MappingService.getValue(missionId);
+    	
+    	SearchResponse searchResponse = missionsInternal(username, convertedMissionId); 
     	
     	List<SessionData> sessionDataList = new ArrayList<>();
 
@@ -373,7 +377,7 @@ public class PortalController {
     public List<GraphResponse> childMissionPower(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = powerInternal(username, sessionId); 
     	
@@ -405,7 +409,7 @@ public class PortalController {
     public FogAnalysisResponse childMissionFogAnalysis(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	CountResponse countResponse = decodedMoleculesInternal(username, sessionId);
     	CustomSearchResponse customSearchResponse = frozenDishesInternal(username, sessionId);
@@ -436,7 +440,7 @@ public class PortalController {
     public AttentionResponse childMissionAttention(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = attentionInternal(username, sessionId); 
     	
@@ -602,18 +606,12 @@ public class PortalController {
      // Create queries
      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
              .must(QueryBuilders.termQuery("TaskID", missionId))
-             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStastEnd"))
+             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
              .must(QueryBuilders.matchQuery("user_id", userId));
-     
-  // Build the aggregation query
-     TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions")
-             .field("TaskID")
-             .size(15);
 
      // Set up the source builder
      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
      searchSourceBuilder.query(boolQuery);
-     searchSourceBuilder.aggregation(missionsAgg);
      searchSourceBuilder.size(20);
      searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
