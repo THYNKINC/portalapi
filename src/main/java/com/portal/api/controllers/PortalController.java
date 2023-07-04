@@ -602,7 +602,7 @@ public class PortalController {
      // Create queries
      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
              .must(QueryBuilders.termQuery("TaskID", missionId))
-             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStartEnd"))
+             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStastEnd"))
              .must(QueryBuilders.matchQuery("user_id", userId));
      
   // Build the aggregation query
