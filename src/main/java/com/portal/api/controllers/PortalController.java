@@ -16,6 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.portal.api.model.CreateChildRequest;
+import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
@@ -179,7 +180,7 @@ public class PortalController {
     }
     
     @PostMapping("/signup")
-    public void createParent(@Valid @RequestBody CreateUserRequest createUserRequest, HttpServletRequest request) throws Exception {
+    public void createParent(@Valid @RequestBody CreateParentRequest createParentRequest, HttpServletRequest request) throws Exception {
     	
     	// Create a CognitoIdentityProviderClient
     	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
@@ -189,12 +190,12 @@ public class PortalController {
 
     	SignUpRequest signUpRequest = SignUpRequest.builder()
     	        .clientId(APP_CLIENT_ID)
-    	        .username(createUserRequest.getEmail())
-    	        .password(createUserRequest.getPassword())
+    	        .username(createParentRequest.getEmail())
+    	        .password(createParentRequest.getPassword())
     	        .userAttributes(
-    	                AttributeType.builder().name("email").value(createUserRequest.getEmail()).build(),
-    	                AttributeType.builder().name("family_name").value(createUserRequest.getLastName()).build(),
-    	                AttributeType.builder().name("given_name").value(createUserRequest.getFirstName()).build()
+    	                AttributeType.builder().name("email").value(createParentRequest.getEmail()).build(),
+    	                AttributeType.builder().name("family_name").value(createParentRequest.getLastName()).build(),
+    	                AttributeType.builder().name("given_name").value(createParentRequest.getFirstName()).build()
     	        )
     	        .build();
     	
@@ -208,7 +209,7 @@ public class PortalController {
     	// Add user to user group
     	AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
     	        .userPoolId(USER_POOL_ID)
-    	        .username(createUserRequest.getEmail())
+    	        .username(createParentRequest.getEmail())
     	        .groupName(GROUP_NAME_USER)
     	        .build();
     	
@@ -216,7 +217,7 @@ public class PortalController {
     	
     	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
     	        .userPoolId(USER_POOL_ID)
-    	        .username(createUserRequest.getEmail())
+    	        .username(createParentRequest.getEmail())
     	        .build();
     	
     	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
@@ -226,9 +227,9 @@ public class PortalController {
     	
     	Parent parent = new Parent();
     	parent.setChildren(new ArrayList<>());
-    	parent.setEmail(createUserRequest.getEmail());
-    	parent.setFirstName(createUserRequest.getFirstName());
-    	parent.setLastName(createUserRequest.getLastName());
+    	parent.setEmail(createParentRequest.getEmail());
+    	parent.setFirstName(createParentRequest.getFirstName());
+    	parent.setLastName(createParentRequest.getLastName());
     	parent.setUsername(signUpResponse.userSub());
     	
     	mongoService.upsertParent(parent);

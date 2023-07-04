@@ -84,9 +84,7 @@ public class JwtService {
         	if(child != null && !childFound(jwt.getClaim("cognito:username"), child)) {
         		throw new Exception("This is not your child");
         	}
-        	//return parent.getChildren();
         }
-        
         
         return jwt;
     }
