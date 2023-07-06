@@ -635,11 +635,13 @@ public class PortalController {
         
      // Build the match queries
         QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
+        QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
         QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
 
         // Combine the match queries into a boolean query
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
                 .must(sessionStartQuery)
+                .must(sessionTypeQuery)
                 .must(userIdQuery);
 
         // Build the aggregation queries
@@ -675,13 +677,11 @@ public class PortalController {
         BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
         
         QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-        QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
         QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
         
      // Combine the match queries into a boolean query
         BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
                 .must(sessionStartQuery)
-                .must(sessionTypeQuery)
                 .must(userIdQuery);
         
         AvgAggregationBuilder averageBciAgg = AggregationBuilders.avg("average_bci").field("bci");
