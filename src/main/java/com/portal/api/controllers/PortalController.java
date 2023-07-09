@@ -396,6 +396,7 @@ public class PortalController {
     	    if(value != null && !Double.isNaN(value) && !Double.isInfinite(value)) {
     	    	GraphResponse graphResponse = new GraphResponse();
     	    	graphResponse.setTimestamp(key);
+    	    	value = (value / 15061) * 100;
     	    	graphResponse.setValue(value);
     	    
     	        graphResponseList.add(graphResponse);
@@ -796,6 +797,11 @@ public class PortalController {
         
         return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
     	
+    }
+    
+    @GetMapping("/test")
+    public String teting(HttpServletRequest request) throws Exception {
+    	return "test 1";
     }
    
 
