@@ -396,7 +396,7 @@ public class PortalController {
     	    if(value != null && !Double.isNaN(value) && !Double.isInfinite(value)) {
     	    	GraphResponse graphResponse = new GraphResponse();
     	    	graphResponse.setTimestamp(key);
-    	    	value = (value / 15061) * 100;
+    	    	value = (value / 19808) * 100;
     	    	graphResponse.setValue(value);
     	    
     	        graphResponseList.add(graphResponse);
