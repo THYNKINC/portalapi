@@ -58,4 +58,42 @@ public class HttpService {
         return response.toString();
     }
 	
+	public static String sendHttpGetRequest(String url, String bearerToken) throws Exception {
+        // Set the URL for the POST request
+        URL apiUrl = new URL(url);
+
+        // Open a connection
+        HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
+
+        // Set the request method to POST
+        connection.setRequestMethod("GET");
+
+        // Set the Authorization header
+        connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+        
+        // Set the content type header
+        connection.setRequestProperty("Content-Type", "application/json");
+
+        // Enable input and output streams
+        connection.setDoInput(true);
+        connection.setDoOutput(true);
+
+        // Get the response
+        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String line;
+        StringBuilder response = new StringBuilder();
+        while ((line = reader.readLine()) != null) {
+            response.append(line);
+        }
+        reader.close();
+
+        // Print the response
+        //System.out.println("Response Code: " + responseCode);
+        //System.out.println("Response Body: " + response.toString());
+
+        // Close the connection
+        connection.disconnect();
+        
+        return response.toString();
+    }
 }

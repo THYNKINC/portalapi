@@ -20,6 +20,7 @@ import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
+import com.portal.api.model.GameState;
 import com.portal.api.model.GraphResponse;
 import com.portal.api.model.LoginRequest;
 import com.portal.api.model.MissionResponse;
@@ -317,12 +318,29 @@ public class PortalController {
     
     @GetMapping("/children/{username}/recent-mission")
     public RecentMissionResponse childRecentMission(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
+    	// TODO change to use Spring web request, which includes JWT exchange
+        String bearerToken = jwtService.getAdminJwt();
+        
+        // TODO change to bean
+        // TODO change to use Spring web request
+        String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
+        String result = HttpService.sendHttpGetRequest(url, bearerToken);
+        
+        ObjectMapper mapper = new ObjectMapper();
+        GameState state = mapper.readValue(result, GameState.class);
+    	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
-    	recentMissionResponse.setMissionNumber(4);
-    	recentMissionResponse.setMissionRating(3);
-    	recentMissionResponse.setMissionStatus("unknown");
+    	
+    	// 5 levels, 3 sublevels per level, that's 15 missions total
+    	recentMissionResponse.setMissionNumber((state.getLastLevel() - 1) * 3 + state.getLastSubLevel());)
+    	
+		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index
+		recentMissionResponse.setMissionRating(state.getStarsPerMission().charAt(recentMissionResponse.getMissionNumber() - 1));
+    	
+		recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
     	return recentMissionResponse;
     }
@@ -798,7 +816,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
     	
     }
-    
+   
     @GetMapping("/test")
     public String teting(HttpServletRequest request) throws Exception {
     	return "test 1";
