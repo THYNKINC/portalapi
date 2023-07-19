@@ -335,7 +335,7 @@ public class PortalController {
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
     	// 5 levels, 3 sublevels per level, that's 15 missions total
-    	recentMissionResponse.setMissionNumber((state.getLastLevel() - 1) * 3 + state.getLastSubLevel());)
+    	recentMissionResponse.setMissionNumber((state.getLastLevel() - 1) * 3 + state.getLastSubLevel());
     	
 		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index
 		recentMissionResponse.setMissionRating(state.getStarsPerMission().charAt(recentMissionResponse.getMissionNumber() - 1));
