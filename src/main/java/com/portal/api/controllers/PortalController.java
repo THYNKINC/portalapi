@@ -10,6 +10,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
@@ -31,6 +32,7 @@ import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SessionResponse;
 import com.portal.api.model.StartEnd;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
@@ -101,6 +103,8 @@ import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.joda.time.DateTime;
+
+import com.portal.api.exception.ResourceNotFoundException;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -329,8 +333,13 @@ public class PortalController {
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
         
-        ObjectMapper mapper = new ObjectMapper();
-        GameState state = mapper.readValue(result, GameState.class);
+        GameState state;
+        try {
+        	ObjectMapper mapper = new ObjectMapper();
+        	state = mapper.readValue(result, GameState.class);
+        } catch (JsonMappingException e) {
+    	   throw new ResourceNotFoundException("Resource not found");
+    	}
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
