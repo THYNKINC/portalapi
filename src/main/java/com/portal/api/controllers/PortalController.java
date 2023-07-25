@@ -281,17 +281,33 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
 
-    	System.out.println("MISSIONS");
-    	searchResponse = completedMissionsInternal(username); 
+//    	System.out.println("MISSIONS");
+//    	searchResponse = completedMissionsInternal(username); 
+//    	
+//    	Aggregation aggregation = searchResponse.getAggregations().get("missions");
+//	    ParsedStringTerms stringTerms = (ParsedStringTerms) aggregation;
+//	    int missionsCount = (int) stringTerms.getBuckets().size();
     	
-    	Aggregation aggregation = searchResponse.getAggregations().get("missions");
-	    ParsedStringTerms stringTerms = (ParsedStringTerms) aggregation;
-	    int missionsCount = (int) stringTerms.getBuckets().size();
+    	// TODO change to use Spring web request, which includes JWT exchange
+        String bearerToken = jwtService.getAdminJwt();
+        
+        // TODO change to bean
+        // TODO change to use Spring web request
+        String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
+        String result = HttpService.sendHttpGetRequest(url, bearerToken);
+        
+        GameState state;
+        try {
+        	ObjectMapper mapper = new ObjectMapper();
+        	state = mapper.readValue(result, GameState.class);
+        } catch (JsonMappingException e) {
+    	   throw new ResourceNotFoundException("Resource not found");
+    	}
     	
     	ProgressResponse progressResponse = new ProgressResponse();
     	progressResponse.setAbandonedAttempts(0);
     	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
-    	progressResponse.setMissionsCompleted(missionsCount);
+    	progressResponse.setMissionsCompleted(state.getUnlocksPerMission().indexOf("0"));
     	progressResponse.setSessionsCompleted(sessionsCount);
     	
     	return progressResponse;
