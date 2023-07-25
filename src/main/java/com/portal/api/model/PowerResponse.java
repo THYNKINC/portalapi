@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 public class PowerResponse {
 
-	private List<GraphResponse> wrtTime;
-	//private List<Double> thresholds;
+	private List<GraphResponse> data;
+	private int[] thresholds;
 }

@@ -50,7 +50,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
 import com.portal.api.model.BadgesResponse;
@@ -64,6 +66,7 @@ import com.portal.api.model.GameState;
 import com.portal.api.model.GraphResponse;
 import com.portal.api.model.LoginRequest;
 import com.portal.api.model.Parent;
+import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.SessionData;
@@ -307,13 +310,16 @@ public class PortalController {
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
         
-        ObjectMapper mapper = new ObjectMapper();
-        GameState state = mapper.readValue(result, GameState.class);
+        GameState state;
+        try {
+        	ObjectMapper mapper = new ObjectMapper();
+        	state = mapper.readValue(result, GameState.class);
+        } catch (JsonMappingException e) {
+    	   throw new ResourceNotFoundException("Resource not found");
+    	}
     	
         SearchResponse searchResponse = lastSessionInternal(username); 
     	
-    	List<SessionData> sessionDataList = new ArrayList<>();
-
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
 //    	String sessionId = (String) sourceAsMap.get("session_start");
@@ -380,18 +386,8 @@ public class PortalController {
     	return sessionDataList;
     }
     
-    @GetMapping("/configs/star-ratings")
-    public String[][] starRatings(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-    	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
-    	
-    	return new String[] {
-    		new String[] {}
-    	};
-    }
-    
     @GetMapping("/children/{username}/sessions/{sessionId}/power")
-    public List<GraphResponse> childMissionPower(@PathVariable("username") String username, 
+    public PowerResponse childMissionPower(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
@@ -420,7 +416,26 @@ public class PortalController {
     	    }
     	}
     	
-    	return graphResponseList;
+    	searchResponse = starValuesInternal(username, sessionId);
+    	
+    	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
+    	
+//    	String sessionId = (String) sourceAsMap.get("session_start");
+//    	String eventType = (String) sourceAsMap.get("event_type");
+    	String starValues = (String) sourceAsMap.get("StarValues");
+    	String[] percentages = starValues.split("&");
+    	
+    	int values[] = new int[3];
+    	
+    	for (int i = 0; i < 3; i++) {
+    		values[i] = Math.round(Float.parseFloat(percentages[i]) * 19808);
+    	}
+    	
+    	PowerResponse response = new PowerResponse();
+    	response.setData(graphResponseList);
+    	response.setThresholds(values);
+    	
+    	return response;
     }
     
     @GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
@@ -678,7 +693,7 @@ public class PortalController {
     	SSLContext sslContext = opensearchService.getSSLContext();
         BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
         
-     // Build the match queries
+        // Build the match queries
         QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
         QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
         QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
@@ -702,6 +717,35 @@ public class PortalController {
                 .aggregation(intervalsAgg)
                 .size(0)
                 .fetchSource(false);
+
+        // Build the search request
+        SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
+                .source(searchSourceBuilder);
+
+        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    }
+    
+    public SearchResponse starValuesInternal(String userId, String sessionId) throws Exception {
+    	
+    	SSLContext sslContext = opensearchService.getSSLContext();
+        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+        
+        // Build the match queries
+        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
+        QueryBuilder eventTypeQuery = QueryBuilders.matchQuery("event_type", "RunnerStart");
+        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+
+        // Combine the match queries into a boolean query
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+                .must(sessionStartQuery)
+                .must(eventTypeQuery)
+                .must(userIdQuery);
+
+        // Build the search source with the boolean query, and the size
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+                .query(boolQuery)
+                .size(1)
+                .fetchSource(new String[] { "StarValues" }, new String[] {});;
 
         // Build the search request
         SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
