@@ -1,20 +1,60 @@
 package com.portal.api.controllers;
 
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.net.ssl.SSLContext;
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.opensearch.action.search.SearchRequest;
+import org.opensearch.action.search.SearchResponse;
+import org.opensearch.client.core.CountRequest;
+import org.opensearch.client.core.CountResponse;
+import org.opensearch.index.query.BoolQueryBuilder;
+import org.opensearch.index.query.MatchQueryBuilder;
+import org.opensearch.index.query.QueryBuilder;
+import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.search.SearchHit;
+import org.opensearch.search.aggregations.Aggregation;
+import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.Aggregations;
+import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.opensearch.search.aggregations.bucket.histogram.Histogram;
+import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
+import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
+import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.Max;
+import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.ParsedAvg;
+import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.portal.api.model.AttentionResponse;
+import com.portal.api.model.Badge;
+import com.portal.api.model.BadgesResponse;
+import com.portal.api.model.Child;
 import com.portal.api.model.CreateChildRequest;
 import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
@@ -23,29 +63,19 @@ import com.portal.api.model.FogAnalysisResponse;
 import com.portal.api.model.GameState;
 import com.portal.api.model.GraphResponse;
 import com.portal.api.model.LoginRequest;
-import com.portal.api.model.MissionResponse;
 import com.portal.api.model.Parent;
-import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.SessionData;
-import com.portal.api.model.SessionResponse;
 import com.portal.api.model.StartEnd;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.model.AttentionResponse;
-import com.portal.api.model.Badge;
-import com.portal.api.model.BadgesResponse;
-import com.portal.api.model.Child;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 import com.portal.api.util.OpensearchService;
 
-import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cognitoidentity.CognitoIdentityClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpRequest;
@@ -57,58 +87,6 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAut
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
-
-import org.opensearch.client.RestHighLevelClient;
-import org.opensearch.client.core.CountRequest;
-import org.opensearch.client.core.CountResponse;
-import org.opensearch.client.RequestOptions;
-import org.opensearch.action.search.SearchRequest;
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.client.Requests;
-import org.opensearch.client.RestClient;
-import org.opensearch.client.indices.GetIndexRequest;
-import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.MatchQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.index.query.QueryBuilders;
-import org.opensearch.index.query.TermQueryBuilder;
-import org.opensearch.index.query.TermsQueryBuilder;
-import org.opensearch.search.SearchHit;
-import org.opensearch.search.SearchHits;
-import org.opensearch.search.aggregations.Aggregation;
-import org.opensearch.search.aggregations.AggregationBuilders;
-import org.opensearch.search.aggregations.Aggregations;
-import org.opensearch.search.aggregations.bucket.MultiBucketsAggregation;
-import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
-import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
-import org.opensearch.search.aggregations.bucket.histogram.Histogram;
-import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
-import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
-import org.opensearch.search.aggregations.bucket.terms.Terms;
-import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
-import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
-import org.opensearch.search.aggregations.metrics.Max;
-import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
-import org.opensearch.search.aggregations.metrics.ParsedAvg;
-import org.opensearch.search.aggregations.metrics.Sum;
-import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
-import org.opensearch.search.builder.SearchSourceBuilder;
-import org.opensearch.search.sort.SortOrder;
-import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.joda.time.DateTime;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.security.cert.X509Certificate;
-import java.time.ZonedDateTime;
-
-import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/portal")
@@ -332,13 +310,24 @@ public class PortalController {
         ObjectMapper mapper = new ObjectMapper();
         GameState state = mapper.readValue(result, GameState.class);
     	
+        SearchResponse searchResponse = lastSessionInternal(username); 
+    	
+    	List<SessionData> sessionDataList = new ArrayList<>();
+
+    	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
+    	
+//    	String sessionId = (String) sourceAsMap.get("session_start");
+//    	String eventType = (String) sourceAsMap.get("event_type");
+    	String taskId = (String) sourceAsMap.get("TaskID");
+    	int lastCompleted = Integer.parseInt(MappingService.getKey(taskId));
+    	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
     	// 5 levels, 3 sublevels per level, that's 15 missions total
-    	recentMissionResponse.setMissionNumber((state.getLastLevel() - 1) * 3 + state.getLastSubLevel());
+    	recentMissionResponse.setMissionNumber(lastCompleted);
     	
-		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index
-		recentMissionResponse.setMissionRating(state.getStarsPerMission().charAt(recentMissionResponse.getMissionNumber() - 1));
+		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index (zero-based hence the -1)
+		recentMissionResponse.setMissionRating(Character.getNumericValue(state.getStarsPerMission().charAt(lastCompleted - 1)));
     	
 		recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
@@ -639,6 +628,33 @@ public class PortalController {
 
      // Add the source builder to the request
      searchRequest.source(searchSourceBuilder);
+
+        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    }
+    
+    public SearchResponse lastSessionInternal(String userId) throws Exception {
+    	
+    	SSLContext sslContext = opensearchService.getSSLContext();
+        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+        
+        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+
+	     // Create queries
+	     BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+	             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+	             .must(QueryBuilders.matchQuery("user_id", userId));
+	
+	     // Set up the source builder
+	     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+	     searchSourceBuilder.query(boolQuery);
+	     searchSourceBuilder.size(20);
+	     searchSourceBuilder.sort("timestamp", SortOrder.DESC);
+	
+	     // Add the fields to the request
+	     searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID" }, new String[] {});
+	
+	     // Add the source builder to the request
+	     searchRequest.source(searchSourceBuilder);
 
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
