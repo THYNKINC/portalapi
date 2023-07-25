@@ -380,6 +380,16 @@ public class PortalController {
     	return sessionDataList;
     }
     
+    @GetMapping("/configs/star-ratings")
+    public String[][] starRatings(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	return new String[] {
+    		new String[] {}
+    	};
+    }
+    
     @GetMapping("/children/{username}/sessions/{sessionId}/power")
     public List<GraphResponse> childMissionPower(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
