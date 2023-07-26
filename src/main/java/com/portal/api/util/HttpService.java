@@ -82,6 +82,7 @@ public class HttpService {
         
      // Get the response code
         int responseCode = connection.getResponseCode();
+        System.out.println("RESPONSE CODE: " + responseCode);
         
      // Check if the response code is 404 (Not Found)
         if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
