@@ -925,6 +925,9 @@ public class PortalController {
    
     @GetMapping("/test")
     public String teting(HttpServletRequest request) throws Exception {
+    	if (1 == 1) {
+    		throw new ResourceNotFoundException("Resource not found");
+    	}
     	return "test 1";
     }
    
