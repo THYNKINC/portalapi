@@ -87,7 +87,7 @@ public class HttpService {
      // Check if the response code is 404 (Not Found)
         if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
             System.out.println("Resource not found: " + url);
-            throw new ResourceNotFoundException("Resource not found");
+            return null;
         }
 
         // Get the response

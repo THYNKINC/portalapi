@@ -49,6 +49,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -297,14 +298,18 @@ public class PortalController {
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
         System.out.println("RESULT: " + result);
+        if (result == null) {
+        	System.out.println("RESOURCE NOT FOUND");
+        	throw new ResourceNotFoundException("Resource not found");
+        }
         
         GameState state;
         try {
         	ObjectMapper mapper = new ObjectMapper();
         	state = mapper.readValue(result, GameState.class);
         } catch (JsonMappingException e) {
-           System.out.println("RESOURCE NOT FOUND");
-    	   throw new ResourceNotFoundException("Resource not found");
+           System.out.println("RESOURCE BAD");
+    	   throw new ResourceNotFoundException("Bad resource");
     	}
     	
     	ProgressResponse progressResponse = new ProgressResponse();
