@@ -293,14 +293,17 @@ public class PortalController {
         
         // TODO change to bean
         // TODO change to use Spring web request
+        System.out.println("MAKING REQUEST TO GAMES SERVICE");
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
+        System.out.println("RESULT: " + result);
         
         GameState state;
         try {
         	ObjectMapper mapper = new ObjectMapper();
         	state = mapper.readValue(result, GameState.class);
         } catch (JsonMappingException e) {
+           System.out.println("RESOURCE NOT FOUND");
     	   throw new ResourceNotFoundException("Resource not found");
     	}
     	
