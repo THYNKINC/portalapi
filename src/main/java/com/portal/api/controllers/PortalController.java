@@ -337,6 +337,10 @@ public class PortalController {
         // TODO change to use Spring web request
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
+        if (result == null) {
+        	System.out.println("RESOURCE NOT FOUND");
+        	throw new ResourceNotFoundException("Resource not found");
+        }
         
         GameState state;
         try {
