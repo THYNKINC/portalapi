@@ -310,7 +310,11 @@ public class PortalController {
     	ProgressResponse progressResponse = new ProgressResponse();
     	progressResponse.setAbandonedAttempts(0);
     	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
-    	progressResponse.setMissionsCompleted(state.getUnlocksPerMission().indexOf("0"));
+    	if (state.getUnlocksPerMission() == null) {
+    		progressResponse.setMissionsCompleted(0);
+    	} else {
+    		progressResponse.setMissionsCompleted(state.getUnlocksPerMission().indexOf("0"));
+    	}
     	progressResponse.setSessionsCompleted(sessionsCount);
     	
     	return progressResponse;
@@ -352,7 +356,11 @@ public class PortalController {
     	recentMissionResponse.setMissionNumber(lastCompleted);
     	
 		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index (zero-based hence the -1)
-		recentMissionResponse.setMissionRating(Character.getNumericValue(state.getStarsPerMission().charAt(lastCompleted - 1)));
+		if (state.getStarsPerMission() == null) {
+			recentMissionResponse.setMissionRating(0);
+		} else {
+			recentMissionResponse.setMissionRating(Character.getNumericValue(state.getStarsPerMission().charAt(lastCompleted - 1)));
+		}
     	
 		recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
