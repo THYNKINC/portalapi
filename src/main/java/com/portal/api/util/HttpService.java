@@ -8,6 +8,8 @@ import java.net.URL;
 
 import org.springframework.stereotype.Service;
 
+import com.portal.api.exception.ResourceNotFoundException;
+
 @Service
 public class HttpService {
 
@@ -77,6 +79,15 @@ public class HttpService {
         // Enable input and output streams
         connection.setDoInput(true);
         connection.setDoOutput(true);
+        
+     // Get the response code
+        int responseCode = connection.getResponseCode();
+        
+     // Check if the response code is 404 (Not Found)
+        if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
+            System.out.println("Resource not found: " + url);
+            throw new ResourceNotFoundException("Resource not found");
+        }
 
         // Get the response
         BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
