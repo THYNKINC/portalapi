@@ -9,4 +9,5 @@ public class PowerResponse {
 
 	private List<GraphResponse> data;
 	private int[] thresholds;
+	private int[] thresholdPercentages;
 }

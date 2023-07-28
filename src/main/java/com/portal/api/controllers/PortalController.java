@@ -1,8 +1,11 @@
 package com.portal.api.controllers;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -22,7 +25,6 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
@@ -30,7 +32,6 @@ import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregat
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
-import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
@@ -42,6 +43,7 @@ import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,7 +51,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -117,6 +118,8 @@ public class PortalController {
 	private final MongoService mongoService;
 	
 	private final OpensearchService opensearchService;
+	
+	private static final DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     public PortalController(
@@ -282,6 +285,7 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
 
+// TODO re-enable this once we know logs are working for sure
 //    	System.out.println("MISSIONS");
 //    	searchResponse = completedMissionsInternal(username); 
 //    	
@@ -318,7 +322,7 @@ public class PortalController {
     	if (state.getUnlocksPerMission() == null) {
     		progressResponse.setMissionsCompleted(0);
     	} else {
-    		progressResponse.setMissionsCompleted(state.getUnlocksPerMission().indexOf("0"));
+    		progressResponse.setMissionsCompleted(StringUtils.countOccurrencesOf(state.getUnlocksPerMission(), "1"));
     	}
     	progressResponse.setSessionsCompleted(sessionsCount);
     	
@@ -459,17 +463,20 @@ public class PortalController {
 //    	String sessionId = (String) sourceAsMap.get("session_start");
 //    	String eventType = (String) sourceAsMap.get("event_type");
     	String starValues = (String) sourceAsMap.get("StarValues");
-    	String[] percentages = starValues.split("&");
+    	String[] thresholds = starValues.split("&");
     	
     	int values[] = new int[3];
+    	int percentages[] = new int[3];
     	
     	for (int i = 0; i < 3; i++) {
-    		values[i] = Math.round(Float.parseFloat(percentages[i]) * 19808);
+    		values[i] = Math.round(Float.parseFloat(thresholds[i]) * 19808);
+    		percentages[i] = Math.round(Float.parseFloat(thresholds[i]) * 100);
     	}
     	
     	PowerResponse response = new PowerResponse();
     	response.setData(graphResponseList);
     	response.setThresholds(values);
+    	response.setThresholdPercentages(percentages);
     	
     	return response;
     }
@@ -592,9 +599,21 @@ public class PortalController {
         
         QueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("user_id", userId);
 
-        QueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("this_week")
-            .gte("first_date")
-            .lte("last_date");
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 0); // ! clear would not reset the hour of day !
+        cal.clear(Calendar.MINUTE);
+        cal.clear(Calendar.SECOND);
+        cal.clear(Calendar.MILLISECOND);
+
+        // get start and end of this week in milliseconds
+        cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
+        String first = df.format(cal.getTime());
+        cal.add(Calendar.WEEK_OF_YEAR, 1);
+        String last = df.format(cal.getTime());
+        
+        QueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("timestamp")
+            .gte(first)
+            .lt(last);
 
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
             .must(matchQueryBuilder)
