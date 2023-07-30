@@ -79,6 +79,8 @@ import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 import com.portal.api.util.OpensearchService;
 
+import io.swagger.v3.oas.annotations.Hidden;
+
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
@@ -554,6 +556,7 @@ public class PortalController {
     	return attentionResponse;
     }
     
+    @Hidden
     @GetMapping("/opensearch/completed-sessions")
     public SearchResponse completedSessions(HttpServletRequest request) throws Exception {
     	return completedSessionsInternal("388357544");
@@ -587,6 +590,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
     
+    @Hidden
     @GetMapping("/opensearch/completed-sessions-week")
     public SearchResponse completedSessionsWeek(HttpServletRequest request) throws Exception {
     	return completedSessionsWeekInternal("388357544");
@@ -640,6 +644,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);
     }
     
+    @Hidden
     @GetMapping("/opensearch/completed-missions")
     public SearchResponse completedMissions(HttpServletRequest request) throws Exception {
     	return completedMissionsInternal("1942396312");
@@ -678,7 +683,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
 
-    
+    @Hidden
     @GetMapping("/opensearch/missions")
     public SearchResponse missions(String userId, String missionId) throws Exception {
     	return missionsInternal("388357544", "5.2"); 
@@ -739,6 +744,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
     
+    @Hidden
     @GetMapping("/opensearch/power")
     public SearchResponse power(HttpServletRequest request) throws Exception {
     	return powerInternal("388357544", "2023-04-24 16:28:16.566");
@@ -809,6 +815,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
     }
     
+    @Hidden
     @GetMapping("/opensearch/attention")
     public SearchResponse attention(HttpServletRequest request) throws Exception {
     	return attentionInternal("388357544", "2023-04-24 16:28:16.566");
@@ -848,6 +855,7 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
     }
     
+    @Hidden
     @GetMapping("/opensearch/frozen-dishes")
     public CustomSearchResponse frozenDishes(HttpServletRequest request) throws Exception {
     	return frozenDishesInternal("388357544", "2023-03-04 06:30:23.06");
@@ -888,6 +896,7 @@ public class PortalController {
     
     }
     
+    @Hidden
     @GetMapping("/opensearch/decoded-molecules")
     public CountResponse decodedMolecules(HttpServletRequest request) throws Exception {
     	return decodedMoleculesInternal("388357544", "2023-02-25 10:15:39.971");
@@ -910,6 +919,7 @@ public class PortalController {
         return opensearchService.count(sslContext, credentialsProvider, countRequest); 
     }
     
+    @Hidden
     @GetMapping("/opensearch/transference-events")
     public SearchResponse transferenceEvents(HttpServletRequest request) throws Exception {
     	return transferenceEventsInternal("388357544", "2023-03-26 16:04:33.386");
@@ -941,7 +951,8 @@ public class PortalController {
         return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
     	
     }
-   
+    
+    @Hidden
     @GetMapping("/test")
     public String teting(HttpServletRequest request) throws Exception {
     	if (1 == 1) {
