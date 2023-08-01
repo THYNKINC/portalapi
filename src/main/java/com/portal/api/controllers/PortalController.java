@@ -14,6 +14,7 @@ import javax.net.ssl.SSLContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -38,6 +39,8 @@ import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
+import org.opensearch.search.aggregations.metrics.TopHits;
+import org.opensearch.search.aggregations.metrics.TopHitsAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -490,7 +493,65 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
+//    	SearchResponse searchResponse = cognitiveSkillsInternal(username, sessionId); 
+    	
+//    	Aggregations aggregations = searchResponse.getAggregations();
+//
+//    	Terms metrics = aggregations.get("latest_metrics");
     	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
+//    	    	
+//    	for (Terms.Bucket entry : metrics.getBuckets()) {
+//    		
+//    		String metricName = (String) entry.getKey();
+//    	    
+//    	    TopHits metric = entry.getAggregations().get("latest_docs");
+//    	    Double value = (Double) metric.getHits().getHits()[0].getSourceAsMap().get("metric_value");
+//    	    
+//    	    switch (metricName) {
+//    	    	case "alternating_attention": 
+//    	    		response.setAlternatingAttention((int)Math.round(value));
+//    	    		break;
+//    	    	case "behavioral_inhibition": 
+//    	    		response.setBehavioralInhibition((int)Math.round(value));
+//    	    		break;
+//    	    	case "cognitive_inhibition": 
+//    	    		response.setCognitiveInhibition((int)Math.round(value));
+//    	    		break;
+//    	    	case "delay_of_gratification": 
+//    	    		response.setDelayOfGratification((int)Math.round(value));
+//    	    		break;
+//    	    	case "divided_attention": 
+//    	    		response.setDividedAttention((int)Math.round(value));
+//    	    		break;
+//    	    	case "focused_attention": 
+//    	    		response.setFocusedAttention((int)Math.round(value));
+//    	    		break;
+//    	    	case "innerVoice": 
+//    	    		response.setInnerVoice((int)Math.round(value));
+//    	    		break;
+//    	    	case "interference_control": 
+//    	    		response.setInterferenceControl((int)Math.round(value));
+//    	    		break;
+//    	    	case "motivational_inhibition": 
+//    	    		response.setMotivationalInhibition((int)Math.round(value));
+//    	    		break;
+//    	    	case "novelty_inhibition": 
+//    	    		response.setNoveltyInhibition((int)Math.round(value));
+//    	    		break;
+//    	    	case "selective_attention": 
+//    	    		response.setSelectiveAttention((int)Math.round(value));
+//    	    		break;
+//    	    	case "self_regulation": 
+//    	    		response.setSelfRegulation((int)Math.round(value));
+//    	    		break;
+//    	    	case "sustained_attention": 
+//    	    		response.setSustainedAttention((int)Math.round(value));
+//    	    		break;
+//    	    	default:
+//    	    		throw new RuntimeException("Unknown metric name: " + metricName);
+//    	    }
+//    	}
+    	
     	response.setAlternatingAttention(45);
     	response.setBehavioralInhibition(45);
     	response.setCognitiveInhibition(45);
@@ -503,7 +564,7 @@ public class PortalController {
     	response.setNoveltyInhibition(45);
     	response.setSelectiveAttention(45);
     	response.setSelfRegulation(45);
-    	response.setSustainedAttention(45);)
+    	response.setSustainedAttention(45);
     	
     	return response;
     }
@@ -806,6 +867,46 @@ public class PortalController {
 
         // Build the search request
         SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
+                .source(searchSourceBuilder);
+
+        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    }
+    
+    public SearchResponse cognitiveSkillsInternal(String userId, String sessionId) throws Exception {
+    	SSLContext sslContext = opensearchService.getSSLContext();
+        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+        
+        // Build the match queries
+        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
+        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+
+        // Combine the match queries into a boolean query
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+                .must(sessionStartQuery)
+                .must(userIdQuery);
+
+        // Build the aggregation queries
+        TopHitsAggregationBuilder topHitsAgg = AggregationBuilders
+        		.topHits("latest_docs")
+        		.size(1)
+        		.sort("_id", SortOrder.DESC)
+        		.fetchSource("metric_value", null);
+        
+        TermsAggregationBuilder termsAgg = AggregationBuilders
+        		.terms("latest_metrics")
+                .field("metric_type.keyword")
+                .size(13)
+                .subAggregation(topHitsAgg);
+
+        // Build the search source with the boolean query, the aggregation, and the size
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+                .query(boolQuery)
+                .aggregation(termsAgg)
+                .size(0)
+                .fetchSource(false);
+
+        // Build the search request
+        SearchRequest searchRequest = new SearchRequest("metrics_test")
                 .source(searchSourceBuilder);
 
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
