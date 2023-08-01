@@ -59,6 +59,7 @@ import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
 import com.portal.api.model.BadgesResponse;
 import com.portal.api.model.Child;
+import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CreateChildRequest;
 import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
@@ -479,6 +480,30 @@ public class PortalController {
     	response.setData(graphResponseList);
     	response.setThresholds(values);
     	response.setThresholdPercentages(percentages);
+    	
+    	return response;
+    }
+    
+    @GetMapping("/children/{username}/sessions/{sessionId}/cognitive-skills")
+    public CognitiveSkillsResponse childMissionCognitiveSkills(@PathVariable("username") String username, 
+    		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
+    	response.setAlternatingAttention(45);
+    	response.setBehavioralInhibition(45);
+    	response.setCognitiveInhibition(45);
+    	response.setDelayOfGratification(45);
+    	response.setDividedAttention(45);
+    	response.setFocusedAttention(45);
+    	response.setInnerVoice(45);
+    	response.setInterferenceControl(45);
+    	response.setMotivationalInhibition(45);
+    	response.setNoveltyInhibition(45);
+    	response.setSelectiveAttention(45);
+    	response.setSelfRegulation(45);
+    	response.setSustainedAttention(45);)
     	
     	return response;
     }
