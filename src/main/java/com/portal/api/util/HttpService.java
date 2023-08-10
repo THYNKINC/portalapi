@@ -42,7 +42,15 @@ public class HttpService {
 
         // Get the response
         int responseCode = connection.getResponseCode();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        
+        BufferedReader reader;
+        
+        if (responseCode != 200) {
+        	reader = new BufferedReader(new InputStreamReader(connection.getErrorStream()));            
+        } else {        
+        	reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        }
+        
         String line;
         StringBuilder response = new StringBuilder();
         while ((line = reader.readLine()) != null) {
