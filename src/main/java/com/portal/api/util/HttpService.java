@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import org.apache.http.client.HttpResponseException;
 import org.springframework.stereotype.Service;
 
 import com.portal.api.exception.ResourceNotFoundException;
@@ -64,6 +65,10 @@ public class HttpService {
 
         // Close the connection
         connection.disconnect();
+        
+        if (responseCode != 200) {
+        	throw new HttpResponseException(responseCode, response.toString());
+        }
         
         return response.toString();
     }
