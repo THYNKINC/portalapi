@@ -493,79 +493,67 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-//    	SearchResponse searchResponse = cognitiveSkillsInternal(username, sessionId); 
+    	SearchResponse searchResponse = cognitiveSkillsInternal(username, sessionId); 
     	
-//    	Aggregations aggregations = searchResponse.getAggregations();
-//
-//    	Terms metrics = aggregations.get("latest_metrics");
+    	SearchHit[] hits = searchResponse.getHits().getHits();
+
     	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
-//    	    	
-//    	for (Terms.Bucket entry : metrics.getBuckets()) {
-//    		
-//    		String metricName = (String) entry.getKey();
-//    	    
-//    	    TopHits metric = entry.getAggregations().get("latest_docs");
-//    	    Double value = (Double) metric.getHits().getHits()[0].getSourceAsMap().get("metric_value");
-//    	    
-//    	    switch (metricName) {
-//    	    	case "alternating_attention": 
-//    	    		response.setAlternatingAttention((int)Math.round(value));
-//    	    		break;
-//    	    	case "behavioral_inhibition": 
-//    	    		response.setBehavioralInhibition((int)Math.round(value));
-//    	    		break;
-//    	    	case "cognitive_inhibition": 
-//    	    		response.setCognitiveInhibition((int)Math.round(value));
-//    	    		break;
-//    	    	case "delay_of_gratification": 
-//    	    		response.setDelayOfGratification((int)Math.round(value));
-//    	    		break;
-//    	    	case "divided_attention": 
-//    	    		response.setDividedAttention((int)Math.round(value));
-//    	    		break;
-//    	    	case "focused_attention": 
-//    	    		response.setFocusedAttention((int)Math.round(value));
-//    	    		break;
-//    	    	case "innerVoice": 
-//    	    		response.setInnerVoice((int)Math.round(value));
-//    	    		break;
-//    	    	case "interference_control": 
-//    	    		response.setInterferenceControl((int)Math.round(value));
-//    	    		break;
-//    	    	case "motivational_inhibition": 
-//    	    		response.setMotivationalInhibition((int)Math.round(value));
-//    	    		break;
-//    	    	case "novelty_inhibition": 
-//    	    		response.setNoveltyInhibition((int)Math.round(value));
-//    	    		break;
-//    	    	case "selective_attention": 
-//    	    		response.setSelectiveAttention((int)Math.round(value));
-//    	    		break;
-//    	    	case "self_regulation": 
-//    	    		response.setSelfRegulation((int)Math.round(value));
-//    	    		break;
-//    	    	case "sustained_attention": 
-//    	    		response.setSustainedAttention((int)Math.round(value));
-//    	    		break;
-//    	    	default:
-//    	    		throw new RuntimeException("Unknown metric name: " + metricName);
-//    	    }
-//    	}
-    	
-    	response.setAlternatingAttention(45);
-    	response.setBehavioralInhibition(45);
-    	response.setCognitiveInhibition(45);
-    	response.setDelayOfGratification(45);
-    	response.setDividedAttention(45);
-    	response.setFocusedAttention(45);
-    	response.setInnerVoice(45);
-    	response.setInterferenceControl(45);
-    	response.setMotivationalInhibition(45);
-    	response.setNoveltyInhibition(45);
-    	response.setSelectiveAttention(45);
-    	response.setSelfRegulation(45);
-    	response.setSustainedAttention(45);
-    	
+    	    	
+    	for (SearchHit hit : hits) {
+    		
+    		String metricName = (String) hit.getSourceAsMap().get("metric_type");
+    		
+    		Object o = hit.getSourceAsMap().get("metric_value");
+    		Double value = 0d;
+    		
+    		if (o != null)
+    			value = (Double)o ;
+    	    
+    	    switch (metricName) {
+    	    	case "alternating_attention": 
+    	    		response.setAlternatingAttention((int)Math.round(value));
+    	    		break;
+    	    	case "behavioral_inhibition": 
+    	    		response.setBehavioralInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "cognitive_inhibition": 
+    	    		response.setCognitiveInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "delayed_gratification": 
+    	    		response.setDelayOfGratification((int)Math.round(value));
+    	    		break;
+    	    	case "divided_attention": 
+    	    		response.setDividedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "focused_attention": 
+    	    		response.setFocusedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "inner_voice": 
+    	    		response.setInnerVoice((int)Math.round(value));
+    	    		break;
+    	    	case "interference_control": 
+    	    		response.setInterferenceControl((int)Math.round(value));
+    	    		break;
+    	    	case "motivational_inhibition": 
+    	    		response.setMotivationalInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "novelty_inhibition": 
+    	    		response.setNoveltyInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "selective_attention": 
+    	    		response.setSelectiveAttention((int)Math.round(value));
+    	    		break;
+    	    	case "self_regulation": 
+    	    		response.setSelfRegulation((int)Math.round(value));
+    	    		break;
+    	    	case "sustained_attention": 
+    	    		response.setSustainedAttention((int)Math.round(value));
+    	    		break;
+    	    	default:
+    	    		throw new RuntimeException("Unknown metric name: " + metricName);
+    	    }
+    	}
+    	    	
     	return response;
     }
     
@@ -589,7 +577,8 @@ public class PortalController {
     	for (int i = 0; i < searchHits.length - 1; i += 2) {
     	    String startTimestamp = (String) searchHits[i].getSourceAsMap().get("timestamp");
     	    String endTimestamp = (String) searchHits[i + 1].getSourceAsMap().get("timestamp");
-    	    startEndList.add(new StartEnd(startTimestamp, endTimestamp));
+    	    double threshold = (Double) searchHits[i].getSourceAsMap().get("DecodeThreshold");
+    	    startEndList.add(new StartEnd(startTimestamp, endTimestamp, threshold * 100));
     	}
 
     	FogAnalysisResponse fogAnalysisResponse = new FogAnalysisResponse();
@@ -885,28 +874,13 @@ public class PortalController {
                 .must(sessionStartQuery)
                 .must(userIdQuery);
 
-        // Build the aggregation queries
-        TopHitsAggregationBuilder topHitsAgg = AggregationBuilders
-        		.topHits("latest_docs")
-        		.size(1)
-        		.sort("_id", SortOrder.DESC)
-        		.fetchSource("metric_value", null);
-        
-        TermsAggregationBuilder termsAgg = AggregationBuilders
-        		.terms("latest_metrics")
-                .field("metric_type.keyword")
-                .size(13)
-                .subAggregation(topHitsAgg);
-
         // Build the search source with the boolean query, the aggregation, and the size
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
                 .query(boolQuery)
-                .aggregation(termsAgg)
-                .size(0)
-                .fetchSource(false);
+                .fetchSource(new String[] {"metric_value", "metric_type"}, null);
 
         // Build the search request
-        SearchRequest searchRequest = new SearchRequest("metrics_test")
+        SearchRequest searchRequest = new SearchRequest("collectivemetrics")
                 .source(searchSourceBuilder);
 
         return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
@@ -1062,7 +1036,7 @@ public class PortalController {
         	    .must(QueryBuilders.matchQuery("user_id", userId));
 
     	// Specify the fields to return
-    	String[] includeFields = new String[] {"timestamp", "event_type"};
+    	String[] includeFields = new String[] {"timestamp", "event_type", "DecodeThreshold"};
     	String[] excludeFields = new String[] {};
     	SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
     	    .query(boolQuery)
