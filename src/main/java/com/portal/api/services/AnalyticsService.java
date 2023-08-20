@@ -375,14 +375,17 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsDishEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Specify the fields to return
 		String[] includeFields = new String[] { "timestamp", "event_type", "DecodeThreshold" };
 		String[] excludeFields = new String[] {};
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery)
-				.fetchSource(includeFields, excludeFields).size(20).sort("timestamp", SortOrder.ASC);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.fetchSource(includeFields, excludeFields)
+				.size(1000)
+				.sort("timestamp", SortOrder.ASC);
 
 		// Create the search request
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);

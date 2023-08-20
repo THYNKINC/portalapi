@@ -613,12 +613,40 @@ public class PortalController {
     	
     	List<StartEnd> startEndList = new ArrayList<>();
     	SearchHit[] searchHits = searchResponse.getHits().getHits();
-    	for (int i = 0; i < searchHits.length - 1; i += 2) {
-    	    String startTimestamp = (String) searchHits[i].getSourceAsMap().get("timestamp");
-    	    String endTimestamp = (String) searchHits[i + 1].getSourceAsMap().get("timestamp");
-    	    double threshold = (Double) searchHits[i].getSourceAsMap().get("DecodeThreshold");
-    	    startEndList.add(new StartEnd(startTimestamp, endTimestamp, threshold * 100));
-    	}
+    	
+    	double threshold = 0;
+    	String start = null;
+    	String end = null;
+    	
+    	for (SearchHit searchHit : searchHits) {
+			
+    		Map<String, Object> source = searchHit.getSourceAsMap();
+    		String eventType = (String)source.get("event_type");
+    		
+    		switch (eventType) {
+    		
+    		case "TransferenceStatsDishStart":
+    			
+    			threshold = (Double)source.get("DecodeThreshold");
+    			break;
+    			
+    		case "TransferenceStatsMoleculeDecodeStart":
+    			start = (String)source.get("timestamp");
+    			break;
+    			
+    		case "TransferenceStatsDishEnd":
+    			
+    			if (start != null) {
+	    			end = (String)source.get("timestamp");
+	    			startEndList.add(new StartEnd(start, end, threshold * 100));
+	    			
+	    			// reset
+	    			start = null;
+	    			threshold = 0;
+    			}
+    			break;
+    		}
+		}
 
     	FogAnalysisResponse fogAnalysisResponse = new FogAnalysisResponse();
     	fogAnalysisResponse.setDecodedMolecules((int) countResponse.getCount());
