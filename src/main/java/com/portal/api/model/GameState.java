@@ -50,8 +50,17 @@ public class GameState {
     // int variables with "Ach"
 
     private Integer Ach_BotBane;
+    private Integer Ach_BotSniperSpree;
+    private Integer Ach_BotSwarm;
+    private Integer Ach_Brainiac1;
+    private Integer Ach_Brainiac2;
+    private Integer Ach_Brainiac3;
+    private Integer Ach_BurntBackside;
     private Integer Ach_CoolHand;
     private Integer Ach_CrystalAce;
+    private Integer Ach_CrystalCatcher;
+    private Integer Ach_CrystalCollector;
+    private Integer Ach_CrystalMaster;
     private Integer Ach_CrystalScout;
     private Integer Ach_CrystalSpotter;
     private Integer Ach_Defogger;
@@ -65,45 +74,64 @@ public class GameState {
     private Integer Ach_Healer;
     private Integer Ach_LabRat;
     private Integer Ach_LaserFocus;
+    private Integer Ach_LittleLeague;
     private Integer Ach_MadScientist;
+    private Integer Ach_OneSmallStep;
     private Integer Ach_RockSolid;
-    
     private Integer Ach_RookieZapper;
-    
     private Integer Ach_SmogbotSlayer;
-    
+    private Integer Ach_SpaceDodger;
     private Integer Ach_SpeedRun;
-    
-    private Integer ach_Speedy;
+    private Integer Ach_Speedy;
+    private Integer Ach_Stage1;
+    private Integer Ach_Stage2;
+    private Integer Ach_Stage3;
+    private Integer Ach_Stage4;
+    private Integer Ach_Stage5;
     private Integer Ach_Supersonic;
+    private Integer Ach_SwitchBots;
+    private Integer Ach_TakeaHit;
     private Integer Ach_TheRightStuff;
+    private Integer Ach_TripleJumper;
+    private Integer Ach_Unselfish;
     private Integer Ach_Untouchable;
     private Integer Ach_Vigilant;
     private Integer Ach_YogaBrain;
     
     // All other variables as String
+    private String Stat_BestPortBotsStreak;
+    private String Stat_BestTimeWithoutHit;
     private String CurrentRank;
     private String Current_App_Version;
     private String Report_Intro;
     private String Sessions;
     private String Stat_BotsShot;
+    private String Stat_BrainiacLength1;
+    private String Stat_BrainiacLength2;
+    private String Stat_BrainiacLength3;
     private String Stat_ClustersShot;
     private String Stat_Crystals;
     private String Stat_Decodes;
     private String Stat_FakersPassed;
     private String Stat_FogWallsCleared;
+    private String Stat_HighestCrystalsEarned;
+    private String Stat_Jumps;
     private String Stat_Male;
+    private String Stat_MaxDecodes;
+    private String Stat_PortGroupBotMax;
     private String Stat_Sham;
+    private String Stat_Slides;
     private String Stat_SwitchesRode;
+    private String Stat_TakeAHitCount;
     private String Stat_TransferenceActive;
     private String Stat_TransferenceCompleted;
     private String TxComplete;
     private String Upload_All_Files;
     private String attentionBurstTier;
     private String gender;
-    private int lastLevel;
+    private String lastLevel;
     private String lastSaveDate;
-    private int lastSubLevel;
+    private String lastSubLevel;
     private String runnerCompleteTime;
     private String runnerFails;
     private String starsPerMission;
