@@ -375,7 +375,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsMoleculeDecodeEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Specify the fields to return
