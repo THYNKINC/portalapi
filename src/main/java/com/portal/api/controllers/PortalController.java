@@ -1,48 +1,22 @@
 package com.portal.api.controllers;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
-import javax.net.ssl.SSLContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
-import org.apache.http.client.HttpResponseException;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
-import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.MatchQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.index.query.QueryBuilders;
-import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.Aggregations;
-import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
-import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
-import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
-import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
-import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.Max;
-import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
-import org.opensearch.search.aggregations.metrics.TopHits;
-import org.opensearch.search.aggregations.metrics.TopHitsAggregationBuilder;
-import org.opensearch.search.builder.SearchSourceBuilder;
-import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -77,14 +51,13 @@ import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.StartEnd;
+import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
-import com.portal.api.util.OpensearchService;
 
 import io.swagger.v3.oas.annotations.Hidden;
-
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
@@ -123,18 +96,16 @@ public class PortalController {
 	
 	private final MongoService mongoService;
 	
-	private final OpensearchService opensearchService;
-	
-	private static final DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	private final AnalyticsService analyticsService;
 
     @Autowired
     public PortalController(
     		JwtService jwtService,
     		MongoService mongoService,
-    		OpensearchService opensearchService) {
+    		AnalyticsService analyticsService) {
         this.jwtService = jwtService;
         this.mongoService = mongoService;
-        this.opensearchService = opensearchService;
+        this.analyticsService = analyticsService;
     }
     
     @GetMapping("/me")
@@ -145,10 +116,10 @@ public class PortalController {
     
     @PostMapping("/login")
     public String login(@RequestBody @Valid LoginRequest loginRequest, HttpServletRequest request) throws Exception {
-    	return loginInternal(loginRequest);
+    	return login(loginRequest);
     }
     
-    public String loginInternal(LoginRequest loginRequest) throws Exception {
+    public String login(LoginRequest loginRequest) throws Exception {
     	
     	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
                 .region(Region.US_EAST_1)
@@ -276,7 +247,7 @@ public class PortalController {
     	List<? extends Histogram.Bucket> buckets;
 
     	System.out.println("SESSIONS WEEKLY");
-    	searchResponse = completedSessionsWeekInternal(username); 
+    	searchResponse = analyticsService.completedSessionsWeek(username); 
     	
     	aggregations = searchResponse.getAggregations();
     	terms = aggregations.get("documents_per_bucket"); // Get the aggregation
@@ -284,7 +255,7 @@ public class PortalController {
     	int sessionsPerWeekCount = buckets.size();
     	
     	System.out.println("SESSIONS");
-    	searchResponse = completedSessionsInternal(username); 
+    	searchResponse = analyticsService.completedSessions(username); 
 
     	aggregations = searchResponse.getAggregations();
     	terms = aggregations.get("documents_per_bucket"); // Get the aggregation
@@ -293,7 +264,7 @@ public class PortalController {
 
 // TODO re-enable this once we know logs are working for sure
 //    	System.out.println("MISSIONS");
-//    	searchResponse = completedMissionsInternal(username); 
+//    	searchResponse = completedMissions(username); 
 //    	
 //    	Aggregation aggregation = searchResponse.getAggregations().get("missions");
 //	    ParsedStringTerms stringTerms = (ParsedStringTerms) aggregation;
@@ -360,7 +331,7 @@ public class PortalController {
     	   throw new ResourceNotFoundException("Resource not found");
     	}
     	
-        SearchResponse searchResponse = lastSessionInternal(username); 
+        SearchResponse searchResponse = analyticsService.lastSession(username); 
     	
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
@@ -412,7 +383,7 @@ public class PortalController {
     	
     	String convertedMissionId = MappingService.getValue(missionId);
     	
-    	SearchResponse searchResponse = missionsInternal(username, convertedMissionId); 
+    	SearchResponse searchResponse = analyticsService.missions(username, convertedMissionId); 
     	
     	List<SessionData> sessionDataList = new ArrayList<>();
 
@@ -438,7 +409,7 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = powerInternal(username, sessionId); 
+    	SearchResponse searchResponse = analyticsService.power(username, sessionId); 
     	
     	Aggregations aggregations = searchResponse.getAggregations();
 
@@ -462,7 +433,7 @@ public class PortalController {
     	    }
     	}
     	
-    	searchResponse = starValuesInternal(username, sessionId);
+    	searchResponse = analyticsService.starValues(username, sessionId);
     	
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
@@ -493,7 +464,7 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = cognitiveSkillsInternal(username, sessionId); 
+    	SearchResponse searchResponse = analyticsService.attemptCognitiveSkills(username, sessionId); 
     	
     	SearchHit[] hits = searchResponse.getHits().getHits();
 
@@ -557,15 +528,83 @@ public class PortalController {
     	return response;
     }
     
+    @GetMapping("/children/{username}/cognitive-skills")
+    public CognitiveSkillsResponse childOverallCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	SearchResponse searchResponse = analyticsService.overallCognitiveSkills(username); 
+    	
+    	Aggregations aggregations = searchResponse.getAggregations();
+
+    	Terms metrics = aggregations.get("metrics");
+    	
+    	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
+    	    	
+    	for (Terms.Bucket entry : metrics.getBuckets()) {
+    		
+    		String metricName = entry.getKeyAsString();
+    		
+    		ParsedAvg avg = entry.getAggregations().get("average");
+    		double value = avg.getValue();
+    		
+    	    switch (metricName) {
+    	    	case "alternating_attention": 
+    	    		response.setAlternatingAttention((int)Math.round(value));
+    	    		break;
+    	    	case "behavioral_inhibition": 
+    	    		response.setBehavioralInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "cognitive_inhibition": 
+    	    		response.setCognitiveInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "delayed_gratification": 
+    	    		response.setDelayOfGratification((int)Math.round(value));
+    	    		break;
+    	    	case "divided_attention": 
+    	    		response.setDividedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "focused_attention": 
+    	    		response.setFocusedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "inner_voice": 
+    	    		response.setInnerVoice((int)Math.round(value));
+    	    		break;
+    	    	case "interference_control": 
+    	    		response.setInterferenceControl((int)Math.round(value));
+    	    		break;
+    	    	case "motivational_inhibition": 
+    	    		response.setMotivationalInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "novelty_inhibition": 
+    	    		response.setNoveltyInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "selective_attention": 
+    	    		response.setSelectiveAttention((int)Math.round(value));
+    	    		break;
+    	    	case "self_regulation": 
+    	    		response.setSelfRegulation((int)Math.round(value));
+    	    		break;
+    	    	case "sustained_attention": 
+    	    		response.setSustainedAttention((int)Math.round(value));
+    	    		break;
+    	    	default:
+    	    		throw new RuntimeException("Unknown metric name: " + metricName);
+    	    }
+    	}
+    	    	
+    	return response;
+    }
+    
     @GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
     public FogAnalysisResponse childMissionFogAnalysis(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	CountResponse countResponse = decodedMoleculesInternal(username, sessionId);
-    	CustomSearchResponse customSearchResponse = frozenDishesInternal(username, sessionId);
-    	SearchResponse searchResponse = transferenceEventsInternal(username, sessionId);
+    	CountResponse countResponse = analyticsService.decodedMolecules(username, sessionId);
+    	CustomSearchResponse customSearchResponse = analyticsService.frozenDishes(username, sessionId);
+    	SearchResponse searchResponse = analyticsService.transferenceEvents(username, sessionId);
     	
     	Map<String, Long> dishCounts = customSearchResponse.getDishCount();
     	long dishStartCount = dishCounts.getOrDefault("TransferenceStatsDishStart", 0L);
@@ -595,7 +634,7 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = attentionInternal(username, sessionId); 
+    	SearchResponse searchResponse = analyticsService.attention(username, sessionId); 
     	
     	Aggregations aggregations = searchResponse.getAggregations();
 
@@ -631,435 +670,59 @@ public class PortalController {
     	return attentionResponse;
     }
     
+    
+   // ----------------- Hidden APIs
     @Hidden
     @GetMapping("/opensearch/completed-sessions")
     public SearchResponse completedSessions(HttpServletRequest request) throws Exception {
-    	return completedSessionsInternal("388357544");
-    }
-    
-    public SearchResponse completedSessionsInternal(String userId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("user_id", userId);
-
-        FilterAggregationBuilder filterAgg = AggregationBuilders.filter("event_filter",
-                QueryBuilders.termsQuery("event_type", Arrays.asList("TransferenceStatsEnd", "RunnerEnd")));
-
-        DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders.dateHistogram("documents_per_bucket")
-        	    .field("timestamp")
-        	    .minDocCount(1)
-        	    .fixedInterval(new DateHistogramInterval("12h")) 
-        	    .subAggregation(filterAgg);
-
-        // Build the search request
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(matchQueryBuilder)
-                .aggregation(dateHistogramAgg)
-                .size(0);
-
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-        searchRequest.source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    	return analyticsService.completedSessions("388357544");
     }
     
     @Hidden
     @GetMapping("/opensearch/completed-sessions-week")
     public SearchResponse completedSessionsWeek(HttpServletRequest request) throws Exception {
-    	return completedSessionsWeekInternal("388357544");
-    }
-    
-    public SearchResponse completedSessionsWeekInternal(String userId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        QueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("user_id", userId);
-
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR_OF_DAY, 0); // ! clear would not reset the hour of day !
-        cal.clear(Calendar.MINUTE);
-        cal.clear(Calendar.SECOND);
-        cal.clear(Calendar.MILLISECOND);
-
-        // get start and end of this week in milliseconds
-        cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
-        String first = df.format(cal.getTime());
-        cal.add(Calendar.WEEK_OF_YEAR, 1);
-        String last = df.format(cal.getTime());
-        
-        QueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("timestamp")
-            .gte(first)
-            .lt(last);
-
-        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
-            .must(matchQueryBuilder)
-            .must(rangeQueryBuilder);
-
-        QueryBuilders.queryStringQuery(boolQueryBuilder.toString());
-
-        FilterAggregationBuilder eventFilterAgg = AggregationBuilders.filter("event_filter", QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd"));
-
-        DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders.dateHistogram("documents_per_bucket")
-            .field("timestamp")
-            .minDocCount(1)
-            .fixedInterval(new DateHistogramInterval("12h"))
-            .subAggregation(eventFilterAgg);
-
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.query(boolQueryBuilder);
-        searchSourceBuilder.aggregation(dateHistogramAgg);
-        searchSourceBuilder.size(0);
-
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-        searchRequest.source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+    	return analyticsService.completedSessionsWeek("388357544");
     }
     
     @Hidden
     @GetMapping("/opensearch/completed-missions")
     public SearchResponse completedMissions(HttpServletRequest request) throws Exception {
-    	return completedMissionsInternal("1942396312");
-    }
-    
-    public SearchResponse completedMissionsInternal(String userId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-     // Build the match queries
-        QueryBuilder eventTypeQuery = QueryBuilders.matchQuery("event_type", "TransferenceStatsEnd");
-        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
-
-        // Combine the match queries into a boolean query
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-                .must(eventTypeQuery)
-                .must(userIdQuery);
-
-        // Build the aggregation query
-        TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions")
-                .field("TaskID")
-                .size(15);
-
-        // Build the search source with the boolean query, the aggregation, and the size
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(boolQuery)
-                .aggregation(missionsAgg)
-                .size(0)
-                .fetchSource(false);
-
-        // Build the search request
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-                .source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    	return analyticsService.completedMissions("1942396312");
     }
 
     @Hidden
     @GetMapping("/opensearch/missions")
     public SearchResponse missions(String userId, String missionId) throws Exception {
-    	return missionsInternal("388357544", "5.2"); 
-    }
-    
-    public SearchResponse missionsInternal(String userId, String missionId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-
-     // Create queries
-     BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-             .must(QueryBuilders.termQuery("TaskID", missionId))
-             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
-             .must(QueryBuilders.matchQuery("user_id", userId));
-
-     // Set up the source builder
-     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-     searchSourceBuilder.query(boolQuery);
-     searchSourceBuilder.size(20);
-     searchSourceBuilder.sort("timestamp", SortOrder.DESC);
-
-     // Add the fields to the request
-     searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type" }, new String[] {});
-
-     // Add the source builder to the request
-     searchRequest.source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
-    }
-    
-    public SearchResponse lastSessionInternal(String userId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-
-	     // Create queries
-	     BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-	             .must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
-	             .must(QueryBuilders.matchQuery("user_id", userId));
-	
-	     // Set up the source builder
-	     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-	     searchSourceBuilder.query(boolQuery);
-	     searchSourceBuilder.size(20);
-	     searchSourceBuilder.sort("timestamp", SortOrder.DESC);
-	
-	     // Add the fields to the request
-	     searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID" }, new String[] {});
-	
-	     // Add the source builder to the request
-	     searchRequest.source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
+    	return analyticsService.missions("388357544", "5.2"); 
     }
     
     @Hidden
     @GetMapping("/opensearch/power")
     public SearchResponse power(HttpServletRequest request) throws Exception {
-    	return powerInternal("388357544", "2023-04-24 16:28:16.566");
-    }
-    	
-    public SearchResponse powerInternal(String userId, String sessionId) throws Exception {
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        // Build the match queries
-        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-        QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
-        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
-
-        // Combine the match queries into a boolean query
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-                .must(sessionStartQuery)
-                .must(sessionTypeQuery)
-                .must(userIdQuery);
-
-        // Build the aggregation queries
-        MaxAggregationBuilder powerAgg = AggregationBuilders.max("power").field("Score");
-        DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders.dateHistogram("intervals")
-                .field("timestamp")
-                .fixedInterval(DateHistogramInterval.seconds(30))
-                .subAggregation(powerAgg);
-
-        // Build the search source with the boolean query, the aggregation, and the size
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(boolQuery)
-                .aggregation(intervalsAgg)
-                .size(0)
-                .fetchSource(false);
-
-        // Build the search request
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-                .source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
-    }
-    
-    public SearchResponse cognitiveSkillsInternal(String userId, String sessionId) throws Exception {
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        // Build the match queries
-        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
-
-        // Combine the match queries into a boolean query
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-                .must(sessionStartQuery)
-                .must(userIdQuery);
-
-        // Build the search source with the boolean query, the aggregation, and the size
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(boolQuery)
-                .fetchSource(new String[] {"metric_value", "metric_type"}, null);
-
-        // Build the search request
-        SearchRequest searchRequest = new SearchRequest("collectivemetrics")
-                .source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
-    }
-    
-    public SearchResponse starValuesInternal(String userId, String sessionId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        // Build the match queries
-        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-        QueryBuilder eventTypeQuery = QueryBuilders.matchQuery("event_type", "RunnerStart");
-        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
-
-        // Combine the match queries into a boolean query
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-                .must(sessionStartQuery)
-                .must(eventTypeQuery)
-                .must(userIdQuery);
-
-        // Build the search source with the boolean query, and the size
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(boolQuery)
-                .size(1)
-                .fetchSource(new String[] { "StarValues" }, new String[] {});;
-
-        // Build the search request
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-                .source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest);  	
-    }
-    
-    @Hidden
-    @GetMapping("/opensearch/attention")
-    public SearchResponse attention(HttpServletRequest request) throws Exception {
-    	return attentionInternal("388357544", "2023-04-24 16:28:16.566");
-    }
-    
-    
-    public SearchResponse attentionInternal(String userId, String sessionId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-        QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
-        
-     // Combine the match queries into a boolean query
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-                .must(sessionStartQuery)
-                .must(userIdQuery);
-        
-        AvgAggregationBuilder averageBciAgg = AggregationBuilders.avg("average_bci").field("bci");
-        DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders.dateHistogram("intervals")
-                .field("timestamp")
-                .fixedInterval(DateHistogramInterval.seconds(60))
-                .subAggregation(averageBciAgg);
-
-        // Build the search source with the boolean query, the aggregation, and the size
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-                .query(boolQuery)
-                .aggregation(intervalsAgg)
-                .size(0)
-                .fetchSource(false);
-
-        // Build the search request
-        SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-                .source(searchSourceBuilder);
-
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
+    	return analyticsService.power("388357544", "2023-04-24 16:28:16.566");
     }
     
     @Hidden
     @GetMapping("/opensearch/frozen-dishes")
     public CustomSearchResponse frozenDishes(HttpServletRequest request) throws Exception {
-    	return frozenDishesInternal("388357544", "2023-03-04 06:30:23.06");
-    }
-    
-    
-    public CustomSearchResponse frozenDishesInternal(String userId, String sessionId) throws Exception {
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-        	    .must(QueryBuilders.termQuery("session_start.keyword", sessionId))
-        	    .must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishCorrupted"))
-        	    .must(QueryBuilders.matchQuery("user_id", userId));
-
-    	// Build the aggregation
-    	TermsAggregationBuilder aggregation = AggregationBuilders.terms("dish_count").field("event_type");
-
-    	// Build the search source
-    	SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-    	    .query(boolQuery)
-    	    .aggregation(aggregation)
-    	    .size(0);
-
-    	// Create the search request
-    	SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-    	    .source(searchSourceBuilder);
-    	
-    	SearchResponse searchResponse = opensearchService.search(sslContext, credentialsProvider, searchRequest); 
-    	
-    	Terms dishCountAggregation = searchResponse.getAggregations().get("dish_count");
-    	Map<String, Long> dishCount = dishCountAggregation.getBuckets().stream()
-    	    .collect(Collectors.toMap(Terms.Bucket::getKeyAsString, Terms.Bucket::getDocCount));
-
-    	CustomSearchResponse customResponse = new CustomSearchResponse(dishCount);
-
-    	return customResponse;
-    
+    	return analyticsService.frozenDishes("388357544", "2023-03-04 06:30:23.06");
     }
     
     @Hidden
     @GetMapping("/opensearch/decoded-molecules")
     public CountResponse decodedMolecules(HttpServletRequest request) throws Exception {
-    	return decodedMoleculesInternal("388357544", "2023-02-25 10:15:39.971");
-    }
-    
-    
-    public CountResponse decodedMoleculesInternal(String userId, String sessionId) throws Exception {
-    	
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
-        	    .must(new MatchQueryBuilder("session_start.keyword", sessionId))
-        	    .must(new TermQueryBuilder("event_type", "TransferenceStatsMoleculeDecodeEnd"))
-        	    .must(QueryBuilders.matchQuery("user_id", userId));
-
-    	CountRequest countRequest = new CountRequest("gamelogs-ref");
-    	countRequest.query(boolQueryBuilder);
-        
-        return opensearchService.count(sslContext, credentialsProvider, countRequest); 
+    	return analyticsService.decodedMolecules("388357544", "2023-02-25 10:15:39.971");
     }
     
     @Hidden
     @GetMapping("/opensearch/transference-events")
     public SearchResponse transferenceEvents(HttpServletRequest request) throws Exception {
-    	return transferenceEventsInternal("388357544", "2023-03-26 16:04:33.386");
+    	return analyticsService.transferenceEvents("388357544", "2023-03-26 16:04:33.386");
     }
     
-    
-    public SearchResponse transferenceEventsInternal(String userId, String sessionId) throws Exception {
-    	SSLContext sslContext = opensearchService.getSSLContext();
-        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-        
-        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-        	    .must(QueryBuilders.termQuery("session_start.keyword", sessionId))
-        	    .must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishEnd"))
-        	    .must(QueryBuilders.matchQuery("user_id", userId));
-
-    	// Specify the fields to return
-    	String[] includeFields = new String[] {"timestamp", "event_type", "DecodeThreshold"};
-    	String[] excludeFields = new String[] {};
-    	SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-    	    .query(boolQuery)
-    	    .fetchSource(includeFields, excludeFields)
-    	    .size(20)
-    	    .sort("timestamp", SortOrder.ASC);
-
-    	// Create the search request
-    	SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
-    	    .source(searchSourceBuilder);
-        
-        return opensearchService.search(sslContext, credentialsProvider, searchRequest); 
-    	
-    }
-    
-    @Hidden
-    @GetMapping("/test")
-    public String teting(HttpServletRequest request) throws Exception {
-    	if (1 == 1) {
-    		throw new ResourceNotFoundException("Resource not found");
-    	}
-    	return "test 1";
-    }
-   
-
+	@Hidden
+	@GetMapping("/opensearch/attention")
+	public SearchResponse attention(HttpServletRequest request) throws Exception {
+		return analyticsService.attention("388357544", "2023-04-24 16:28:16.566");
+	}
 }
