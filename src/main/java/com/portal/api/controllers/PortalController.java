@@ -2,6 +2,7 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +45,7 @@ import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
 import com.portal.api.model.GameState;
 import com.portal.api.model.GraphResponse;
+import com.portal.api.model.ImpulseControl;
 import com.portal.api.model.LoginRequest;
 import com.portal.api.model.Parent;
 import com.portal.api.model.PowerResponse;
@@ -529,11 +531,11 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/cognitive-skills")
-    public CognitiveSkillsResponse childOverallCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    public CognitiveSkillsResponse avgOverallCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = analyticsService.overallCognitiveSkills(username); 
+    	SearchResponse searchResponse = analyticsService.avgCgnitiveSkills(username); 
     	
     	Aggregations aggregations = searchResponse.getAggregations();
 
@@ -591,6 +593,107 @@ public class PortalController {
     	    	default:
     	    		throw new RuntimeException("Unknown metric name: " + metricName);
     	    }
+    	}
+    	    	
+    	return response;
+    }
+    
+    @GetMapping("/children/{username}/impulse-control")
+    public List<ImpulseControl> impulseControl(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	SearchResponse searchResponse = analyticsService.allCognitiveSkills(username); 
+    	
+    	SearchHit[] hits = searchResponse.getHits().getHits();
+
+    	Map<String, CognitiveSkillsResponse> sessions = new HashMap<>();
+    	
+    	for (SearchHit hit : hits) {
+    		
+    		String sessionStart = (String) hit.getSourceAsMap().get("session_start");
+    		
+    		CognitiveSkillsResponse skills = null;
+    		
+    		if ((skills = sessions.get(sessionStart)) == null) {
+    			
+    			skills = new CognitiveSkillsResponse();
+    			sessions.put(sessionStart, skills);
+    		}
+    		
+    		String metricName = (String) hit.getSourceAsMap().get("metric_type");
+    		
+    		Object o = hit.getSourceAsMap().get("metric_value");
+    		Double value = 0d;
+    		
+    		if (o != null)
+    			value = (Double)o ;
+    	    
+    	    switch (metricName) {
+    	    	case "alternating_attention": 
+    	    		skills.setAlternatingAttention((int)Math.round(value));
+    	    		break;
+    	    	case "behavioral_inhibition": 
+    	    		skills.setBehavioralInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "cognitive_inhibition": 
+    	    		skills.setCognitiveInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "delayed_gratification": 
+    	    		skills.setDelayOfGratification((int)Math.round(value));
+    	    		break;
+    	    	case "divided_attention": 
+    	    		skills.setDividedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "focused_attention": 
+    	    		skills.setFocusedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "inner_voice": 
+    	    		skills.setInnerVoice((int)Math.round(value));
+    	    		break;
+    	    	case "interference_control": 
+    	    		skills.setInterferenceControl((int)Math.round(value));
+    	    		break;
+    	    	case "motivational_inhibition": 
+    	    		skills.setMotivationalInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "novelty_inhibition": 
+    	    		skills.setNoveltyInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "selective_attention": 
+    	    		skills.setSelectiveAttention((int)Math.round(value));
+    	    		break;
+    	    	case "self_regulation": 
+    	    		skills.setSelfRegulation((int)Math.round(value));
+    	    		break;
+    	    	case "sustained_attention": 
+    	    		skills.setSustainedAttention((int)Math.round(value));
+    	    		break;
+    	    	default:
+    	    		throw new RuntimeException("Unknown metric name: " + metricName);
+    	    }
+    	}
+    	
+    	List<ImpulseControl> response = new ArrayList<>();
+    	
+    	for (Map.Entry<String, CognitiveSkillsResponse> entry : sessions.entrySet()) {
+			
+    		CognitiveSkillsResponse skills = entry.getValue();
+    		
+    		double focus = 0;
+    		
+    		if (skills.getSustainedAttention() > 0)   		
+    			if (skills.getFocusedAttention() <= 0)
+    				focus = skills.getSustainedAttention();
+    			else if (skills.getSustainedAttention() <= 0)
+    				focus = skills.getSustainedAttention();
+    			else
+    				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
+    		
+    		double impulse = (skills.getCognitiveInhibition() + skills.getBehavioralInhibition() + skills.getNoveltyInhibition() + skills.getMotivationalInhibition() + skills.getInterferenceControl()) / 5;
+    		
+    		ImpulseControl datapoint = new ImpulseControl(entry.getKey(), focus, impulse);
+    		response.add(datapoint);
     	}
     	    	
     	return response;

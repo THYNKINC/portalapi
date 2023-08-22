@@ -242,7 +242,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	public SearchResponse overallCognitiveSkills(String userId) throws Exception {
+	public SearchResponse avgCgnitiveSkills(String userId) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -266,6 +266,31 @@ public class AnalyticsService {
 				.size(0)
 				.aggregation(typeAgg)
 				.fetchSource(false);
+
+		// Build the search request
+		SearchRequest searchRequest = new SearchRequest("collectivemetrics").source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	public SearchResponse allCognitiveSkills(String userId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		// Build the match queries
+		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+
+		// Combine the match queries into a boolean query
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(userIdQuery);
+		
+		// Build the search source with the boolean query, the aggregation, and the size
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.size(1000)
+				.sort("session_start.keyword", SortOrder.ASC)
+				.sort("metric_type", SortOrder.ASC)
+				.fetchSource(new String[] {"session_start", "metric_type", "metric_value"}, null);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("collectivemetrics").source(searchSourceBuilder);

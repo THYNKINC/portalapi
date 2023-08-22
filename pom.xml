@@ -14,6 +14,10 @@
 	<name>portalapi</name>
 	<description>POC project for portalapi</description>
 	
+	<properties>
+	    <java.version>17</java.version>
+	</properties>
+	
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -159,8 +163,4 @@
 			
 		</plugins>
 	</build>
-
-	<properties>
-		<java.version>17</java.version>
-	</properties>
 </project>
