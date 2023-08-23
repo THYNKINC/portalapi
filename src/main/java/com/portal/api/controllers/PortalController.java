@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
@@ -266,16 +267,13 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
 
-    	searchResponse = analyticsService.completedMissions(username); 
+    	searchResponse = analyticsService.attempts(username, 1000); 
     	
-    	ParsedStringTerms stringTerms = searchResponse
-    			.getAggregations()
-    			.get("missions");
+    	SearchHit[] hits = searchResponse.getHits().getHits();
     	
-	    double highestMission = stringTerms
-	    	.getBuckets()
-	    	.stream()
-	    	.mapToDouble(bucket -> bucket.getKeyAsNumber().doubleValue())
+	    double highestMission = Stream
+	    	.of(hits)
+	    	.mapToDouble(hit -> Double.valueOf((String)hit.getSourceAsMap().get("TaskID")))
 	    	.max()
 	    	.orElse(0);
     	
