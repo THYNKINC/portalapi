@@ -385,7 +385,7 @@ public class PortalController {
     	
     	String convertedMissionId = MappingService.getValue(missionId);
     	
-    	SearchResponse searchResponse = analyticsService.missions(username, convertedMissionId); 
+    	SearchResponse searchResponse = analyticsService.attemptsPerMission(username, convertedMissionId); 
     	
     	List<SessionData> sessionDataList = new ArrayList<>();
 
@@ -535,7 +535,7 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = analyticsService.avgCgnitiveSkills(username); 
+    	SearchResponse searchResponse = analyticsService.avgCognitiveSkills(username); 
     	
     	Aggregations aggregations = searchResponse.getAggregations();
 
@@ -824,7 +824,7 @@ public class PortalController {
     @Hidden
     @GetMapping("/opensearch/missions")
     public SearchResponse missions(String userId, String missionId) throws Exception {
-    	return analyticsService.missions("388357544", "5.2"); 
+    	return analyticsService.attemptsPerMission("388357544", "5.2"); 
     }
     
     @Hidden
