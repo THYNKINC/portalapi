@@ -2,8 +2,6 @@ package com.portal.api.services;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +20,6 @@ import org.opensearch.index.query.MatchQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
-import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
@@ -35,10 +32,8 @@ import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 
 import com.portal.api.model.CustomSearchResponse;
-import com.portal.api.model.SessionData;
 import com.portal.api.util.OpensearchService;
 
 @Component
@@ -58,18 +53,22 @@ public class AnalyticsService {
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		MatchQueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("user_id", userId);
+		// Create queries
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.matchQuery("user_id", userId));
 
-		FilterAggregationBuilder filterAgg = AggregationBuilders.filter("event_filter",
-				QueryBuilders.termsQuery("event_type", Arrays.asList("TransferenceStatsEnd", "RunnerEnd")));
-
-		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders.dateHistogram("documents_per_bucket")
-				.field("timestamp").minDocCount(1).fixedInterval(new DateHistogramInterval("12h"))
-				.subAggregation(filterAgg);
+		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders
+				.dateHistogram("documents_per_bucket")
+				.field("timestamp")
+				.minDocCount(1)
+				.fixedInterval(new DateHistogramInterval("12h"));
 
 		// Build the search request
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(matchQueryBuilder)
-				.aggregation(dateHistogramAgg).size(0);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.aggregation(dateHistogramAgg)
+				.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
 		searchRequest.source(searchSourceBuilder);
@@ -81,8 +80,6 @@ public class AnalyticsService {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-
-		QueryBuilder matchQueryBuilder = QueryBuilders.matchQuery("user_id", userId);
 
 		Calendar cal = Calendar.getInstance();
 		cal.set(Calendar.HOUR_OF_DAY, 0); // ! clear would not reset the hour of day !
@@ -98,16 +95,17 @@ public class AnalyticsService {
 
 		QueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("timestamp").gte(first).lt(last);
 
-		BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery().must(matchQueryBuilder).must(rangeQueryBuilder);
-
-		QueryBuilders.queryStringQuery(boolQueryBuilder.toString());
-
-		FilterAggregationBuilder eventFilterAgg = AggregationBuilders.filter("event_filter",
-				QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd"));
-
-		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders.dateHistogram("documents_per_bucket")
-				.field("timestamp").minDocCount(1).fixedInterval(new DateHistogramInterval("12h"))
-				.subAggregation(eventFilterAgg);
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(rangeQueryBuilder);
+		
+		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders
+				.dateHistogram("documents_per_bucket")
+				.field("timestamp")
+				.minDocCount(1)
+				.fixedInterval(new DateHistogramInterval("12h"));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
