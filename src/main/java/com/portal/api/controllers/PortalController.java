@@ -12,9 +12,11 @@ import javax.validation.Valid;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
+import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
+import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
@@ -264,13 +266,18 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
 
-// TODO re-enable this once we know logs are working for sure
-//    	System.out.println("MISSIONS");
-//    	searchResponse = completedMissions(username); 
-//    	
-//    	Aggregation aggregation = searchResponse.getAggregations().get("missions");
-//	    ParsedStringTerms stringTerms = (ParsedStringTerms) aggregation;
-//	    int missionsCount = (int) stringTerms.getBuckets().size();
+    	searchResponse = analyticsService.completedMissions(username); 
+    	
+    	ParsedStringTerms stringTerms = searchResponse
+    			.getAggregations()
+    			.get("missions");
+    	
+	    double highestMission = stringTerms
+	    	.getBuckets()
+	    	.stream()
+	    	.mapToDouble(bucket -> bucket.getKeyAsNumber().doubleValue())
+	    	.max()
+	    	.orElse(0);
     	
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
@@ -298,11 +305,15 @@ public class PortalController {
     	ProgressResponse progressResponse = new ProgressResponse();
     	progressResponse.setAbandonedAttempts(0);
     	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
-    	if (state.getUnlocksPerMission() == null) {
+    	
+    	if (highestMission == 0) {
     		progressResponse.setMissionsCompleted(0);
     	} else {
-    		progressResponse.setMissionsCompleted(StringUtils.countOccurrencesOf(state.getUnlocksPerMission(), "1"));
+    		progressResponse
+    			.setMissionsCompleted(Integer.valueOf(MappingService
+    					.getKey(String.valueOf(highestMission))));
     	}
+    	
     	progressResponse.setSessionsCompleted(sessionsCount);
     	
     	return progressResponse;

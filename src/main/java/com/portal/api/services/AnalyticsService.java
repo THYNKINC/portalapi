@@ -126,18 +126,29 @@ public class AnalyticsService {
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		// Build the match queries
-		QueryBuilder eventTypeQuery = QueryBuilders.matchQuery("event_type", "TransferenceStatsEnd");
-		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+		QueryBuilder eventTypeQuery = QueryBuilders
+				.matchQuery("event_type", "TransferenceStatsEnd");
+		QueryBuilder userIdQuery = QueryBuilders
+				.matchQuery("user_id", userId);
 
 		// Combine the match queries into a boolean query
-		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(eventTypeQuery).must(userIdQuery);
+		BoolQueryBuilder boolQuery = QueryBuilders
+				.boolQuery()
+				.must(eventTypeQuery)
+				.must(userIdQuery);
 
 		// Build the aggregation query
-		TermsAggregationBuilder missionsAgg = AggregationBuilders.terms("missions").field("TaskID").size(15);
+		TermsAggregationBuilder missionsAgg = AggregationBuilders
+				.terms("missions")
+				.field("TaskID")
+				.size(15);
 
 		// Build the search source with the boolean query, the aggregation, and the size
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).aggregation(missionsAgg)
-				.size(0).fetchSource(false);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.aggregation(missionsAgg)
+				.size(0)
+				.fetchSource(false);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
@@ -172,7 +183,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	public SearchResponse attempts(String userId) throws Exception {
+	public SearchResponse attempts(String userId, int size) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -190,11 +201,11 @@ public class AnalyticsService {
 		searchSourceBuilder.query(boolQuery);
 		
 		// TODO put a sensible limit here
-		searchSourceBuilder.size(1000);
+		searchSourceBuilder.size(size);
 		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
 		// Add the fields to the request
-		searchSourceBuilder.fetchSource(new String[] { "session_start" }, new String[] {});
+		searchSourceBuilder.fetchSource(new String[] { "session_start", "TaskID", "session_type" }, new String[] {});
 
 		// Add the source builder to the request
 		searchRequest.source(searchSourceBuilder);
@@ -217,7 +228,7 @@ public class AnalyticsService {
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
-		searchSourceBuilder.size(20);
+		searchSourceBuilder.size(1);
 		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
 		// Add the fields to the request
@@ -295,7 +306,7 @@ public class AnalyticsService {
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
 		
-		SearchResponse sessions = attempts(userId);
+		SearchResponse sessions = attempts(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
 				.termsQuery("session_start.keyword", parseSessions(sessions));
@@ -337,7 +348,7 @@ public class AnalyticsService {
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
 		
-		SearchResponse sessions = attempts(userId);
+		SearchResponse sessions = attempts(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
 				.termsQuery("session_start.keyword", parseSessions(sessions));
