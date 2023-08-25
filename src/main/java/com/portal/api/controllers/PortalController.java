@@ -2,7 +2,7 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -13,18 +13,14 @@ import javax.validation.Valid;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
-import org.opensearch.search.aggregations.bucket.terms.ParsedStringTerms;
-import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -40,6 +36,7 @@ import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
 import com.portal.api.model.BadgesResponse;
 import com.portal.api.model.Child;
+import com.portal.api.model.CognitiveSkillsProgressResponse;
 import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CreateChildRequest;
 import com.portal.api.model.CreateParentRequest;
@@ -55,6 +52,7 @@ import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.SessionData;
+import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
@@ -267,7 +265,7 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
 
-    	searchResponse = analyticsService.attempts(username, 1000); 
+    	searchResponse = analyticsService.lastNSessions(username, 1000); 
     	
     	SearchHit[] hits = searchResponse.getHits().getHits();
     	
@@ -290,15 +288,6 @@ public class PortalController {
         	System.out.println("RESOURCE NOT FOUND");
         	throw new ResourceNotFoundException("Resource not found");
         }
-        
-        GameState state;
-        try {
-        	ObjectMapper mapper = new ObjectMapper();
-        	state = mapper.readValue(result, GameState.class);
-        } catch (JsonMappingException e) {
-           System.out.println("RESOURCE BAD");
-    	   throw new ResourceNotFoundException("Bad resource");
-    	}
     	
     	ProgressResponse progressResponse = new ProgressResponse();
     	progressResponse.setAbandonedAttempts(0);
@@ -540,71 +529,41 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/cognitive-skills")
-    public CognitiveSkillsResponse avgOverallCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    public CognitiveSkillsResponse latestCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	SearchResponse searchResponse = analyticsService.avgCognitiveSkills(username); 
+    	List<String> sessions = analyticsService.parseSessions(analyticsService.lastNRunners(username, 1));
     	
-    	Aggregations aggregations = searchResponse.getAggregations();
-
-    	Terms metrics = aggregations.get("metrics");
+    	return childMissionCognitiveSkills(username, sessions.get(0), request);
+    }
+    
+    @GetMapping("/children/{username}/cognitive-skills-progress")
+    public CognitiveSkillsProgressResponse cognitiveSkillsProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
-    	    	
-    	for (Terms.Bucket entry : metrics.getBuckets()) {
-    		
-    		String metricName = entry.getKeyAsString();
-    		
-    		ParsedAvg avg = entry.getAggregations().get("average");
-    		double value = avg.getValue();
-    		
-    	    switch (metricName) {
-    	    	case "alternating_attention": 
-    	    		response.setAlternatingAttention((int)Math.round(value));
-    	    		break;
-    	    	case "behavioral_inhibition": 
-    	    		response.setBehavioralInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "cognitive_inhibition": 
-    	    		response.setCognitiveInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "delayed_gratification": 
-    	    		response.setDelayOfGratification((int)Math.round(value));
-    	    		break;
-    	    	case "divided_attention": 
-    	    		response.setDividedAttention((int)Math.round(value));
-    	    		break;
-    	    	case "focused_attention": 
-    	    		response.setFocusedAttention((int)Math.round(value));
-    	    		break;
-    	    	case "inner_voice": 
-    	    		response.setInnerVoice((int)Math.round(value));
-    	    		break;
-    	    	case "interference_control": 
-    	    		response.setInterferenceControl((int)Math.round(value));
-    	    		break;
-    	    	case "motivational_inhibition": 
-    	    		response.setMotivationalInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "novelty_inhibition": 
-    	    		response.setNoveltyInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "selective_attention": 
-    	    		response.setSelectiveAttention((int)Math.round(value));
-    	    		break;
-    	    	case "self_regulation": 
-    	    		response.setSelfRegulation((int)Math.round(value));
-    	    		break;
-    	    	case "sustained_attention": 
-    	    		response.setSustainedAttention((int)Math.round(value));
-    	    		break;
-    	    	default:
-    	    		throw new RuntimeException("Unknown metric name: " + metricName);
-    	    }
-    	}
-    	    	
-    	return response;
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	List<String> sessions = analyticsService.parseSessions(analyticsService.lastNRunners(username, 2));
+    	
+    	CognitiveSkillsResponse lastScores = childMissionCognitiveSkills(username, sessions.get(0), request);
+    	CognitiveSkillsResponse nextToLastScores = childMissionCognitiveSkills(username, sessions.get(1), request);
+    	
+    	return CognitiveSkillsProgressResponse
+    		.builder()
+    		.alternatingAttention(new SkillItem(nextToLastScores.getAlternatingAttention(), lastScores.getAlternatingAttention()))
+    		.behavioralInhibition(new SkillItem(nextToLastScores.getBehavioralInhibition(),lastScores.getBehavioralInhibition()))
+    		.cognitiveInhibition(new SkillItem(nextToLastScores.getCognitiveInhibition(),lastScores.getCognitiveInhibition()))
+    		.delayOfGratification(new SkillItem(nextToLastScores.getDelayOfGratification(),lastScores.getDelayOfGratification()))
+    		.dividedAttention(new SkillItem(nextToLastScores.getDividedAttention(),lastScores.getDividedAttention()))
+    		.focusedAttention(new SkillItem(nextToLastScores.getFocusedAttention(),lastScores.getFocusedAttention()))
+    		.innerVoice(new SkillItem(nextToLastScores.getInnerVoice(),lastScores.getInnerVoice()))
+    		.motivationalInhibition(new SkillItem(nextToLastScores.getMotivationalInhibition(),lastScores.getMotivationalInhibition()))
+    		.noveltyInhibition(new SkillItem(nextToLastScores.getNoveltyInhibition(),lastScores.getNoveltyInhibition()))
+    		.selectiveAttention(new SkillItem(nextToLastScores.getSelectiveAttention(),lastScores.getSelectiveAttention()))
+    		.selfRegulation(new SkillItem(nextToLastScores.getSelfRegulation(),lastScores.getSelfRegulation()))
+    		.sustainedAttention(new SkillItem(nextToLastScores.getSustainedAttention(),lastScores.getSustainedAttention()))
+    		.interferenceControl(new SkillItem(nextToLastScores.getInterferenceControl(),lastScores.getInterferenceControl()))
+    		.build();
     }
     
     @GetMapping("/children/{username}/impulse-control")
@@ -616,7 +575,8 @@ public class PortalController {
     	
     	SearchHit[] hits = searchResponse.getHits().getHits();
 
-    	Map<String, CognitiveSkillsResponse> sessions = new HashMap<>();
+    	// make sure it's sorted in inserted order
+    	Map<String, CognitiveSkillsResponse> sessions = new LinkedHashMap<>();
     	
     	for (SearchHit hit : hits) {
     		

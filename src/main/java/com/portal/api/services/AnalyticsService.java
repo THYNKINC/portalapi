@@ -21,7 +21,6 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
-import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
@@ -180,38 +179,56 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
-	public SearchResponse attempts(String userId, int size) throws Exception {
 
-		SSLContext sslContext = opensearchService.getSSLContext();
-		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-
-		// Create queries
-		BoolQueryBuilder boolQuery = QueryBuilders
-				.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
-
-		// Set up the source builder
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-		searchSourceBuilder.query(boolQuery);
-		
-		// TODO put a sensible limit here
-		searchSourceBuilder.size(size);
-		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
-
-		// Add the fields to the request
-		searchSourceBuilder.fetchSource(new String[] { "session_start", "TaskID", "session_type" }, new String[] {});
-
-		// Add the source builder to the request
-		searchRequest.source(searchSourceBuilder);
-
-		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
-	}
-
+	/**
+	 * Returns the last attempt for any session type
+	 * 
+	 * @param userId
+	 * @return
+	 * @throws Exception
+	 */
 	public SearchResponse lastSession(String userId) throws Exception {
+
+		return lastNSessions(userId, 1);
+	}
+	
+	/**
+	 * Returns the last n sessions of any type
+	 * 
+	 * @param userId
+	 * @param sessions the number of attempts you want to return
+	 * @return the attempts sorted by most recents first
+	 * @throws Exception
+	 */
+	public SearchResponse lastNSessions(String userId, int sessions) throws Exception {
+
+		return lastNSessionsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd"));
+	}
+	
+	/**
+	 * Returns the last n runners
+	 * 
+	 * @param userId
+	 * @param sessions the number of attempts you want to return
+	 * @return the attempts sorted by most recents first
+	 * @throws Exception
+	 */
+	public SearchResponse lastNRunners(String userId, int sessions) throws Exception {
+
+		return lastNSessionsOfType(userId, sessions, List.of("RunnerEnd"));
+	}
+	
+	/**
+	 * 
+	 * Returns the last attempts of a given type
+	 * 
+	 * @param userId
+	 * @param sessions the number of attempts you want to return
+	 * @param eventTypes the list of event_type values you want to filter for (xference or runner for now)
+	 * @return the attempts sorted by most recents first
+	 * @throws Exception
+	 */
+	private SearchResponse lastNSessionsOfType(String userId, int sessions, List<String> eventTypes) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -220,13 +237,13 @@ public class AnalyticsService {
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.termsQuery("event_type", eventTypes))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
-		searchSourceBuilder.size(1);
+		searchSourceBuilder.size(sessions);
 		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
 
 		// Add the fields to the request
@@ -287,7 +304,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	private List<String> parseSessions(SearchResponse response) {
+	public List<String> parseSessions(SearchResponse response) {
 		
 		return Stream
 			.of(response.getHits().getHits())
@@ -304,7 +321,7 @@ public class AnalyticsService {
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
 		
-		SearchResponse sessions = attempts(userId, 1000);
+		SearchResponse sessions = lastNRunners(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
 				.termsQuery("session_start.keyword", parseSessions(sessions));
@@ -346,7 +363,7 @@ public class AnalyticsService {
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
 		
-		SearchResponse sessions = attempts(userId, 1000);
+		SearchResponse sessions = lastNRunners(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
 				.termsQuery("session_start.keyword", parseSessions(sessions));
@@ -361,7 +378,7 @@ public class AnalyticsService {
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
 				.size(1000)
-				.sort("session_start.keyword", SortOrder.ASC)
+				.sort("session_start", SortOrder.ASC)
 				.sort("metric_type", SortOrder.ASC)
 				.fetchSource(new String[] {"session_start", "metric_type", "metric_value"}, null);
 
