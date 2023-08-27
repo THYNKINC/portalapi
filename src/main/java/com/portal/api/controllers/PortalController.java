@@ -336,7 +336,7 @@ public class PortalController {
     		FogAnalysisResponse xfer = childMissionFogAnalysis(username, sessionId, request);
     		recentMissionResponse.setMissionStatus(xfer.isPass() ? "PASS" : "FAIL");
     		recentMissionResponse.setMissionRating(xfer.getDecodedMolecules() * 100 / xfer.getTargetDecodes());
-    		recentMissionResponse.setType("transfer");
+    		recentMissionResponse.setType("transference");
     	}
     	
     	recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
