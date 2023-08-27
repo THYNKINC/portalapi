@@ -1,11 +1,7 @@
 package com.portal.api.controllers;
 
-import java.util.List;
-import java.util.Map;
-
 import javax.servlet.http.HttpServletRequest;
 
-import org.opensearch.action.search.SearchResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
@@ -28,11 +24,9 @@ import com.portal.api.model.Child;
 import com.portal.api.model.GameState;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
-import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
-import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 
 @RestController
@@ -123,8 +117,7 @@ public class AdminController {
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
         if (result == null) {
-        	System.out.println("RESOURCE NOT FOUND");
-        	throw new ResourceNotFoundException("Resource not found");
+        	throw new ResourceNotFoundException("No game state for this user");
         }
         
         GameState state;

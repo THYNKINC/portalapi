@@ -9,8 +9,6 @@ import java.net.URL;
 import org.apache.http.client.HttpResponseException;
 import org.springframework.stereotype.Service;
 
-import com.portal.api.exception.ResourceNotFoundException;
-
 @Service
 public class HttpService {
 
@@ -59,10 +57,6 @@ public class HttpService {
         }
         reader.close();
 
-        // Print the response
-        //System.out.println("Response Code: " + responseCode);
-        //System.out.println("Response Body: " + response.toString());
-
         // Close the connection
         connection.disconnect();
         
@@ -93,13 +87,11 @@ public class HttpService {
         connection.setDoInput(true);
         connection.setDoOutput(true);
         
-     // Get the response code
+        // Get the response code
         int responseCode = connection.getResponseCode();
-        System.out.println("RESPONSE CODE: " + responseCode);
         
-     // Check if the response code is 404 (Not Found)
+        // Check if the response code is 404 (Not Found)
         if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-            System.out.println("Resource not found: " + url);
             return null;
         }
 
@@ -111,10 +103,6 @@ public class HttpService {
             response.append(line);
         }
         reader.close();
-
-        // Print the response
-        //System.out.println("Response Code: " + responseCode);
-        //System.out.println("Response Body: " + response.toString());
 
         // Close the connection
         connection.disconnect();

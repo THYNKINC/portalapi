@@ -51,6 +51,7 @@ import com.portal.api.model.Parent;
 import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
+import com.portal.api.model.RunnerResponse;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
@@ -170,7 +171,6 @@ public class PortalController {
 
     	// Access the user's username and other details from the signUpResponse
     	String usern = signUpResponse.userSub();
-    	System.out.println("User created with username sub: " + usern);
     	
     	// Add user to user group
     	AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
@@ -189,7 +189,6 @@ public class PortalController {
     	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
 
     	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
-    	System.out.println(isConfirmed);
     	
     	Parent parent = new Parent();
     	parent.setChildren(new ArrayList<>());
@@ -249,7 +248,6 @@ public class PortalController {
     	ParsedDateHistogram terms;
     	List<? extends Histogram.Bucket> buckets;
 
-    	System.out.println("SESSIONS WEEKLY");
     	searchResponse = analyticsService.completedSessionsWeek(username); 
     	
     	aggregations = searchResponse.getAggregations();
@@ -257,7 +255,6 @@ public class PortalController {
     	buckets = terms.getBuckets();
     	int sessionsPerWeekCount = buckets.size();
     	
-    	System.out.println("SESSIONS");
     	searchResponse = analyticsService.completedSessions(username); 
 
     	aggregations = searchResponse.getAggregations();
@@ -280,13 +277,10 @@ public class PortalController {
         
         // TODO change to bean
         // TODO change to use Spring web request
-        System.out.println("MAKING REQUEST TO GAMES SERVICE");
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
-        System.out.println("RESULT: " + result);
         if (result == null) {
-        	System.out.println("RESOURCE NOT FOUND");
-        	throw new ResourceNotFoundException("Resource not found");
+        	throw new ResourceNotFoundException("No game state for this user");
         }
     	
     	ProgressResponse progressResponse = new ProgressResponse();
@@ -319,8 +313,7 @@ public class PortalController {
         String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
         String result = HttpService.sendHttpGetRequest(url, bearerToken);
         if (result == null) {
-        	System.out.println("RESOURCE NOT FOUND");
-        	throw new ResourceNotFoundException("Resource not found");
+        	throw new ResourceNotFoundException("No game state for this user.");
         }
         
         GameState state;
@@ -342,7 +335,6 @@ public class PortalController {
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
-    	// 5 levels, 3 sublevels per level, that's 15 missions total
     	recentMissionResponse.setMissionNumber(lastCompleted);
     	
 		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index (zero-based hence the -1)
@@ -355,6 +347,29 @@ public class PortalController {
 		recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
     	return recentMissionResponse;
+    }
+    
+    @GetMapping("/children/{username}/sessions/{sessionId}/runner")
+    public RunnerResponse childMissionRunner(
+    		@PathVariable("username") String username, 
+    		@PathVariable("sessionId") String sessionId,
+    		HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	SearchResponse searchResponse = analyticsService.maxStarReached(username, sessionId);
+    	
+    	RunnerResponse runner = new RunnerResponse();
+    	
+    	SearchHit[] searchHits = searchResponse.getHits().getHits();
+    	
+    	if (searchHits.length == 0)
+    		return runner;
+    	
+    	runner.setStarReached((int)searchHits[0].getSourceAsMap().get("StarReached"));
+    	runner.setPass(true);
+ 	
+    	return runner;
     }
     
     @GetMapping("/children/{username}/badges")
@@ -404,8 +419,11 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/sessions/{sessionId}/power")
-    public PowerResponse childMissionPower(@PathVariable("username") String username, 
-    		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
+    public PowerResponse childMissionPower(
+    		@PathVariable("username") String username, 
+    		@PathVariable("sessionId") String sessionId,
+    		// TODO use Spring Boot auth Principal injection here (see legacy API)
+    		HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
@@ -669,24 +687,23 @@ public class PortalController {
     }
     
     @GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
-    public FogAnalysisResponse childMissionFogAnalysis(@PathVariable("username") String username, 
-    		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
+    public FogAnalysisResponse childMissionFogAnalysis(
+    		@PathVariable("username") String username, 
+    		@PathVariable("sessionId") String sessionId,
+    		HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	CountResponse countResponse = analyticsService.decodedMolecules(username, sessionId);
-    	CustomSearchResponse customSearchResponse = analyticsService.frozenDishes(username, sessionId);
-    	SearchResponse searchResponse = analyticsService.transferenceEvents(username, sessionId);
+    	SearchResponse xferResponse = analyticsService.transferenceEvents(username, sessionId);
     	
-    	Map<String, Long> dishCounts = customSearchResponse.getDishCount();
-    	long dishStartCount = dishCounts.getOrDefault("TransferenceStatsDishStart", 0L);
-    	long dishCorruptedCount = dishCounts.getOrDefault("TransferenceStatsDishCorrupted", 0L);
-    	int difference = (int) (dishStartCount - dishCorruptedCount);
-    	
+    	// Interesting xfer events
     	List<StartEnd> startEndList = new ArrayList<>();
-    	SearchHit[] searchHits = searchResponse.getHits().getHits();
+    	SearchHit[] searchHits = xferResponse.getHits().getHits();
     	
     	double threshold = 0;
+    	int target = 0;
+    	int decoded = 0;
+    	int frozen = 0;
     	String start = null;
     	String end = null;
     	
@@ -697,16 +714,35 @@ public class PortalController {
     		
     		switch (eventType) {
     		
+    		// start of xfer session
+    		case "TransferenceStatsStart":
+    			
+    			target = (int)source.get("TargetDecodes");
+    			break;
+    			
+    		// start of dish session
     		case "TransferenceStatsDishStart":
     			
     			threshold = (Double)source.get("DecodeThreshold");
     			break;
     			
+    		// start of decoding session
     		case "TransferenceStatsMoleculeDecodeStart":
     			start = (String)source.get("timestamp");
     			break;
+    		
+    		// 1 molecule was decoded
+    		case "TransferenceStatsMoleculeDecodeEnd":
+    			decoded++;
+    			break;
     			
+    		// dish is frozen
+    		// all molecules decoded
+    		// end of decoding session
     		case "TransferenceStatsDishEnd":
+    			
+    			frozen++;
+    			
     			
     			if (start != null) {
 	    			end = (String)source.get("timestamp");
@@ -721,9 +757,11 @@ public class PortalController {
 		}
 
     	FogAnalysisResponse fogAnalysisResponse = new FogAnalysisResponse();
-    	fogAnalysisResponse.setDecodedMolecules((int) countResponse.getCount());
-    	fogAnalysisResponse.setFrozenDishes(difference);
+    	fogAnalysisResponse.setDecodedMolecules(decoded);
+    	fogAnalysisResponse.setFrozenDishes(frozen);
     	fogAnalysisResponse.setDishes(startEndList);
+    	fogAnalysisResponse.setTargetDecodes(target);
+    	fogAnalysisResponse.setPass(target == decoded);
  	
     	return fogAnalysisResponse;
     }

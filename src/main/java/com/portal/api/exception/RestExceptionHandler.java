@@ -29,7 +29,6 @@ public class RestExceptionHandler {
     
     @ExceptionHandler(ResourceNotFoundException.class)
     protected ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
-    	System.out.println("HERE");
     	ErrorResponse errorResponse = new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.APPLICATION_JSON).body(errorResponse);
     }

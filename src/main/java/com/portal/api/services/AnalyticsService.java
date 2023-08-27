@@ -269,9 +269,15 @@ public class AnalyticsService {
 				.must(userIdQuery);
 
 		// Build the aggregation queries
-		MaxAggregationBuilder powerAgg = AggregationBuilders.max("power").field("Score");
-		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders.dateHistogram("intervals").field("timestamp")
-				.fixedInterval(DateHistogramInterval.seconds(30)).subAggregation(powerAgg);
+		MaxAggregationBuilder powerAgg = AggregationBuilders
+				.max("power")
+				.field("Score");
+		
+		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders
+				.dateHistogram("intervals")
+				.field("timestamp")
+				.fixedInterval(DateHistogramInterval.seconds(30))
+				.subAggregation(powerAgg);
 
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).aggregation(intervalsAgg)
@@ -424,9 +430,15 @@ public class AnalyticsService {
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(userIdQuery);
 
-		AvgAggregationBuilder averageBciAgg = AggregationBuilders.avg("average_bci").field("bci");
-		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders.dateHistogram("intervals").field("timestamp")
-				.fixedInterval(DateHistogramInterval.seconds(60)).subAggregation(averageBciAgg);
+		AvgAggregationBuilder averageBciAgg = AggregationBuilders
+				.avg("average_bci")
+				.field("bci");
+		
+		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders
+				.dateHistogram("intervals")
+				.field("timestamp")
+				.fixedInterval(DateHistogramInterval.seconds(10))
+				.subAggregation(averageBciAgg);
 
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).aggregation(intervalsAgg)
@@ -439,28 +451,41 @@ public class AnalyticsService {
 	}
 
 	public CustomSearchResponse frozenDishes(String userId, String sessionId) throws Exception {
+		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termQuery("session_start.keyword", sessionId)).must(QueryBuilders
+				.must(QueryBuilders
+						.termQuery("session_start.keyword", sessionId))
+				.must(QueryBuilders
 						.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishCorrupted"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Build the aggregation
-		TermsAggregationBuilder aggregation = AggregationBuilders.terms("dish_count").field("event_type");
+		TermsAggregationBuilder aggregation = AggregationBuilders
+				.terms("dish_count")
+				.field("event_type");
 
 		// Build the search source
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).aggregation(aggregation)
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.aggregation(aggregation)
 				.size(0);
 
 		// Create the search request
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref")
+				.source(searchSourceBuilder);
 
 		SearchResponse searchResponse = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 
-		Terms dishCountAggregation = searchResponse.getAggregations().get("dish_count");
-		Map<String, Long> dishCount = dishCountAggregation.getBuckets().stream()
+		Terms dishCountAggregation = searchResponse
+				.getAggregations()
+				.get("dish_count");
+		
+		Map<String, Long> dishCount = dishCountAggregation
+				.getBuckets()
+				.stream()
 				.collect(Collectors.toMap(Terms.Bucket::getKeyAsString, Terms.Bucket::getDocCount));
 
 		CustomSearchResponse customResponse = new CustomSearchResponse(dishCount);
@@ -485,16 +510,17 @@ public class AnalyticsService {
 	}
 
 	public SearchResponse transferenceEvents(String userId, String sessionId) throws Exception {
+		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsDishEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsStart", "TransferenceStatsDishStart", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsMoleculeDecodeEnd", "TransferenceStatsDishEnd", "TransferenceStatsDishCorrupted"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Specify the fields to return
-		String[] includeFields = new String[] { "timestamp", "event_type", "DecodeThreshold" };
+		String[] includeFields = new String[] { "timestamp", "event_type", "DecodeThreshold", "TargetDecodes" };
 		String[] excludeFields = new String[] {};
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
@@ -507,5 +533,54 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 
+	}
+
+	public SearchResponse maxStarReached(String userId, String sessionId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
+				.must(QueryBuilders.existsQuery("StarReached"))
+				.must(QueryBuilders.matchQuery("user_id", userId));
+
+		// Specify the fields to return
+		String[] includeFields = new String[] { "StarReached" };
+		String[] excludeFields = new String[] {};
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.fetchSource(includeFields, excludeFields)
+				.size(1)
+				.sort("timestamp", SortOrder.DESC);
+
+		// Create the search request
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+
+	public SearchResponse targetMoleculesDecode(String userId, String sessionId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
+				.must(QueryBuilders.termQuery("event_type", "TransferenceStatsStart"))
+				.must(QueryBuilders.matchQuery("user_id", userId));
+
+		// Specify the fields to return
+		String[] includeFields = new String[] { "TargetDecodes" };
+		String[] excludeFields = new String[] {};
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.fetchSource(includeFields, excludeFields)
+				.size(1);
+
+		// Create the search request
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 }
