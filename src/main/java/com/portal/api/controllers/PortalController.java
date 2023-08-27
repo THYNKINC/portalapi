@@ -308,43 +308,38 @@ public class PortalController {
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
         
-        // TODO change to bean
-        // TODO change to use Spring web request
-        String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
-        String result = HttpService.sendHttpGetRequest(url, bearerToken);
-        if (result == null) {
-        	throw new ResourceNotFoundException("No game state for this user.");
-        }
-        
-        GameState state;
-        try {
-        	ObjectMapper mapper = new ObjectMapper();
-        	state = mapper.readValue(result, GameState.class);
-        } catch (JsonMappingException e) {
-    	   throw new ResourceNotFoundException("Resource not found");
-    	}
-    	
         SearchResponse searchResponse = analyticsService.lastSession(username); 
     	
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
-//    	String sessionId = (String) sourceAsMap.get("session_start");
-//    	String eventType = (String) sourceAsMap.get("event_type");
+    	String sessionId = (String) sourceAsMap.get("session_start");
+    	String eventType = (String) sourceAsMap.get("event_type");
     	String taskId = (String) sourceAsMap.get("TaskID");
+    	
     	int lastCompleted = Integer.parseInt(MappingService.getKey(taskId));
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
     	recentMissionResponse.setMissionNumber(lastCompleted);
+    	recentMissionResponse.setSessionId(sessionId);
     	
-		// starsPerMission is a string where each character is a number representing the stars earned for the mission at that index (zero-based hence the -1)
-		if (state.getStarsPerMission() == null) {
-			recentMissionResponse.setMissionRating(0);
-		} else {
-			recentMissionResponse.setMissionRating(Character.getNumericValue(state.getStarsPerMission().charAt(lastCompleted - 1)));
-		}
+    	if (eventType == "RunnerEnd") {
+    		
+    		RunnerResponse runner = childMissionRunner(username, sessionId, request);
+    		recentMissionResponse.setMissionStatus(runner.isPass() ? "PASS" : "FAIL");
+    		recentMissionResponse.setMissionRating(runner.getStarReached());
+    		recentMissionResponse.setType("runner");
+    	}
     	
-		recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
+    	else {
+    		
+    		FogAnalysisResponse xfer = childMissionFogAnalysis(username, sessionId, request);
+    		recentMissionResponse.setMissionStatus(xfer.isPass() ? "PASS" : "FAIL");
+    		recentMissionResponse.setMissionRating(xfer.getDecodedMolecules() * 100 / xfer.getTargetDecodes());
+    		recentMissionResponse.setType("transfer");
+    	}
+    	
+    	recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
     	return recentMissionResponse;
     }
@@ -761,7 +756,7 @@ public class PortalController {
     	fogAnalysisResponse.setFrozenDishes(frozen);
     	fogAnalysisResponse.setDishes(startEndList);
     	fogAnalysisResponse.setTargetDecodes(target);
-    	fogAnalysisResponse.setPass(target == decoded);
+    	fogAnalysisResponse.setPass(decoded >= target);
  	
     	return fogAnalysisResponse;
     }
