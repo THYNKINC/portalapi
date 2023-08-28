@@ -361,8 +361,10 @@ public class PortalController {
     	if (searchHits.length == 0)
     		return runner;
     	
-    	runner.setStarReached((int)searchHits[0].getSourceAsMap().get("StarReached"));
-    	runner.setPass(true);
+    	int starReached = (int)searchHits[0].getSourceAsMap().get("StarReached");
+    	
+    	runner.setStarReached(starReached);
+    	runner.setPass(starReached > 0);
  	
     	return runner;
     }
