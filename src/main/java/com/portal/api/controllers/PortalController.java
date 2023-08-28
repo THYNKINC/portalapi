@@ -323,7 +323,7 @@ public class PortalController {
     	recentMissionResponse.setMissionNumber(lastCompleted);
     	recentMissionResponse.setSessionId(sessionId);
     	
-    	if (eventType == "RunnerEnd") {
+    	if ("RunnerEnd".equals(eventType)) {
     		
     		RunnerResponse runner = childMissionRunner(username, sessionId, request);
     		recentMissionResponse.setMissionStatus(runner.isPass() ? "PASS" : "FAIL");
