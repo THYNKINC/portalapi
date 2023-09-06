@@ -567,19 +567,19 @@ public class PortalController {
     	
     	return CognitiveSkillsProgressResponse
     		.builder()
-    		.alternatingAttention(new SkillItem(nextToLastScores.getAlternatingAttention(), lastScores.getAlternatingAttention()))
-    		.behavioralInhibition(new SkillItem(nextToLastScores.getBehavioralInhibition(),lastScores.getBehavioralInhibition()))
-    		.cognitiveInhibition(new SkillItem(nextToLastScores.getCognitiveInhibition(),lastScores.getCognitiveInhibition()))
-    		.delayOfGratification(new SkillItem(nextToLastScores.getDelayOfGratification(),lastScores.getDelayOfGratification()))
-    		.dividedAttention(new SkillItem(nextToLastScores.getDividedAttention(),lastScores.getDividedAttention()))
-    		.focusedAttention(new SkillItem(nextToLastScores.getFocusedAttention(),lastScores.getFocusedAttention()))
-    		.innerVoice(new SkillItem(nextToLastScores.getInnerVoice(),lastScores.getInnerVoice()))
-    		.motivationalInhibition(new SkillItem(nextToLastScores.getMotivationalInhibition(),lastScores.getMotivationalInhibition()))
-    		.noveltyInhibition(new SkillItem(nextToLastScores.getNoveltyInhibition(),lastScores.getNoveltyInhibition()))
-    		.selectiveAttention(new SkillItem(nextToLastScores.getSelectiveAttention(),lastScores.getSelectiveAttention()))
-    		.selfRegulation(new SkillItem(nextToLastScores.getSelfRegulation(),lastScores.getSelfRegulation()))
-    		.sustainedAttention(new SkillItem(nextToLastScores.getSustainedAttention(),lastScores.getSustainedAttention()))
-    		.interferenceControl(new SkillItem(nextToLastScores.getInterferenceControl(),lastScores.getInterferenceControl()))
+    		.alternatingAttention(new SkillItem(lastScores.getAlternatingAttention(), nextToLastScores.getAlternatingAttention()))
+    		.behavioralInhibition(new SkillItem(lastScores.getBehavioralInhibition(), nextToLastScores.getBehavioralInhibition()))
+    		.cognitiveInhibition(new SkillItem(lastScores.getCognitiveInhibition(), nextToLastScores.getCognitiveInhibition()))
+    		.delayOfGratification(new SkillItem(lastScores.getDelayOfGratification(), nextToLastScores.getDelayOfGratification()))
+    		.dividedAttention(new SkillItem(lastScores.getDividedAttention(), nextToLastScores.getDividedAttention()))
+    		.focusedAttention(new SkillItem(lastScores.getFocusedAttention(), nextToLastScores.getFocusedAttention()))
+    		.innerVoice(new SkillItem(lastScores.getInnerVoice(), nextToLastScores.getInnerVoice()))
+    		.motivationalInhibition(new SkillItem(lastScores.getMotivationalInhibition(), nextToLastScores.getMotivationalInhibition()))
+    		.noveltyInhibition(new SkillItem(lastScores.getNoveltyInhibition(), nextToLastScores.getNoveltyInhibition()))
+    		.selectiveAttention(new SkillItem(lastScores.getSelectiveAttention(), nextToLastScores.getSelectiveAttention()))
+    		.selfRegulation(new SkillItem(lastScores.getSelfRegulation(), nextToLastScores.getSelfRegulation()))
+    		.sustainedAttention(new SkillItem(lastScores.getSustainedAttention(), nextToLastScores.getSustainedAttention()))
+    		.interferenceControl(new SkillItem(lastScores.getInterferenceControl(), nextToLastScores.getInterferenceControl()))
     		.build();
     }
     

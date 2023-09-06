@@ -301,8 +301,10 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(userIdQuery);
 
 		// Build the search source with the boolean query, the aggregation, and the size
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery)
-				.fetchSource(new String[] { "metric_value", "metric_type" }, null);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.fetchSource(new String[] { "metric_value", "metric_type" }, null)
+				.size(13);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("collectivemetrics").source(searchSourceBuilder);
