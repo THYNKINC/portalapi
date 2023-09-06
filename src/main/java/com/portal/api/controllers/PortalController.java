@@ -2,9 +2,13 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,7 +33,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttentionResponse;
@@ -43,7 +46,6 @@ import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.CreateUserRequest;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
-import com.portal.api.model.GameState;
 import com.portal.api.model.GraphResponse;
 import com.portal.api.model.ImpulseControl;
 import com.portal.api.model.LoginRequest;
@@ -673,10 +675,13 @@ public class PortalController {
     				focus = skills.getSustainedAttention();
     			else
     				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
+
+    		OptionalDouble impulse = IntStream
+    				.of(skills.getCognitiveInhibition(), skills.getBehavioralInhibition(), skills.getNoveltyInhibition(), skills.getMotivationalInhibition(), skills.getInterferenceControl())
+    				.filter(i -> i >= 0)
+    				.average();
     		
-    		double impulse = (skills.getCognitiveInhibition() + skills.getBehavioralInhibition() + skills.getNoveltyInhibition() + skills.getMotivationalInhibition() + skills.getInterferenceControl()) / 5;
-    		
-    		ImpulseControl datapoint = new ImpulseControl(entry.getKey(), focus, impulse);
+    		ImpulseControl datapoint = new ImpulseControl(entry.getKey(), focus, impulse.orElse(-1));
     		response.add(datapoint);
     	}
     	    	
