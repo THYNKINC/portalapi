@@ -2,12 +2,11 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -58,6 +57,7 @@ import com.portal.api.model.SessionData;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.services.AnalyticsService;
+import com.portal.api.util.Constants;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
@@ -594,6 +594,7 @@ public class PortalController {
 
     	// make sure it's sorted in inserted order
     	Map<String, CognitiveSkillsResponse> sessions = new LinkedHashMap<>();
+    	Map<String, Double> weights = new HashMap<>();
     	
     	for (SearchHit hit : hits) {
     		
@@ -603,12 +604,15 @@ public class PortalController {
     		if (missionId.equals("1.1"))
     			continue;
     		
+    		int missionNo = Integer.parseInt(MappingService.getKey(missionId));
+    		
     		CognitiveSkillsResponse skills = null;
     		
     		if ((skills = sessions.get(sessionStart)) == null) {
     			
     			skills = new CognitiveSkillsResponse();
     			sessions.put(sessionStart, skills);
+    			weights.put(sessionStart, Constants.COMPOSITE_SCORE_WEIGHT[missionNo]);
     		}
     		
     		String metricName = (String) hit.getSourceAsMap().get("metric_type");
@@ -680,6 +684,9 @@ public class PortalController {
     			else
     				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
 
+    		// apply weights to composite focus
+    		focus *= weights.get(entry.getKey());
+    		
     		OptionalDouble impulse = IntStream
     				.of(
     						skills.getCognitiveInhibition(),
