@@ -386,7 +386,7 @@ public class AnalyticsService {
 				.size(1000)
 				.sort("session_start", SortOrder.ASC)
 				.sort("metric_type", SortOrder.ASC)
-				.fetchSource(new String[] {"session_start", "metric_type", "metric_value"}, null);
+				.fetchSource(new String[] {"session_start", "MissionID", "metric_type", "metric_value"}, null);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("collectivemetrics").source(searchSourceBuilder);

@@ -598,6 +598,10 @@ public class PortalController {
     	for (SearchHit hit : hits) {
     		
     		String sessionStart = (String) hit.getSourceAsMap().get("session_start");
+    		String missionId = (String) hit.getSourceAsMap().get("MissionID");
+    		
+    		if (missionId.equals("1.1"))
+    			continue;
     		
     		CognitiveSkillsResponse skills = null;
     		
@@ -677,7 +681,12 @@ public class PortalController {
     				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
 
     		OptionalDouble impulse = IntStream
-    				.of(skills.getCognitiveInhibition(), skills.getBehavioralInhibition(), skills.getNoveltyInhibition(), skills.getMotivationalInhibition(), skills.getInterferenceControl())
+    				.of(
+    						skills.getCognitiveInhibition(),
+    						skills.getBehavioralInhibition(),
+    						skills.getNoveltyInhibition(),
+    						skills.getMotivationalInhibition(),
+    						skills.getInterferenceControl())
     				.filter(i -> i >= 0)
     				.average();
     		
