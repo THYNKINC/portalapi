@@ -468,12 +468,22 @@ public class PortalController {
     	
     	searchResponse = analyticsService.starValues(username, sessionId);
     	
+    	// this indicates a problem with the session_start for RunnerStart not matching the RunnerEnd
+    	if (searchResponse.getHits().getHits().length == 0) {
+    		throw new RuntimeException("Cannot determine start thresholds for " + username + ", attempt " + sessionId);
+    	}
+    	
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
 //    	String sessionId = (String) sourceAsMap.get("session_start");
 //    	String eventType = (String) sourceAsMap.get("event_type");
     	String starValues = (String) sourceAsMap.get("StarValues");
     	String[] thresholds = starValues.split("&");
+    	
+    	// special case for legacy data having only one star threshold
+    	if (thresholds.length == 1) {
+    		thresholds = new String[] {thresholds[0], thresholds[0], thresholds[0]};
+    	}
     	
     	int values[] = new int[3];
     	int percentages[] = new int[3];
