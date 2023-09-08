@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalDouble;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
@@ -33,7 +31,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
 import com.portal.api.model.BadgesResponse;
@@ -57,7 +54,6 @@ import com.portal.api.model.SessionData;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.services.AnalyticsService;
-import com.portal.api.util.Constants;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
@@ -250,54 +246,74 @@ public class PortalController {
     	ParsedDateHistogram terms;
     	List<? extends Histogram.Bucket> buckets;
 
-    	searchResponse = analyticsService.completedSessionsWeek(username); 
-    	
-    	aggregations = searchResponse.getAggregations();
-    	terms = aggregations.get("documents_per_bucket"); // Get the aggregation
-    	buckets = terms.getBuckets();
-    	int sessionsPerWeekCount = buckets.size();
-    	
     	searchResponse = analyticsService.completedSessions(username); 
 
     	aggregations = searchResponse.getAggregations();
     	terms = aggregations.get("documents_per_bucket"); // Get the aggregation
     	buckets = terms.getBuckets();
     	int sessionsCount = buckets.size();
+    	
+    	ProgressResponse progressResponse = new ProgressResponse();
 
-    	searchResponse = analyticsService.lastNSessions(username, 1000); 
+    	if (sessionsCount == 0) {
+    		return progressResponse;
+    	}
+    	
+    	progressResponse.setSessionsCompleted(sessionsCount);
+    	
+    	searchResponse = analyticsService.completedSessionsWeek(username); 
+    	
+    	aggregations = searchResponse.getAggregations();
+    	terms = aggregations.get("documents_per_bucket");
+    	buckets = terms.getBuckets();
+    	int sessionsPerWeekCount = buckets.size();
+    	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
+    	
+    	// TODO change MissionID type to double in elastic so we can use a max query directly
+    	searchResponse = analyticsService.lastNAttempts(username, 1000); 
     	
     	SearchHit[] hits = searchResponse.getHits().getHits();
     	
+    	// we need the max so we have to convert the string missions x.y format to doubles
 	    double highestMission = Stream
 	    	.of(hits)
 	    	.mapToDouble(hit -> Double.valueOf((String)hit.getSourceAsMap().get("TaskID")))
 	    	.max()
 	    	.orElse(0);
     	
-    	// TODO change to use Spring web request, which includes JWT exchange
-        String bearerToken = jwtService.getAdminJwt();
-        
-        // TODO change to bean
-        // TODO change to use Spring web request
-        String url = String.format("http://%s:%s/games/users/%s/game-state", GAMES_SERVICE, GAMES_PORT, username);
-        String result = HttpService.sendHttpGetRequest(url, bearerToken);
-        if (result == null) {
-        	throw new ResourceNotFoundException("No game state for this user");
-        }
-    	
-    	ProgressResponse progressResponse = new ProgressResponse();
+	    // TODO calculate abandonned attempts
+	    // as number of runner start + xfer start - runner end + xfer end
     	progressResponse.setAbandonedAttempts(0);
-    	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
+    	    	
+    	// we need to convert the double mission ID from double back to a string
+    	// then get the mission number as an int
+    	// TODO simplify that
+    	int maxMissionNo = Integer.valueOf(MappingService
+				.getKey(String.valueOf(highestMission)));
     	
-    	if (highestMission == 0) {
-    		progressResponse.setMissionsCompleted(0);
-    	} else {
-    		progressResponse
-    			.setMissionsCompleted(Integer.valueOf(MappingService
-    					.getKey(String.valueOf(highestMission))));
-    	}
-    	
-    	progressResponse.setSessionsCompleted(sessionsCount);
+		progressResponse.setMissionsCompleted(maxMissionNo);
+		
+		// get the last attempt (could be different from highest mission if they went back to an old mission)
+		searchResponse = analyticsService.lastNRunners(username, 1);
+		SearchHit hit = searchResponse.getHits().getHits()[0];
+		
+		String attemptId = (String)hit.getSourceAsMap().get("session_start");
+		String missionId = (String)hit.getSourceAsMap().get("TaskID");
+		int lastMissionNo = Integer.valueOf(MappingService.getKey(missionId));
+		
+		// get the scores for that attempt
+		CognitiveSkillsResponse skills = childMissionCognitiveSkills(username, attemptId, request);
+		
+		// calculate the composite focus
+		double compositeFocus = ImpulseControl
+				.fromSkills(attemptId, skills, lastMissionNo)
+				.getFocus();
+		
+		// calculate thynk score
+		double thynkScore = (1.7 * maxMissionNo + sessionsCount)
+				* (compositeFocus + 1);
+		
+    	progressResponse.setThynkScore((int)Math.ceil(thynkScore));
     	
     	return progressResponse;
     }
@@ -310,7 +326,7 @@ public class PortalController {
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
         
-        SearchResponse searchResponse = analyticsService.lastSession(username); 
+        SearchResponse searchResponse = analyticsService.lastAttempt(username); 
     	
     	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
     	
@@ -550,9 +566,9 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	List<String> sessions = analyticsService.parseSessions(analyticsService.lastNRunners(username, 1));
+    	List<String> attempts = analyticsService.parseAttempts(analyticsService.lastNRunners(username, 1));
     	
-    	return childMissionCognitiveSkills(username, sessions.get(0), request);
+    	return childMissionCognitiveSkills(username, attempts.get(0), request);
     }
     
     @GetMapping("/children/{username}/cognitive-skills-progress")
@@ -560,10 +576,10 @@ public class PortalController {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	List<String> sessions = analyticsService.parseSessions(analyticsService.lastNRunners(username, 2));
+    	List<String> attempts = analyticsService.parseAttempts(analyticsService.lastNRunners(username, 2));
     	
-    	CognitiveSkillsResponse lastScores = childMissionCognitiveSkills(username, sessions.get(0), request);
-    	CognitiveSkillsResponse nextToLastScores = childMissionCognitiveSkills(username, sessions.get(1), request);
+    	CognitiveSkillsResponse lastScores = childMissionCognitiveSkills(username, attempts.get(0), request);
+    	CognitiveSkillsResponse nextToLastScores = childMissionCognitiveSkills(username, attempts.get(1), request);
     	
     	return CognitiveSkillsProgressResponse
     		.builder()
@@ -593,12 +609,12 @@ public class PortalController {
     	SearchHit[] hits = searchResponse.getHits().getHits();
 
     	// make sure it's sorted in inserted order
-    	Map<String, CognitiveSkillsResponse> sessions = new LinkedHashMap<>();
-    	Map<String, Double> weights = new HashMap<>();
+    	Map<String, CognitiveSkillsResponse> attempts = new LinkedHashMap<>();
+    	Map<String, Integer> missions = new HashMap<>();
     	
     	for (SearchHit hit : hits) {
     		
-    		String sessionStart = (String) hit.getSourceAsMap().get("session_start");
+    		String attemptId = (String) hit.getSourceAsMap().get("session_start");
     		String missionId = (String) hit.getSourceAsMap().get("MissionID");
     		
     		if (missionId.equals("1.1"))
@@ -608,11 +624,11 @@ public class PortalController {
     		
     		CognitiveSkillsResponse skills = null;
     		
-    		if ((skills = sessions.get(sessionStart)) == null) {
+    		if ((skills = attempts.get(attemptId)) == null) {
     			
     			skills = new CognitiveSkillsResponse();
-    			sessions.put(sessionStart, skills);
-    			weights.put(sessionStart, Constants.COMPOSITE_SCORE_WEIGHT[missionNo]);
+    			attempts.put(attemptId, skills);
+    			missions.put(attemptId, missionNo);
     		}
     		
     		String metricName = (String) hit.getSourceAsMap().get("metric_type");
@@ -670,41 +686,19 @@ public class PortalController {
     	
     	List<ImpulseControl> response = new ArrayList<>();
     	
-    	for (Map.Entry<String, CognitiveSkillsResponse> entry : sessions.entrySet()) {
+    	for (Map.Entry<String, CognitiveSkillsResponse> entry : attempts.entrySet()) {
 			
-    		CognitiveSkillsResponse skills = entry.getValue();
-    		
-    		double focus = 0;
-    		
-    		if (skills.getSustainedAttention() > 0)   		
-    			if (skills.getFocusedAttention() <= 0)
-    				focus = skills.getSustainedAttention();
-    			else if (skills.getSustainedAttention() <= 0)
-    				focus = skills.getSustainedAttention();
-    			else
-    				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
-
-    		// apply weights to composite focus
-    		focus *= weights.get(entry.getKey());
-    		
-    		OptionalDouble impulse = IntStream
-    				.of(
-    						skills.getCognitiveInhibition(),
-    						skills.getBehavioralInhibition(),
-    						skills.getNoveltyInhibition(),
-    						skills.getMotivationalInhibition(),
-    						skills.getInterferenceControl())
-    				.filter(i -> i >= 0)
-    				.average();
-    		
-    		ImpulseControl datapoint = new ImpulseControl(entry.getKey(), focus, impulse.orElse(-1));
-    		response.add(datapoint);
+    		response.add(
+    				ImpulseControl.fromSkills(
+    						entry.getKey(),
+    						entry.getValue(),
+    						missions.get(entry.getKey())));
     	}
     	    	
     	return response;
     }
-    
-    @GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
+
+	@GetMapping("/children/{username}/sessions/{sessionId}/fog-analysis")
     public FogAnalysisResponse childMissionFogAnalysis(
     		@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId,

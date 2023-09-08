@@ -187,9 +187,9 @@ public class AnalyticsService {
 	 * @return
 	 * @throws Exception
 	 */
-	public SearchResponse lastSession(String userId) throws Exception {
+	public SearchResponse lastAttempt(String userId) throws Exception {
 
-		return lastNSessions(userId, 1);
+		return lastNAttempts(userId, 1);
 	}
 	
 	/**
@@ -200,9 +200,9 @@ public class AnalyticsService {
 	 * @return the attempts sorted by most recents first
 	 * @throws Exception
 	 */
-	public SearchResponse lastNSessions(String userId, int sessions) throws Exception {
+	public SearchResponse lastNAttempts(String userId, int sessions) throws Exception {
 
-		return lastNSessionsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd"));
+		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd"));
 	}
 	
 	/**
@@ -215,7 +215,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastNRunners(String userId, int sessions) throws Exception {
 
-		return lastNSessionsOfType(userId, sessions, List.of("RunnerEnd"));
+		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd"));
 	}
 	
 	/**
@@ -228,7 +228,7 @@ public class AnalyticsService {
 	 * @return the attempts sorted by most recents first
 	 * @throws Exception
 	 */
-	private SearchResponse lastNSessionsOfType(String userId, int sessions, List<String> eventTypes) throws Exception {
+	private SearchResponse lastNAttemptsOfType(String userId, int sessions, List<String> eventTypes) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -280,8 +280,11 @@ public class AnalyticsService {
 				.subAggregation(powerAgg);
 
 		// Build the search source with the boolean query, the aggregation, and the size
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).aggregation(intervalsAgg)
-				.size(0).fetchSource(false);
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.aggregation(intervalsAgg)
+				.size(0)
+				.fetchSource(false);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
@@ -312,7 +315,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	public List<String> parseSessions(SearchResponse response) {
+	public List<String> parseAttempts(SearchResponse response) {
 		
 		return Stream
 			.of(response.getHits().getHits())
@@ -332,7 +335,7 @@ public class AnalyticsService {
 		SearchResponse sessions = lastNRunners(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
-				.termsQuery("session_start.keyword", parseSessions(sessions));
+				.termsQuery("session_start.keyword", parseAttempts(sessions));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders
@@ -374,7 +377,7 @@ public class AnalyticsService {
 		SearchResponse sessions = lastNRunners(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
-				.termsQuery("session_start.keyword", parseSessions(sessions));
+				.termsQuery("session_start.keyword", parseAttempts(sessions));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders
