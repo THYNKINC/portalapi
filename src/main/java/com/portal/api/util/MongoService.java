@@ -1,5 +1,6 @@
 package com.portal.api.util;
 
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -104,6 +105,22 @@ public class MongoService {
 		AggregationResults<ChildSearchResult> result = mongoTemplate.aggregate(aggregation, ChildSearchResult.class);
 		
 		return new PaginatedResponse<Child>(result.getUniqueMappedResult().getPaginatedChildren(),result.getUniqueMappedResult().getTotalCount());
+    }
+	
+	public List<Child> getChildrenByUsername(Collection<String> usernames) {
+        
+		Criteria usernameCriteria = Criteria.where("username").in(usernames);
+        
+		TypedAggregation<Parent> aggregation = Aggregation.newAggregation(Parent.class, 
+				Aggregation.unwind("children"),
+                Aggregation.replaceRoot("children"),
+                Aggregation.match(usernameCriteria)
+         );
+		
+		AggregationResults<Child> result = mongoTemplate
+				.aggregate(aggregation, Child.class);
+		
+		return result.getMappedResults();
     }
 	
 	public PaginatedResponse<Child> getAllChildren(Pageable page) {

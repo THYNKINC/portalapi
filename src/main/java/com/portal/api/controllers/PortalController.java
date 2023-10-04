@@ -2,6 +2,7 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.stream.Stream;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+import org.codehaus.jackson.node.ObjectNode;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.model.AttentionResponse;
 import com.portal.api.model.Badge;
@@ -389,19 +392,26 @@ public class PortalController {
     
     @GetMapping("/children/{username}/badges")
     public BadgesResponse childBadges(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	//TODO this is a mock, we need to get this from Mongo
-    	List<Badge> badges = new ArrayList<>();
-    	for (int i = 0; i<= 3; i++) {
-    		Badge badge = new Badge();
-    		badge.setDescription("description" + i);
-    		badge.setImageUrl("url" + i);
-    		badge.setName("badgename" + i);
-    		badges.add(badge);
-    	}
+    	System.out.println("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users/" + username + "/game-state");
     	
-    	BadgesResponse badgesResponse = new BadgesResponse();
+    	String bearerToken = jwtService.getAdminJwt();
+        String response = HttpService.sendHttpGetRequest("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users/" + username + "/game-state", bearerToken);
+        
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(response);
+        
+        List<Badge> badges = new ArrayList<>();
+        
+        root.fields().forEachRemaining(field -> {
+        	
+        	if (field.getKey().startsWith("ach") && field.getValue().asInt() == 1)
+        		badges.add(new Badge(field.getKey().substring(4), "http://someurl", "some description"));
+        });
+        
+        BadgesResponse badgesResponse = new BadgesResponse();
     	badgesResponse.setBadges(badges);
     	
     	return badgesResponse;

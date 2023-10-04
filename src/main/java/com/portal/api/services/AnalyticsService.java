@@ -254,6 +254,40 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
+	
+	/**
+	 * 
+	 * Returns the paginated attempts
+	 * 
+	 * @return the attempts sorted by most recents first
+	 * @throws Exception
+	 */
+	public SearchResponse attempts(int page, int size) throws Exception {
+
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+
+		// Create queries
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")));
+
+		// Set up the source builder
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQuery);
+		searchSourceBuilder.from(size * (page - 1));
+		searchSourceBuilder.size(size);
+		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
+
+		// Add the fields to the request
+		searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID", "user_id" }, new String[] {});
+
+		// Add the source builder to the request
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
 
 	public SearchResponse power(String userId, String sessionId) throws Exception {
 		SSLContext sslContext = opensearchService.getSSLContext();

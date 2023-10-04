@@ -1,0 +1,36 @@
+{
+	"from": 0,
+	"size": 20,
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"terms": {
+						"event_type": [
+							"RunnerEnd",
+							"TransferenceStatsEnd"
+						],
+						"boost": 1.0
+					}
+				}
+			],
+			"adjust_pure_negative": true,
+			"boost": 1.0
+		}
+	},
+	"_source": {
+		"includes": [
+			"session_start",
+			"event_type",
+			"TaskID"
+		],
+		"excludes": []
+	},
+	"sort": [
+		{
+			"timestamp": {
+				"order": "desc"
+			}
+		}
+	]
+}
