@@ -97,6 +97,9 @@ public class PortalController {
 	@Value("${user-pool-id}")
 	private String USER_POOL_ID;
 	
+	@Value("${assets-baseurl}")
+	private String assetsBaseUrl;
+	
 	private final JwtService jwtService;
 	
 	private final MongoService mongoService;
@@ -407,8 +410,10 @@ public class PortalController {
         
         root.fields().forEachRemaining(field -> {
         	
-        	if (field.getKey().startsWith("ach") && field.getValue().asInt() == 1)
-        		badges.add(new Badge(field.getKey().substring(4), "http://someurl", "some description"));
+        	if (field.getKey().startsWith("ach") && field.getValue().asInt() == 1) {
+        		String badgeName = field.getKey().substring(4);
+        		badges.add(new Badge(badgeName, assetsBaseUrl + "/badges/" + badgeName, "some description"));
+        	}
         });
         
         BadgesResponse badgesResponse = new BadgesResponse();
