@@ -75,9 +75,17 @@ public class AdminController {
     }
     
     @GetMapping("/me")
-    public Parent getParent(HttpServletRequest request) throws Exception {
+    public Parent getMe(HttpServletRequest request) throws Exception {
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	return mongoService.getParent(jwt.getClaim("cognito:username"));		
+    }
+    
+    @GetMapping("/parents/{id}")
+    public Parent getParent(@PathVariable("id") String id, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	
+    	return mongoService.getParent(id);		
     }
     
     @GetMapping("/parents")
