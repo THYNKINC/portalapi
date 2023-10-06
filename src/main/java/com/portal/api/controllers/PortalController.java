@@ -412,7 +412,7 @@ public class PortalController {
         	
         	if (field.getKey().startsWith("ach") && field.getValue().asInt() == 1) {
         		String badgeName = field.getKey().substring(4);
-        		badges.add(new Badge(badgeName, assetsBaseUrl + "/badges/" + badgeName + "_1024.png", "some description"));
+        		badges.add(new Badge(badgeName, assetsBaseUrl + "badges/" + badgeName + "_1024.png", "some description"));
         	}
         });
         

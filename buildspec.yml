@@ -5,6 +5,8 @@ env:
      AWS_ACCOUNT_ID: "614572684623"
      AWS_REGION: "us-east-1" # replace with your region
      ROLE_NAME: "AllowDevAccountAccessToECR"
+     CLUSTER_NAME: test
+     APP_NAME: portal-api
 
 phases:
   install:
@@ -29,6 +31,8 @@ phases:
       - REPOSITORY_URI=614572684623.dkr.ecr.us-east-1.amazonaws.com/portalapi
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
+      - echo registering cluster
+      - aws eks --region $AWS_REGION update-kubeconfig --name $CLUSTER_NAME
   build:
     commands:
       - echo Build started on `date`
@@ -37,6 +41,11 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
-      - echo Pushing the Java image...
-      - docker push $REPOSITORY_URI:latest 
+      - echo Pushing the docker image...
+      - docker push $REPOSITORY_URI:latest
+      - echo Rolling out to sandbox
+      - kubectl rollout restart deployment $APP_NAME
       - echo Finished.
+cache:
+  paths:
+    - '/root/.m2/**/*'
