@@ -2,6 +2,7 @@ package com.portal.api.util;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -58,6 +59,10 @@ public class MongoService {
 	
 	public Parent getParent(String username) {
 		return parentRepository.findById(username).orElse(null);
+	}
+	
+	public Parent getParentByChildName(String username) {
+		return parentRepository.findOneByChildrenUsername(username);
 	}
 	
 	public Parent upsertParent(Parent parent) {
@@ -148,4 +153,16 @@ public class MongoService {
 		
 		return new PaginatedResponse<Child>(result.getUniqueMappedResult().getPaginatedChildren(),result.getUniqueMappedResult().getTotalCount());
     }
+
+	public void updateChild(Child child) {
+		
+		Parent parent = getParentByChildName(child.getUsername());
+		
+		List<Child> children = parent.getChildren().stream()
+				.map(e -> e.getUsername().equals(child.getUsername()) ? child : e)
+				.collect(Collectors.toList());
+		
+		parent.setChildren(children);
+		upsertParent(parent);
+	}
 }

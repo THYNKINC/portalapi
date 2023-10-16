@@ -9,4 +9,5 @@ import com.portal.api.model.Parent;
 public interface ParentRepository extends MongoRepository<Parent, String> {
 
 	Page<Parent> findByFirstNameIgnoreCaseStartingWithOrLastNameIgnoreCaseStartingWith(String partialFirstName, String partialLastName, Pageable pageable);
+	Parent findOneByChildrenUsername(String username);
 }

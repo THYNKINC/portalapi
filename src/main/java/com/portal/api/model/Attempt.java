@@ -5,11 +5,22 @@ import lombok.Data;
 @Data
 public class Attempt {
 
-	String username;
-	String firstName;
-	String lastName;
-	String date;
-	String mission;
-	String type;
-	boolean pass;
+	int missionId;
+	long startTime;
+	long endTime;
+	int duration;
+	int attemptNumber;
+	String status;
+	int bciMean;
+	int bciStdDeviation;
+	StarEarned[] stars;
+	int maxPower;
+	int tierAvg;
+	Accuracy accuracy;
+	int responseTime;
+	CognitiveSkillsResponse scores;
+	String[] ranks;
+	String[] badges;
+	Crystals crystals;
+	Obstacles obstacles;
 }

@@ -1,6 +1,7 @@
 package com.portal.api.controllers;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.instancio.Instancio;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,23 +18,32 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.exception.ResourceNotFoundException;
-import com.portal.api.model.Attempt;
+import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.GameState;
+import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
+import com.portal.api.model.PerformanceReportSummary;
+import com.portal.api.model.SummaryStats;
+import com.portal.api.model.UpdateChildRequest;
+import com.portal.api.model.UpdateParentRequest;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
@@ -125,14 +136,14 @@ public class AdminController {
     }
     
     @GetMapping("/attempts")
-    public PaginatedResponse<Attempt> getAttempts(HttpServletRequest request, @RequestParam(defaultValue = "1") int page,
+    public PaginatedResponse<AttemptSummary> getAttempts(HttpServletRequest request, @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
     	
     	SearchResponse searchResponse = analyticsService.attempts(page, size);
     	
-    	PaginatedResponse<Attempt> response = new PaginatedResponse<>();
+    	PaginatedResponse<AttemptSummary> response = new PaginatedResponse<>();
     	response.setContent(new ArrayList<>());
     	
     	response.setTotal(searchResponse.getHits().getTotalHits().value);
@@ -145,7 +156,7 @@ public class AdminController {
     	
     		Map<String, Object> sourceAsMap = hit.getSourceAsMap();
     		
-    		Attempt attempt = new Attempt();
+    		AttemptSummary attempt = new AttemptSummary();
     		attempt.setDate((String) sourceAsMap.get("session_start"));
     		attempt.setUsername((String) sourceAsMap.get("user_id"));
     		attempt.setMission((String) sourceAsMap.get("TaskID"));
@@ -165,7 +176,7 @@ public class AdminController {
     	// pass 2 get names
     	List<Child> children = mongoService.getChildrenByUsername(uniqueUsers);
     	
-    	for (Attempt attempt : response.getContent()) {
+    	for (AttemptSummary attempt : response.getContent()) {
 			
     		Child child = children.stream()
     				.filter(c -> c.getUsername().equals(attempt.getUsername()))
@@ -179,6 +190,71 @@ public class AdminController {
     	// pass 3 count tries
     	
     	return response;
+    }
+    
+    @GetMapping("/children/{username}")
+    public Child getChild(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	List<Child> children = mongoService.getChildrenByUsername(Collections.singletonList(username));
+    	
+    	if (children.size() != 1)
+    		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+    	
+    	return children.get(0);
+    }
+    
+    @PutMapping("/parents/{username}")
+    public Parent updateParentDetails(@PathVariable("username") String username, @RequestBody UpdateParentRequest update, HttpServletRequest request) throws Exception {
+    	
+    	Parent parent = mongoService.getParent(username);
+    	
+    	if (parent == null)
+    		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find parent with username " + username);
+    	
+    	parent.setFirstName(update.getFirstName());
+    	parent.setLastName(update.getLastName());
+    	parent.setAddress(update.getAddress());
+    	parent.setCountry(update.getCountry());
+    	parent.setZipCode(update.getZipCode());
+    	parent.setCity(update.getCity());
+    	
+    	return mongoService.upsertParent(parent);
+    }
+    
+    @PutMapping("/children/{username}")
+    public Child updateChild(@PathVariable("username") String username, @RequestBody UpdateChildRequest update, HttpServletRequest request) throws Exception {
+    	
+    	List<Child> children = mongoService.getChildrenByUsername(Collections.singletonList(username));
+    	
+    	if (children.size() != 1)
+    		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+    	
+    	Child child = children.get(0);
+    	
+    	child.setDob(update.getDob());
+    	child.setFirstName(update.getFirstName());
+    	child.setLastName(update.getLastName());
+    	mongoService.updateChild(child);
+    	
+    	return child;
+    }
+    
+    @GetMapping("/children/{username}/stats")
+    public SummaryStats getChildStats(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	return Instancio.create(SummaryStats.class);
+    }
+    
+    @GetMapping("/children/{username}/perf-report")
+    public PerformanceReportSummary getChildPerfReport(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	return Instancio.create(PerformanceReportSummary.class);
+    }
+    
+    @GetMapping("/children/{username}/progress-report")
+    public HistoricalProgressReport getChildProgressReport(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
+    	return Instancio.create(HistoricalProgressReport.class);
     }
     
     @GetMapping("/children/{username}/state")
