@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +38,8 @@ import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.GameState;
+import com.portal.api.model.Headset;
+import com.portal.api.model.HeadsetAssignment;
 import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
@@ -44,6 +47,7 @@ import com.portal.api.model.PerformanceReportSummary;
 import com.portal.api.model.SummaryStats;
 import com.portal.api.model.UpdateChildRequest;
 import com.portal.api.model.UpdateParentRequest;
+import com.portal.api.repositories.HeadsetRepository;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
@@ -74,15 +78,19 @@ public class AdminController {
 	private final MongoService mongoService;
 	
 	private final AnalyticsService analyticsService;
+	
+	private final HeadsetRepository headsets;
 
     @Autowired
     public AdminController(
     		JwtService jwtService,
     		MongoService mongoService,
-    		AnalyticsService analyticsService) {
+    		AnalyticsService analyticsService,
+    		HeadsetRepository headsets) {
         this.jwtService = jwtService;
         this.mongoService = mongoService;
         this.analyticsService = analyticsService;
+        this.headsets = headsets;
     }
     
     @GetMapping("/me")
@@ -283,5 +291,70 @@ public class AdminController {
     	}
     }
     
+    @PostMapping("/headsets")
+    public Headset createHeadset(@RequestBody Headset headset, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	
+    	if (headsets.findById(headset.getId()).isPresent())
+    		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset ID already exists");
+    	
+    	return headsets.insert(headset);
+    }
     
+    @PutMapping("/headsets/{id}")
+    public Headset updateHeadset(@PathVariable String id, @RequestBody Headset headset, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	
+    	Headset old = headsets.findById(id)
+    			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
+    	
+    	if (!headset.getId().equals(id))
+    		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset ID cannot be changed");
+    	
+    	old.setManufacteDate(headset.getManufacteDate());
+    	
+    	return headsets.insert(headset);
+    }
+    
+    @GetMapping("/headsets")
+    public Page<Headset> listHeadsets(@RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	
+    	Pageable pageRequest = PageRequest.of(page, size);
+    	
+    	return headsets.findAll(pageRequest);
+    }
+    
+    @GetMapping("/headsets/{id}")
+    public Headset getHeadsets(@PathVariable String id, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	    	
+    	return headsets.findById(id)
+    			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
+    }
+    
+    @PostMapping("/headsets/{id}/assignment")
+    public Headset assignHeadsets(@PathVariable String id, @RequestBody HeadsetAssignment assignment, HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	    	
+    	Headset headset = headsets.findById(id)
+    			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
+    	
+    	if (headset.getPlayer() != null && headset.getFirstUseTimestamp() != 0)
+    		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset is already in use");
+    	
+    	Child child = mongoService.getChildrenByUsername(Collections.singletonList(assignment.getUsername())).get(0);
+    	
+    	child.setHeadsetId(id);
+    	mongoService.updateChild(child);
+    	
+    	headset.setPlayer(assignment.getUsername());
+    	return headsets.save(headset);
+    }
 }
