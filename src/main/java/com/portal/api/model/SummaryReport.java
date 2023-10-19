@@ -3,7 +3,7 @@ package com.portal.api.model;
 import lombok.Data;
 
 @Data
-public class PerformanceReportSummary {
+public class SummaryReport {
 
 	long totalPlayTime;
 	SummaryStats runnerStats;

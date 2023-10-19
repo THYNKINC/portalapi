@@ -1,5 +1,7 @@
 package com.portal.api.services;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -20,16 +22,21 @@ import org.opensearch.index.query.MatchQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.script.Script;
 import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import com.portal.api.model.CustomSearchResponse;
@@ -46,6 +53,12 @@ public class AnalyticsService {
 	}
 
 	private static final DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	
+	private String loadFromFile(String filename) throws IOException {
+		
+		Resource resource = new ClassPathResource(filename);
+		return new String(Files.readAllBytes(resource.getFile().toPath()));
+	}
 
 	public SearchResponse completedSessions(String userId) throws Exception {
 
@@ -73,6 +86,74 @@ public class AnalyticsService {
 		searchRequest.source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+		
+	public SearchResponse historicalProgress(String userId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId));
+		
+		MinAggregationBuilder startDate = AggregationBuilders
+				.min("startDate")
+				.field("timestamp");
+		
+		FilterAggregationBuilder attempts = AggregationBuilders
+			.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
+			.subAggregation(AggregationBuilders
+					.max("lastAttempt")
+					.field("timestamp"))
+			.subAggregation(AggregationBuilders
+					.dateHistogram("sessions")
+					.field("timestamp")
+					.dateHistogramInterval(DateHistogramInterval.hours(12))
+					.minDocCount(1))
+			
+			// here we're only looking at the end event, so no need to aggregate further
+			.subAggregation(AggregationBuilders
+				.sum("playtime")
+				.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000")));
+		
+		FilterAggregationBuilder missions = AggregationBuilders
+			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd")))
+			.subAggregation(AggregationBuilders
+					.cardinality("idCount")
+					.field("MissionID"));
+		
+		FilterAggregationBuilder active = AggregationBuilders
+			.filter("active", QueryBuilders.existsQuery("MissionID"))
+			.subAggregation(AggregationBuilders
+				.terms("sessions")
+				.field("session_start.keyword")
+				// here we don't know what the last event for that session was so we take the max duration
+				.subAggregation(AggregationBuilders
+					.max("duration")
+					.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000"))));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+		searchSourceBuilder.aggregation(startDate);
+		searchSourceBuilder.aggregation(attempts);
+		searchSourceBuilder.aggregation(missions);
+		searchSourceBuilder.aggregation(active);
+		
+		searchSourceBuilder.size(0);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	public SearchResponse summaryStats(String userId) throws Exception {
+		return null;
+	}
+	
+	public SearchResponse attempts(String userId) throws Exception {
+		return null;
 	}
 
 	public SearchResponse completedSessionsWeek(String userId) throws Exception {

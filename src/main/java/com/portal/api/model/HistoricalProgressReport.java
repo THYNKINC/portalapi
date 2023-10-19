@@ -2,9 +2,11 @@ package com.portal.api.model;
 
 import java.time.LocalDate;
 
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class HistoricalProgressReport {
 
 	LocalDate startDate;
@@ -12,13 +14,14 @@ public class HistoricalProgressReport {
 	int daysSinceLastAttempt;
 	LocalDate projectedCompletionDate;
 	int totalAttempts;
-	float attemptsPerWeek;
+	double attemptsPerWeek;
 	int sessionsCompleted;
+	double sessionsPerWeek;
 	int missionsCompleted;
-	float missionsPerWeek;
+	double missionsPerWeek;
 	long totalPlaytime;
-	long playtimePerWeek;
+	double playtimePerWeek;
 	long totalPlaytimeCompleted;
-	long playtimeCompletedPerWeek;
+	double playtimeCompletedPerWeek;
 	int achievements;
 }
