@@ -62,6 +62,7 @@ import com.portal.api.model.Attempt;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.CognitiveSkillsResponse;
+import com.portal.api.model.CreateHeadsetRequest;
 import com.portal.api.model.Crystals;
 import com.portal.api.model.GameState;
 import com.portal.api.model.Headset;
@@ -592,14 +593,18 @@ public class AdminController {
     }
     
     @PostMapping("/headsets")
-    public Headset createHeadset(@RequestBody Headset headset, HttpServletRequest request) throws Exception {
+    public Headset createHeadset(@RequestBody CreateHeadsetRequest headset, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	if (headsets.findById(headset.getId()).isPresent())
     		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset ID already exists");
     	
-    	return headsets.insert(headset);
+    	Headset newHeadset = new Headset();
+    	newHeadset.setId(headset.getId());
+    	newHeadset.setManufacteDate(headset.getManufacteDate());
+    	
+    	return headsets.insert(newHeadset);
     }
     
     @PutMapping("/headsets/{id}")
