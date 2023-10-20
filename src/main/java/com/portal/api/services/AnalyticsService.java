@@ -23,7 +23,11 @@ import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.script.Script;
+import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.BucketOrder;
+import org.opensearch.search.aggregations.PipelineAggregationBuilder;
+import org.opensearch.search.aggregations.PipelineAggregatorBuilders;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
@@ -117,8 +121,9 @@ public class AnalyticsService {
 				.sum("playtime")
 				.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000")));
 		
+		// TODO how to detect missions? Transference doesn't exist for mission 1
 		FilterAggregationBuilder missions = AggregationBuilders
-			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd")))
+			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd")))
 			.subAggregation(AggregationBuilders
 					.cardinality("idCount")
 					.field("MissionID"));
@@ -152,8 +157,82 @@ public class AnalyticsService {
 		return null;
 	}
 	
-	public SearchResponse attempts(String userId) throws Exception {
-		return null;
+	public SearchResponse sessions(String userId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.existsQuery("MissionID"));
+		
+		TermsAggregationBuilder sessions = AggregationBuilders
+			.terms("sessions")
+			.field("session_start.keyword")
+			.order(BucketOrder.aggregation("started", true))
+			.subAggregation(AggregationBuilders
+				.topHits("first_event")
+				.size(1)
+				.sort("timestamp", SortOrder.ASC)
+				.fetchSource(new String[] {"timestamp", "session_type", "MissionID"}, null))
+			.subAggregation(AggregationBuilders
+				.max("ended")
+				.field("timestamp"))
+			.subAggregation(AggregationBuilders
+				.min("started")
+				.field("timestamp"))
+			.subAggregation(AggregationBuilders
+				.max("power")
+				.field("Score"))
+			.subAggregation(AggregationBuilders
+				.extendedStats("bci")
+				.field("bci"))
+			.subAggregation(AggregationBuilders
+				.terms("stars")
+				.field("StarReached")
+				.order(BucketOrder.aggregation("at_ts", true))
+				.subAggregation(AggregationBuilders
+					.min("at_ts")
+					.field("timestamp"))
+				.subAggregation(AggregationBuilders
+					.min("at_score")
+					.field("Score")))
+			.subAggregation(AggregationBuilders
+				.terms("results")
+				.field("ResultID")
+				.subAggregation(AggregationBuilders
+					.terms("actions")
+					.field("event_type")))
+			.subAggregation(AggregationBuilders
+				.filter("crystals", QueryBuilders.matchQuery("ObjectTypeID", "Token"))
+				.subAggregation(AggregationBuilders
+					.terms("outcomes")
+					.field("event_type")))
+			.subAggregation(AggregationBuilders
+				.filter("obstacles", QueryBuilders.matchQuery("ObjectTypeID", "Obstacle"))
+				.subAggregation(AggregationBuilders
+					.terms("outcomes")
+					.field("event_type")))
+			.subAggregation(AggregationBuilders
+				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+			.subAggregation(AggregationBuilders
+				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd"))
+			.subAggregation(AggregationBuilders
+					.max("decodes_target")
+					.field("TargetDecodes")
+					.missing(0))));				
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+		searchSourceBuilder.aggregation(sessions);
+		
+		searchSourceBuilder.size(0);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 
 	public SearchResponse completedSessionsWeek(String userId) throws Exception {

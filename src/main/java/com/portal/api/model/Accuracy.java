@@ -7,9 +7,10 @@ import lombok.Data;
 @Builder
 public class Accuracy {
 
-	float correctRejected;
-	float incorrectRejected;
-	float correctSelected;
-	float incorrectSelected;
+	int correctRejected;
+	int incorrectRejected;
+	int correctSelected;
+	int incorrectSelected;
+	int impulses;
 	int opportunities;
 }

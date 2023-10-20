@@ -1,0 +1,278 @@
+{
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"match": {
+						"user_id": {
+							"query": "dgrubman",
+							"operator": "OR",
+							"prefix_length": 0,
+							"max_expansions": 50,
+							"fuzzy_transpositions": true,
+							"lenient": false,
+							"zero_terms_query": "NONE",
+							"auto_generate_synonyms_phrase_query": true,
+							"boost": 1.0
+						}
+					}
+				},
+				{
+					"exists": {
+						"field": "MissionID",
+						"boost": 1.0
+					}
+				}
+			],
+			"adjust_pure_negative": true,
+			"boost": 1.0
+		}
+	},
+	"aggregations": {
+		"sessions": {
+			"terms": {
+				"field": "session_start.keyword",
+				"size": 10,
+				"min_doc_count": 1,
+				"shard_min_doc_count": 0,
+				"show_term_doc_count_error": false,
+				"order": [
+					{
+						"_count": "desc"
+					},
+					{
+						"_key": "asc"
+					}
+				]
+			},
+			"aggregations": {
+				"first_event": {
+					"top_hits": {
+						"from": 0,
+						"size": 1,
+						"version": false,
+						"seq_no_primary_term": false,
+						"explain": false,
+						"_source": {
+							"includes": [
+								"timestamp",
+								"session_type",
+								"MissionID"
+							],
+							"excludes": []
+						},
+						"sort": [
+							{
+								"timestamp": {
+									"order": "asc"
+								}
+							}
+						]
+					}
+				},
+				"ended": {
+					"max": {
+						"field": "timestamp"
+					}
+				},
+				"started": {
+					"min": {
+						"field": "timestamp"
+					}
+				},
+				"power": {
+					"max": {
+						"field": "Score"
+					}
+				},
+				"bci": {
+					"extended_stats": {
+						"field": "bci",
+						"sigma": 2.0
+					}
+				},
+				"stars": {
+					"terms": {
+						"field": "StarReached",
+						"size": 10,
+						"min_doc_count": 1,
+						"shard_min_doc_count": 0,
+						"show_term_doc_count_error": false,
+						"order": [
+							{
+								"_count": "desc"
+							},
+							{
+								"_key": "asc"
+							}
+						]
+					},
+					"aggregations": {
+						"first_event": {
+							"top_hits": {
+								"from": 0,
+								"size": 1,
+								"version": false,
+								"seq_no_primary_term": false,
+								"explain": false,
+								"_source": {
+									"includes": [
+										"timestamp",
+										"Score"
+									],
+									"excludes": []
+								},
+								"sort": [
+									{
+										"timestamp": {
+											"order": "asc"
+										}
+									}
+								]
+							}
+						}
+					}
+				},
+				"results": {
+					"terms": {
+						"field": "ResultID",
+						"size": 10,
+						"min_doc_count": 1,
+						"shard_min_doc_count": 0,
+						"show_term_doc_count_error": false,
+						"order": [
+							{
+								"_count": "desc"
+							},
+							{
+								"_key": "asc"
+							}
+						]
+					},
+					"aggregations": {
+						"actions": {
+							"terms": {
+								"field": "event_type",
+								"size": 10,
+								"min_doc_count": 1,
+								"shard_min_doc_count": 0,
+								"show_term_doc_count_error": false,
+								"order": [
+									{
+										"_count": "desc"
+									},
+									{
+										"_key": "asc"
+									}
+								]
+							}
+						}
+					}
+				},
+				"crystals": {
+					"filter": {
+						"match": {
+							"ObjectTypeID": {
+								"query": "Token",
+								"operator": "OR",
+								"prefix_length": 0,
+								"max_expansions": 50,
+								"fuzzy_transpositions": true,
+								"lenient": false,
+								"zero_terms_query": "NONE",
+								"auto_generate_synonyms_phrase_query": true,
+								"boost": 1.0
+							}
+						}
+					},
+					"aggregations": {
+						"outcomes": {
+							"terms": {
+								"field": "event_type",
+								"size": 10,
+								"min_doc_count": 1,
+								"shard_min_doc_count": 0,
+								"show_term_doc_count_error": false,
+								"order": [
+									{
+										"_count": "desc"
+									},
+									{
+										"_key": "asc"
+									}
+								]
+							}
+						}
+					}
+				},
+				"obstacles": {
+					"filter": {
+						"match": {
+							"ObjectTypeID": {
+								"query": "Obstacle",
+								"operator": "OR",
+								"prefix_length": 0,
+								"max_expansions": 50,
+								"fuzzy_transpositions": true,
+								"lenient": false,
+								"zero_terms_query": "NONE",
+								"auto_generate_synonyms_phrase_query": true,
+								"boost": 1.0
+							}
+						}
+					},
+					"aggregations": {
+						"outcomes": {
+							"terms": {
+								"field": "event_type",
+								"size": 10,
+								"min_doc_count": 1,
+								"shard_min_doc_count": 0,
+								"show_term_doc_count_error": false,
+								"order": [
+									{
+										"_count": "desc"
+									},
+									{
+										"_key": "asc"
+									}
+								]
+							}
+						}
+					}
+				},
+				"completed": {
+					"filter": {
+						"terms": {
+							"event_type": [
+								"RunnerEnd",
+								"TransferenceStatsEnd"
+							],
+							"boost": 1.0
+						}
+					},
+					"aggregations": {
+						"decoded": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"TransferenceStatsMoleculeDecodeEnd"
+									],
+									"boost": 1.0
+								}
+							},
+							"aggregations": {
+								"decodes_target": {
+									"max": {
+										"field": "TargetDecodes",
+										"missing": 0
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

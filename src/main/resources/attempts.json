@@ -1,0 +1,144 @@
+{
+	"size": 0,
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"term": {
+						"user_id": "emiliegalic"
+					}
+				},
+				{
+					"exists": {
+						"field": "MissionID"
+					}
+				}
+			],
+			"adjust_pure_negative": true,
+			"boost": 1.0
+		}
+	},
+	"aggs": {
+		"sessions": {
+			"terms": {
+				"field": "session_start.keyword"
+			},
+			"aggs": {
+				"first_doc": {
+					"top_hits": {
+						"size": 1,
+						"_source": {
+							"includes": [
+								"timestamp",
+								"session_type",
+								"MissionID"
+							]
+						}
+					}
+				},
+				"bci_avg": {
+					"extended_stats": {
+						"field": "bci"
+					}
+				},
+				"ended": {
+					"max": {
+						"field": "timestamp"
+					}
+				},
+				"stars": {
+					"terms": {
+						"field": "StarReached"
+					},
+					"aggs": {
+						"events": {
+							"top_hits": {
+								"size": 1,
+								"_source": {
+									"includes": [
+										"timestamp",
+										"Score"
+									]
+								}
+							}
+						}
+					}
+				},
+				"results": {
+					"terms": {
+						"field": "ResultID"
+					},
+					"aggs": {
+						"actions": {
+							"terms": {
+								"field": "event_type"
+							}
+						}
+					}
+				},
+				"opportunities": {
+					"sum_bucket": {
+						"buckets_path": "results>_count"
+					}
+				},
+				"crystals": {
+					"filter": {
+						"terms": {
+							"ObjectTypeID": [
+								"Token"
+							]
+						}
+					},
+					"aggs": {
+						"outcomes": {
+							"terms": {
+								"field": "event_type"
+							}
+						}
+					}
+				},
+				"obstacles": {
+					"filter": {
+						"terms": {
+							"ObjectTypeID": [
+								"Obstacle"
+							]
+						}
+					},
+					"aggs": {
+						"outcomes": {
+							"terms": {
+								"field": "event_type"
+							}
+						}
+					}
+				},
+				"completed": {
+					"filter": {
+						"terms": {
+							"event_type": [
+								"RunnerEnd",
+								"TransferenceStatsEnd"
+							]
+						}
+					}
+				},
+				"decoded": {
+					"filter": {
+						"terms": {
+							"event_type": [
+								"TransferenceStatsMoleculeDecodeEnd"
+							]
+						}
+					}
+				},
+				"decodes_target": {
+					"max": {
+						"field": "TargetDecodes",
+						"missing": 0
+					}
+				}
+			}
+		}
+	}
+}
