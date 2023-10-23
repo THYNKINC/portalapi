@@ -9,6 +9,7 @@ import lombok.Data;
 @Builder
 public class Attempt {
 
+	String id;
 	boolean completed;
 	int missionId;
 	long startTime;

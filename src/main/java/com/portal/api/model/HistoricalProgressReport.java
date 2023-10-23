@@ -19,9 +19,9 @@ public class HistoricalProgressReport {
 	double sessionsPerWeek;
 	int missionsCompleted;
 	double missionsPerWeek;
-	long totalPlaytime;
-	double playtimePerWeek;
-	long totalPlaytimeCompleted;
-	double playtimeCompletedPerWeek;
+	String totalPlaytime;
+	String playtimePerWeek;
+	String totalPlaytimeCompleted;
+	String playtimeCompletedPerWeek;
 	int achievements;
 }

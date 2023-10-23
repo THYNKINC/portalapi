@@ -1,7 +1,6 @@
 package com.portal.api.controllers;
 
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -12,7 +11,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TimeZone;
+import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -20,7 +21,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.instancio.Instancio;
 import org.opensearch.action.search.SearchResponse;
-import org.opensearch.common.document.DocumentField;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregations;
@@ -34,13 +34,18 @@ import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.Min;
 import org.opensearch.search.aggregations.metrics.Sum;
 import org.opensearch.search.aggregations.metrics.TopHits;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -64,6 +69,8 @@ import com.portal.api.model.Child;
 import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CreateHeadsetRequest;
 import com.portal.api.model.Crystals;
+import com.portal.api.model.DashboardMetrics;
+import com.portal.api.model.Dish;
 import com.portal.api.model.GameState;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
@@ -73,6 +80,7 @@ import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.model.StarEarned;
 import com.portal.api.model.SummaryReport;
+import com.portal.api.model.TransferenceSummary;
 import com.portal.api.model.UpdateChildRequest;
 import com.portal.api.model.UpdateParentRequest;
 import com.portal.api.repositories.HeadsetRepository;
@@ -81,6 +89,7 @@ import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
+import com.portal.api.util.TimeUtil;
 
 @RestController
 @RequestMapping("/admin")
@@ -109,6 +118,8 @@ public class AdminController {
 	private final AnalyticsService analyticsService;
 	
 	private final HeadsetRepository headsets;
+	
+	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     @Autowired
     public AdminController(
@@ -188,7 +199,7 @@ public class AdminController {
     	Set<String> uniqueUsers = new HashSet<>();
     	Set<String> uniqueMissionIds = new HashSet<>();
     	
-    	// pass 1 get attempts
+    	// pass 1: get attempts
     	for (SearchHit hit : searchResponse.getHits().getHits()) {
     	
     		Map<String, Object> sourceAsMap = hit.getSourceAsMap();
@@ -210,7 +221,7 @@ public class AdminController {
 			response.getContent().add(attempt);
     	}
     	
-    	// pass 2 get names
+    	// pass 2: get names
     	List<Child> children = mongoService.getChildrenByUsername(uniqueUsers);
     	
     	for (AttemptSummary attempt : response.getContent()) {
@@ -224,9 +235,63 @@ public class AdminController {
     		attempt.setLastName(child.getLastName());
 		}
     	
-    	// pass 3 count tries
+    	// pass 3: count tries
     	
     	return response;
+    }
+    
+    @GetMapping("/dashboard")
+    public DashboardMetrics getDashboard(HttpServletRequest request) throws Exception {
+    	
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	
+    	SearchResponse searchResponse = analyticsService.dashboardMetrics();
+    	
+    	Filter active = searchResponse.getAggregations().get("active");
+    	Terms activeSessions = active.getAggregations().get("sessions");
+    	
+    	double playtime = activeSessions.getBuckets().stream()
+    		.collect(Collectors.summingDouble(b -> ((Max)b.getAggregations().get("duration")).getValue()));
+    	
+    	Cardinality users = active.getAggregations().get("users");
+    	
+    	Filter range = searchResponse.getAggregations().get("range");
+    	Histogram daily = range.getAggregations().get("daily");
+    	
+    	SortedMap<String, Integer> sessions = new TreeMap<>();
+    	SortedMap<String, Integer> missions = new TreeMap<>();
+    	SortedMap<String, Integer> attempts = new TreeMap<>();
+    	SortedMap<String, Integer> abandons = new TreeMap<>();
+    	SortedMap<String, Integer> powers = new TreeMap<>();
+    	    	
+    	daily.getBuckets().forEach(bucket -> {
+    		
+    		Filter agg = bucket.getAggregations().get("missions");
+    		missions.put(bucket.getKeyAsString(), (int)agg.getDocCount());
+    		
+    		agg = bucket.getAggregations().get("attempts");
+    		long completed = agg.getDocCount();
+    		attempts.put(bucket.getKeyAsString(), (int)completed);
+    		
+    		Histogram sessionsBuckets = agg.getAggregations().get("sessions");
+    		sessions.put(bucket.getKeyAsString(), sessionsBuckets.getBuckets().size());
+    		
+    		agg = bucket.getAggregations().get("starts");
+    		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
+    		
+    		Max power = bucket.getAggregations().get("power");
+    		powers.put(bucket.getKeyAsString(), (int)power.value());
+    	});
+    	
+    	return DashboardMetrics.builder()
+    			.abandons(abandons)
+    			.attempts(attempts)
+    			.missions(missions)
+    			.power(powers)
+    			.sessions(sessions)
+    			.totalPlaytime(TimeUtil.prettyPrint(playtime))
+    			.totalUsers((int)users.getValue())
+    			.build();
     }
     
     @GetMapping("/children/{username}")
@@ -322,19 +387,143 @@ public class AdminController {
     		.daysSinceStart(totalDays)
     		.missionsCompleted((int)completedMissions.value())
     		.missionsPerWeek(completedMissions.value() / weeks)
-    		.playtimeCompletedPerWeek(completedPlaytime.value() / weeks)
-    		.playtimePerWeek(totalPlaytime / weeks)
+    		.playtimeCompletedPerWeek(TimeUtil.prettyPrint(completedPlaytime.value() / weeks))
+    		.playtimePerWeek(TimeUtil.prettyPrint(totalPlaytime / weeks))
     		.projectedCompletionDate(null)
     		.sessionsCompleted(sessions.getBuckets().size())
     		.sessionsPerWeek(sessions.getBuckets().size() / weeks)
     		.startDate(LocalDate.ofInstant(Instant.ofEpochMilli(startDateTs), TimeZone
     		        .getDefault().toZoneId()))
     		.totalAttempts((int)attempts.getDocCount())
-    		.totalPlaytime(totalPlaytime)
-    		.totalPlaytimeCompleted((long)completedPlaytime.value())
+    		.totalPlaytime(TimeUtil.prettyPrint(totalPlaytime))
+    		.totalPlaytimeCompleted(TimeUtil.prettyPrint(completedPlaytime.value()))
     		.build();
     	
     	return builder;
+    }
+    
+    @GetMapping("/children/{username}/transferences/{session_id}")
+    public PaginatedResponse<TransferenceSummary> getTransferences(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
+    	
+    	SearchResponse response = analyticsService.transference(username, sessionId);
+    	    	
+    	List<TransferenceSummary> transferences = new ArrayList<>();
+    	
+    	Terms sessions = response.getAggregations().get("sessions");
+    	
+    	for (Bucket session: sessions.getBuckets()) {
+    		
+    		Min sessionStart = session.getAggregations().get("started");
+			Max sessionEnd = session.getAggregations().get("ended");
+			ExtendedStats bci = session.getAggregations().get("bci");
+			Filter endEvent = session.getAggregations().get("end_event");
+			Max target = session.getAggregations().get("target");
+			
+			Terms dishes = session.getAggregations().get("dishes");
+    		
+    		List<Dish> dishList = new ArrayList<>();
+    		
+    		for (Bucket dish: dishes.getBuckets()) {
+        		
+    			Min dishStart = dish.getAggregations().get("dish_start");
+    			Max dishEnd = dish.getAggregations().get("dish_end");
+    			
+    			Filter decodes = dish.getAggregations().get("decodes");
+    			Min decodeStart = decodes.getAggregations().get("decode_start");
+    			Max decodeEnd = decodes.getAggregations().get("decode_end");
+    			Filter decoded = decodes.getAggregations().get("decoded");
+    			
+    			Filter actions = dish.getAggregations().get("actions");
+    			Min firstAction = actions.getAggregations().get("first_action");
+    			Max lastAction = actions.getAggregations().get("last_action");
+    			Filter rejections = actions.getAggregations().get("rejections");
+    			
+    			Filter display = dish.getAggregations().get("display");
+    			Min firstDisplayed = display.getAggregations().get("first_displayed");
+    			
+    			// order of things is
+    			// display start - display end - tap first - last selected - decode start - decode end
+    			
+    			dishList.add(Dish.builder()
+    					.decoded((int)decoded.getDocCount())
+    					.duration(TimeUtil.msToSec(dishStart, dishEnd))
+    					.decodeTime(TimeUtil.msToSec(decodeStart, decodeEnd))
+    					.gapTime(TimeUtil.msToSec(firstAction, decodeStart))
+    					.rejected((int)rejections.getDocCount())
+    					// here we assume that if there are no rejections, actions are selections
+    					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
+    					.selectTime(TimeUtil.msToSec(firstDisplayed, lastAction))
+    					.tapTime(TimeUtil.msToSec(firstDisplayed, firstAction))
+    					.type(rejections.getDocCount() > 0 ? "rejected" : "selected")
+    					.build());
+    			
+    			
+    		}
+    		
+    		// TODO turn into method
+    		double decodeAvg = dishList.stream()
+    				.mapToInt(dish -> dish.getDecodeTime())
+    				.average().orElse(0);
+    		
+    		double decodeVariance = dishList.stream()
+                    .map(dish -> dish.getDecodeTime() - decodeAvg)
+                    .map(i -> i * i)
+                    .mapToDouble(i -> i).average().orElse(0);
+    		
+    		double gapAvg = dishList.stream()
+    				.mapToInt(dish -> dish.getGapTime())
+    				.average().orElse(0);
+    		
+    		double gapVariance = dishList.stream()
+                    .map(dish -> dish.getGapTime() - gapAvg)
+                    .map(i -> i * i)
+                    .mapToDouble(i -> i).average().orElse(0);
+    		
+    		double tapAvg = dishList.stream()
+    				.mapToInt(dish -> dish.getTapTime())
+    				.average().orElse(0);
+    		
+    		double tapVariance = dishList.stream()
+                    .map(dish -> dish.getTapTime() - tapAvg)
+                    .map(i -> i * i)
+                    .mapToDouble(i -> i).average().orElse(0);
+    		
+    		double selectAvg = dishList.stream()
+    				.mapToInt(dish -> dish.getSelectTime())
+    				.average().orElse(0);
+    		
+    		double selectVariance = dishList.stream()
+                    .map(dish -> dish.getSelectTime() - selectAvg)
+                    .map(i -> i * i)
+                    .mapToDouble(i -> i).average().orElse(0);
+    		
+    		int decoded = dishList.stream()
+    			.mapToInt(dish -> dish.getDecoded())
+    			.sum();
+    		
+    		transferences.add(TransferenceSummary.builder()
+    				.bciAvg((int)bci.getAvg())
+    				.decodeAvg((int)decodeAvg)
+    				.decoded(decoded)
+    				.decodeStdDev((int)Math.sqrt(decodeVariance))
+    				.dishes(dishList)
+    				.duration(TimeUtil.msToMin(sessionStart, sessionEnd))
+    				.endDate((long)sessionEnd.getValue())
+    				.gapAvg((int)gapAvg)
+    				.gapStdDev((int)Math.sqrt(gapVariance))
+    				.pctDecoded((int)(decoded / target.value() * 100))
+    				.selectAvg((int)selectAvg)
+    				.selectStdDev((int)Math.sqrt(selectVariance))
+    				.startDate((long)sessionStart.getValue())
+    				.status(decoded > target.value() ? "PASS" : "FAIL")
+    				.completed(endEvent.getDocCount() > 0)
+    				.tapAvg((int)tapAvg)
+    				.tapStdDev((int)Math.sqrt(tapVariance))
+    				.target((int)target.value())
+    				.build());
+    	}
+    	
+    	return new PaginatedResponse<>(transferences, transferences.size());
     }
     
     @GetMapping("/children/{username}/stats")
@@ -524,9 +713,10 @@ public class AdminController {
 	    		.badges(null)
 	    		.bciMean((int)Math.round(bci.getAvg()))
 	    		.bciStdDeviation((int)Math.round(bci.getStdDeviation()))
-	    		.completed(completed != null ? true : false)
+	    		.completed(completed.getDocCount() > 0 ? true : false)
 	    		.duration((int)duration)
 	    		.endTime((long)ended.getValue())
+	    		.id((String)firstDocFields.get("session_start"))
 	    		.maxPower((int)power.getValue())
 	    		.missionId(Integer.valueOf(MappingService.getKey((String)firstDocFields.get("MissionID"))))
 	    		.ranks(null)

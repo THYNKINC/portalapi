@@ -1,4 +1,5 @@
 {
+	"size": 0,
 	"query": {
 		"bool": {
 			"must": [
@@ -32,13 +33,13 @@
 		"sessions": {
 			"terms": {
 				"field": "session_start.keyword",
-				"size": 10,
+				"size": 500,
 				"min_doc_count": 1,
 				"shard_min_doc_count": 0,
 				"show_term_doc_count_error": false,
 				"order": [
 					{
-						"_count": "desc"
+						"started": "asc"
 					},
 					{
 						"_key": "asc"
@@ -57,7 +58,8 @@
 							"includes": [
 								"timestamp",
 								"session_type",
-								"MissionID"
+								"MissionID",
+								"session_start"
 							],
 							"excludes": []
 						},
@@ -100,7 +102,7 @@
 						"show_term_doc_count_error": false,
 						"order": [
 							{
-								"_count": "desc"
+								"at_ts": "asc"
 							},
 							{
 								"_key": "asc"
@@ -108,27 +110,14 @@
 						]
 					},
 					"aggregations": {
-						"first_event": {
-							"top_hits": {
-								"from": 0,
-								"size": 1,
-								"version": false,
-								"seq_no_primary_term": false,
-								"explain": false,
-								"_source": {
-									"includes": [
-										"timestamp",
-										"Score"
-									],
-									"excludes": []
-								},
-								"sort": [
-									{
-										"timestamp": {
-											"order": "asc"
-										}
-									}
-								]
+						"at_ts": {
+							"min": {
+								"field": "timestamp"
+							}
+						},
+						"at_score": {
+							"min": {
+								"field": "Score"
 							}
 						}
 					}
@@ -250,26 +239,22 @@
 							],
 							"boost": 1.0
 						}
-					},
-					"aggregations": {
-						"decoded": {
-							"filter": {
-								"terms": {
-									"event_type": [
-										"TransferenceStatsMoleculeDecodeEnd"
-									],
-									"boost": 1.0
-								}
-							},
-							"aggregations": {
-								"decodes_target": {
-									"max": {
-										"field": "TargetDecodes",
-										"missing": 0
-									}
-								}
-							}
+					}
+				},
+				"decoded": {
+					"filter": {
+						"terms": {
+							"event_type": [
+								"TransferenceStatsMoleculeDecodeEnd"
+							],
+							"boost": 1.0
 						}
+					}
+				},
+				"decodes_target": {
+					"max": {
+						"field": "TargetDecodes",
+						"missing": 0
 					}
 				}
 			}

@@ -1,24 +1,19 @@
 package com.portal.api.model;
 
+import java.util.Map;
+
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class DashboardMetrics {
 
 	int totalUsers;
-	int totalSystemsPurchased;
-	int totalCash;
-	int attemptsPerDay;
-	int attemptsPerMonth;
-	int attemptsPerWeek;
-	int sessionsPerDay;
-	int sessionsPerWeek;
-	int sessionsPerMonth;
-	int abandonsPerDay;
-	int abandonsPerWeek;
-	int abandonsPerMonth;
-	int totalPlaytime;
-	int avgPower;
-	int avgFocusComposite;
-	int avgImpulseControl;
+	String totalPlaytime;
+	Map<String, Integer> sessions;
+	Map<String, Integer> missions;
+	Map<String, Integer> attempts;
+	Map<String, Integer> abandons;
+	Map<String, Integer> power;
 }

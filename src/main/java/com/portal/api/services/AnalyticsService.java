@@ -26,8 +26,6 @@ import org.opensearch.script.Script;
 import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.BucketOrder;
-import org.opensearch.search.aggregations.PipelineAggregationBuilder;
-import org.opensearch.search.aggregations.PipelineAggregatorBuilders;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
@@ -38,11 +36,17 @@ import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.portal.api.controllers.AdminController;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.util.OpensearchService;
 
@@ -50,6 +54,8 @@ import com.portal.api.util.OpensearchService;
 public class AnalyticsService {
 
 	private final OpensearchService opensearchService;
+	
+	private static final Logger logger = LoggerFactory.getLogger(AnalyticsService.class);
 
 	@Autowired
 	public AnalyticsService(OpensearchService opensearchService) {
@@ -85,6 +91,70 @@ public class AnalyticsService {
 				.query(boolQuery)
 				.aggregation(dateHistogramAgg)
 				.size(0);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	@CacheEvict(value = "dashboard", allEntries = true)
+    @Scheduled(cron = "0 0 2 * * *")
+    public void emptyDashboardCache() {
+        logger.info("emptying dashboard cache");
+    }
+    
+    @Cacheable("dashboard")
+	public SearchResponse dashboardMetrics() throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		// 7 days aggregates
+		FilterAggregationBuilder days = AggregationBuilders
+				.filter("range", QueryBuilders
+						.rangeQuery("timestamp")
+						.gte("now-7d/d"))
+				.subAggregation(AggregationBuilders
+						.dateHistogram("daily")
+						.field("timestamp")
+						.dateHistogramInterval(DateHistogramInterval.days(1))
+						.subAggregation(AggregationBuilders
+								.max("power")
+								.field("Score"))
+						.subAggregation(AggregationBuilders
+								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
+								.subAggregation(AggregationBuilders
+										.dateHistogram("sessions")
+										.field("timestamp")
+										.dateHistogramInterval(DateHistogramInterval.hours(12))))
+						.subAggregation(AggregationBuilders
+								.filter("starts", QueryBuilders.termsQuery("event_type", List.of("RunnerStart", "TransferenceStatsStart"))))
+						// TODO this is supposed to be missions but mission 1 doesn't have transference so...
+						.subAggregation(AggregationBuilders
+								.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd")))));
+		
+		// totals
+		FilterAggregationBuilder active = AggregationBuilders
+				.filter("active", QueryBuilders.existsQuery("MissionID"))
+				.subAggregation(AggregationBuilders
+					.terms("sessions")
+					// TODO obviously that's not gonna scale, playtime total and number of users should be running count
+					.size(100000)
+					.field("session_start.keyword")
+					// here we don't know what the last event for that session was so we take the max duration
+					.subAggregation(AggregationBuilders
+						.max("duration")
+						.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000"))))
+				.subAggregation(AggregationBuilders
+						.cardinality("users")
+						.field("user_id"));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.aggregation(days);
+		searchSourceBuilder.aggregation(active);
+		
+		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
 		searchRequest.source(searchSourceBuilder);
@@ -170,12 +240,13 @@ public class AnalyticsService {
 		TermsAggregationBuilder sessions = AggregationBuilders
 			.terms("sessions")
 			.field("session_start.keyword")
+			.size(500)
 			.order(BucketOrder.aggregation("started", true))
 			.subAggregation(AggregationBuilders
 				.topHits("first_event")
 				.size(1)
 				.sort("timestamp", SortOrder.ASC)
-				.fetchSource(new String[] {"timestamp", "session_type", "MissionID"}, null))
+				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
 			.subAggregation(AggregationBuilders
 				.max("ended")
 				.field("timestamp"))
@@ -215,13 +286,13 @@ public class AnalyticsService {
 					.terms("outcomes")
 					.field("event_type")))
 			.subAggregation(AggregationBuilders
-				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd")))
 			.subAggregation(AggregationBuilders
-				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd"))
+				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd")))
 			.subAggregation(AggregationBuilders
 					.max("decodes_target")
 					.field("TargetDecodes")
-					.missing(0))));				
+					.missing(0));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
@@ -731,7 +802,83 @@ public class AnalyticsService {
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	public SearchResponse transference(String userId, String sessionId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.termsQuery("session_type", "transference"))
+				.must(QueryBuilders.termsQuery("session_start", sessionId))
+				.must(QueryBuilders.matchQuery("user_id", userId));
+
+		AggregationBuilder sessions = AggregationBuilders
+				.terms("sessions")
+				.field("session_start.keyword")
+				.size(100)
+				.order(BucketOrder.aggregation("started", true))
+				.subAggregation(AggregationBuilders
+						.min("started")
+						.field("timestamp"))
+				.subAggregation(AggregationBuilders
+						.max("ended")
+						.field("timestamp"))
+				.subAggregation(AggregationBuilders
+						.extendedStats("bci")
+						.field("bci"))
+				.subAggregation(AggregationBuilders
+						.max("target")
+						.field("TargetDecodes"))
+				.subAggregation(AggregationBuilders
+						.filter("end_event", QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd")))
+				.subAggregation(AggregationBuilders
+						.terms("dishes")
+						.field("DishID")
+						.size(100)
+						.order(BucketOrder.aggregation("dish_start", true))
+						.subAggregation(AggregationBuilders
+								.min("dish_start")
+								.field("timestamp"))
+						.subAggregation(AggregationBuilders
+								.max("dish_end")
+								.field("timestamp"))
+						.subAggregation(AggregationBuilders
+								.filter("decodes", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsMoleculeDecodeEnd"))
+								.subAggregation(AggregationBuilders
+										.min("decode_start")
+										.field("timestamp"))
+								.subAggregation(AggregationBuilders
+										.max("decode_end")
+										.field("timestamp"))
+								.subAggregation(AggregationBuilders
+										.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd"))))
+						.subAggregation(AggregationBuilders
+								.filter("actions", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeSelected", "TransferenceStatsMoleculeRejected"))
+								.subAggregation(AggregationBuilders
+										.min("first_action")
+										.field("timestamp"))
+								.subAggregation(AggregationBuilders
+										.max("last_action")
+										.field("timestamp"))
+								.subAggregation(AggregationBuilders
+										.filter("rejections", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeRejected"))))
+						.subAggregation(AggregationBuilders
+								.filter("display", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDisplay"))
+								.subAggregation(AggregationBuilders
+										.min("first_displayed")
+										.field("timestamp"))));
+						
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+				.query(boolQuery)
+				.aggregation(sessions)
+				.size(0);
+
+		// Create the search request
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 
 	public SearchResponse maxStarReached(String userId, String sessionId) throws Exception {
