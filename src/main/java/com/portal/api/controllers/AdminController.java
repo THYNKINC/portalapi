@@ -403,127 +403,122 @@ public class AdminController {
     }
     
     @GetMapping("/children/{username}/transferences/{session_id}")
-    public PaginatedResponse<TransferenceSummary> getTransferences(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
+    public TransferenceSummary getTransference(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
     	
     	SearchResponse response = analyticsService.transference(username, sessionId);
     	    	
     	List<TransferenceSummary> transferences = new ArrayList<>();
     	
-    	Terms sessions = response.getAggregations().get("sessions");
-    	
-    	for (Bucket session: sessions.getBuckets()) {
+    	Filter session = response.getAggregations().get("session");
     		
-    		Min sessionStart = session.getAggregations().get("started");
-			Max sessionEnd = session.getAggregations().get("ended");
-			ExtendedStats bci = session.getAggregations().get("bci");
-			Filter endEvent = session.getAggregations().get("end_event");
-			Max target = session.getAggregations().get("target");
+		Min sessionStart = session.getAggregations().get("started");
+		Max sessionEnd = session.getAggregations().get("ended");
+		ExtendedStats bci = session.getAggregations().get("bci");
+		Filter endEvent = session.getAggregations().get("end_event");
+		Max target = session.getAggregations().get("target");
+		
+		Terms dishes = session.getAggregations().get("dishes");
+		
+		List<Dish> dishList = new ArrayList<>();
+		
+		for (Bucket dish: dishes.getBuckets()) {
+    		
+			Min dishStart = dish.getAggregations().get("dish_start");
+			Max dishEnd = dish.getAggregations().get("dish_end");
 			
-			Terms dishes = session.getAggregations().get("dishes");
-    		
-    		List<Dish> dishList = new ArrayList<>();
-    		
-    		for (Bucket dish: dishes.getBuckets()) {
-        		
-    			Min dishStart = dish.getAggregations().get("dish_start");
-    			Max dishEnd = dish.getAggregations().get("dish_end");
-    			
-    			Filter decodes = dish.getAggregations().get("decodes");
-    			Min decodeStart = decodes.getAggregations().get("decode_start");
-    			Max decodeEnd = decodes.getAggregations().get("decode_end");
-    			Filter decoded = decodes.getAggregations().get("decoded");
-    			
-    			Filter actions = dish.getAggregations().get("actions");
-    			Min firstAction = actions.getAggregations().get("first_action");
-    			Max lastAction = actions.getAggregations().get("last_action");
-    			Filter rejections = actions.getAggregations().get("rejections");
-    			
-    			Filter display = dish.getAggregations().get("display");
-    			Min firstDisplayed = display.getAggregations().get("first_displayed");
-    			
-    			// order of things is
-    			// display start - display end - tap first - last selected - decode start - decode end
-    			
-    			dishList.add(Dish.builder()
-    					.decoded((int)decoded.getDocCount())
-    					.duration(TimeUtil.msToSec(dishStart, dishEnd))
-    					.decodeTime(TimeUtil.msToSec(decodeStart, decodeEnd))
-    					.gapTime(TimeUtil.msToSec(firstAction, decodeStart))
-    					.rejected((int)rejections.getDocCount())
-    					// here we assume that if there are no rejections, actions are selections
-    					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
-    					.selectTime(TimeUtil.msToSec(firstDisplayed, lastAction))
-    					.tapTime(TimeUtil.msToSec(firstDisplayed, firstAction))
-    					.type(rejections.getDocCount() > 0 ? "rejected" : "selected")
-    					.build());
-    			
-    			
-    		}
-    		
-    		// TODO turn into method
-    		double decodeAvg = dishList.stream()
-    				.mapToInt(dish -> dish.getDecodeTime())
-    				.average().orElse(0);
-    		
-    		double decodeVariance = dishList.stream()
-                    .map(dish -> dish.getDecodeTime() - decodeAvg)
-                    .map(i -> i * i)
-                    .mapToDouble(i -> i).average().orElse(0);
-    		
-    		double gapAvg = dishList.stream()
-    				.mapToInt(dish -> dish.getGapTime())
-    				.average().orElse(0);
-    		
-    		double gapVariance = dishList.stream()
-                    .map(dish -> dish.getGapTime() - gapAvg)
-                    .map(i -> i * i)
-                    .mapToDouble(i -> i).average().orElse(0);
-    		
-    		double tapAvg = dishList.stream()
-    				.mapToInt(dish -> dish.getTapTime())
-    				.average().orElse(0);
-    		
-    		double tapVariance = dishList.stream()
-                    .map(dish -> dish.getTapTime() - tapAvg)
-                    .map(i -> i * i)
-                    .mapToDouble(i -> i).average().orElse(0);
-    		
-    		double selectAvg = dishList.stream()
-    				.mapToInt(dish -> dish.getSelectTime())
-    				.average().orElse(0);
-    		
-    		double selectVariance = dishList.stream()
-                    .map(dish -> dish.getSelectTime() - selectAvg)
-                    .map(i -> i * i)
-                    .mapToDouble(i -> i).average().orElse(0);
-    		
-    		int decoded = dishList.stream()
-    			.mapToInt(dish -> dish.getDecoded())
-    			.sum();
-    		
-    		transferences.add(TransferenceSummary.builder()
-    				.bciAvg((int)bci.getAvg())
-    				.decodeAvg((int)decodeAvg)
-    				.decoded(decoded)
-    				.decodeStdDev((int)Math.sqrt(decodeVariance))
-    				.dishes(dishList)
-    				.duration(TimeUtil.msToMin(sessionStart, sessionEnd))
-    				.endDate((long)sessionEnd.getValue())
-    				.gapAvg((int)gapAvg)
-    				.gapStdDev((int)Math.sqrt(gapVariance))
-    				.pctDecoded((int)(decoded / target.value() * 100))
-    				.selectAvg((int)selectAvg)
-    				.selectStdDev((int)Math.sqrt(selectVariance))
-    				.startDate((long)sessionStart.getValue())
-    				.status(decoded > target.value() ? "PASS" : "FAIL")
-    				.completed(endEvent.getDocCount() > 0)
-    				.tapAvg((int)tapAvg)
-    				.tapStdDev((int)Math.sqrt(tapVariance))
-    				.target((int)target.value())
-    				.build());
-    	}
-    	
-    	return new PaginatedResponse<>(transferences, transferences.size());
+			Filter decodes = dish.getAggregations().get("decodes");
+			Min decodeStart = decodes.getAggregations().get("decode_start");
+			Max decodeEnd = decodes.getAggregations().get("decode_end");
+			Filter decoded = decodes.getAggregations().get("decoded");
+			
+			Filter actions = dish.getAggregations().get("actions");
+			Min firstAction = actions.getAggregations().get("first_action");
+			Max lastAction = actions.getAggregations().get("last_action");
+			Filter rejections = actions.getAggregations().get("rejections");
+			
+			Filter display = dish.getAggregations().get("display");
+			Min firstDisplayed = display.getAggregations().get("first_displayed");
+			
+			// order of things is
+			// display start - display end - tap first - last selected - decode start - decode end
+			
+			dishList.add(Dish.builder()
+					.decoded((int)decoded.getDocCount())
+					.duration(TimeUtil.msToSec(dishStart, dishEnd))
+					.decodeTime(TimeUtil.msToSec(decodeStart, decodeEnd))
+					.gapTime(TimeUtil.msToSec(firstAction, decodeStart))
+					.rejected((int)rejections.getDocCount())
+					// here we assume that if there are no rejections, actions are selections
+					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
+					.selectTime(TimeUtil.msToSec(firstDisplayed, lastAction))
+					.tapTime(TimeUtil.msToSec(firstDisplayed, firstAction))
+					.type(rejections.getDocCount() > 0 ? "rejected" : "selected")
+					.build());
+			
+			
+		}
+		
+		// TODO turn into method
+		double decodeAvg = dishList.stream()
+				.mapToInt(dish -> dish.getDecodeTime())
+				.average().orElse(0);
+		
+		double decodeVariance = dishList.stream()
+                .map(dish -> dish.getDecodeTime() - decodeAvg)
+                .map(i -> i * i)
+                .mapToDouble(i -> i).average().orElse(0);
+		
+		double gapAvg = dishList.stream()
+				.mapToInt(dish -> dish.getGapTime())
+				.average().orElse(0);
+		
+		double gapVariance = dishList.stream()
+                .map(dish -> dish.getGapTime() - gapAvg)
+                .map(i -> i * i)
+                .mapToDouble(i -> i).average().orElse(0);
+		
+		double tapAvg = dishList.stream()
+				.mapToInt(dish -> dish.getTapTime())
+				.average().orElse(0);
+		
+		double tapVariance = dishList.stream()
+                .map(dish -> dish.getTapTime() - tapAvg)
+                .map(i -> i * i)
+                .mapToDouble(i -> i).average().orElse(0);
+		
+		double selectAvg = dishList.stream()
+				.mapToInt(dish -> dish.getSelectTime())
+				.average().orElse(0);
+		
+		double selectVariance = dishList.stream()
+                .map(dish -> dish.getSelectTime() - selectAvg)
+                .map(i -> i * i)
+                .mapToDouble(i -> i).average().orElse(0);
+		
+		int decoded = dishList.stream()
+			.mapToInt(dish -> dish.getDecoded())
+			.sum();
+		
+		return TransferenceSummary.builder()
+				.bciAvg((int)bci.getAvg())
+				.decodeAvg((int)decodeAvg)
+				.decoded(decoded)
+				.decodeStdDev((int)Math.sqrt(decodeVariance))
+				.dishes(dishList)
+				.duration(TimeUtil.msToMin(sessionStart, sessionEnd))
+				.endDate((long)sessionEnd.getValue())
+				.gapAvg((int)gapAvg)
+				.gapStdDev((int)Math.sqrt(gapVariance))
+				.pctDecoded((int)(decoded / target.value() * 100))
+				.selectAvg((int)selectAvg)
+				.selectStdDev((int)Math.sqrt(selectVariance))
+				.startDate((long)sessionStart.getValue())
+				.status(decoded > target.value() ? "PASS" : "FAIL")
+				.completed(endEvent.getDocCount() > 0)
+				.tapAvg((int)tapAvg)
+				.tapStdDev((int)Math.sqrt(tapVariance))
+				.target((int)target.value())
+				.build();
     }
     
     @GetMapping("/children/{username}/stats")

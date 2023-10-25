@@ -4,9 +4,25 @@
 		"bool": {
 			"must": [
 				{
+					"terms": {
+						"session_type": [
+							"transference"
+						],
+						"boost": 1.0
+					}
+				},
+				{
+					"terms": {
+						"session_start": [
+							"2023-09-29 22:33:23.159"
+						],
+						"boost": 1.0
+					}
+				},
+				{
 					"match": {
 						"user_id": {
-							"query": "dgrubman",
+							"query": "emiliegalic",
 							"operator": "OR",
 							"prefix_length": 0,
 							"max_expansions": 50,
@@ -16,12 +32,6 @@
 							"auto_generate_synonyms_phrase_query": true,
 							"boost": 1.0
 						}
-					}
-				},
-				{
-					"exists": {
-						"field": "MissionID",
-						"boost": 1.0
 					}
 				}
 			],
@@ -33,7 +43,7 @@
 		"sessions": {
 			"terms": {
 				"field": "session_start.keyword",
-				"size": 500,
+				"size": 100,
 				"min_doc_count": 1,
 				"shard_min_doc_count": 0,
 				"show_term_doc_count_error": false,
@@ -47,44 +57,14 @@
 				]
 			},
 			"aggregations": {
-				"first_event": {
-					"top_hits": {
-						"from": 0,
-						"size": 1,
-						"version": false,
-						"seq_no_primary_term": false,
-						"explain": false,
-						"_source": {
-							"includes": [
-								"timestamp",
-								"session_type",
-								"MissionID",
-								"session_start"
-							],
-							"excludes": []
-						},
-						"sort": [
-							{
-								"timestamp": {
-									"order": "asc"
-								}
-							}
-						]
-					}
-				},
-				"ended": {
-					"max": {
-						"field": "timestamp"
-					}
-				},
 				"started": {
 					"min": {
 						"field": "timestamp"
 					}
 				},
-				"power": {
+				"ended": {
 					"max": {
-						"field": "Score"
+						"field": "timestamp"
 					}
 				},
 				"bci": {
@@ -93,168 +73,131 @@
 						"sigma": 2.0
 					}
 				},
-				"stars": {
-					"terms": {
-						"field": "StarReached",
-						"size": 10,
-						"min_doc_count": 1,
-						"shard_min_doc_count": 0,
-						"show_term_doc_count_error": false,
-						"order": [
-							{
-								"at_ts": "asc"
-							},
-							{
-								"_key": "asc"
-							}
-						]
-					},
-					"aggregations": {
-						"at_ts": {
-							"min": {
-								"field": "timestamp"
-							}
-						},
-						"at_score": {
-							"min": {
-								"field": "Score"
-							}
-						}
+				"target": {
+					"max": {
+						"field": "TargetDecodes"
 					}
 				},
-				"results": {
-					"terms": {
-						"field": "ResultID",
-						"size": 10,
-						"min_doc_count": 1,
-						"shard_min_doc_count": 0,
-						"show_term_doc_count_error": false,
-						"order": [
-							{
-								"_count": "desc"
-							},
-							{
-								"_key": "asc"
-							}
-						]
-					},
-					"aggregations": {
-						"actions": {
-							"terms": {
-								"field": "event_type",
-								"size": 10,
-								"min_doc_count": 1,
-								"shard_min_doc_count": 0,
-								"show_term_doc_count_error": false,
-								"order": [
-									{
-										"_count": "desc"
-									},
-									{
-										"_key": "asc"
-									}
-								]
-							}
-						}
-					}
-				},
-				"crystals": {
-					"filter": {
-						"match": {
-							"ObjectTypeID": {
-								"query": "Token",
-								"operator": "OR",
-								"prefix_length": 0,
-								"max_expansions": 50,
-								"fuzzy_transpositions": true,
-								"lenient": false,
-								"zero_terms_query": "NONE",
-								"auto_generate_synonyms_phrase_query": true,
-								"boost": 1.0
-							}
-						}
-					},
-					"aggregations": {
-						"outcomes": {
-							"terms": {
-								"field": "event_type",
-								"size": 10,
-								"min_doc_count": 1,
-								"shard_min_doc_count": 0,
-								"show_term_doc_count_error": false,
-								"order": [
-									{
-										"_count": "desc"
-									},
-									{
-										"_key": "asc"
-									}
-								]
-							}
-						}
-					}
-				},
-				"obstacles": {
-					"filter": {
-						"match": {
-							"ObjectTypeID": {
-								"query": "Obstacle",
-								"operator": "OR",
-								"prefix_length": 0,
-								"max_expansions": 50,
-								"fuzzy_transpositions": true,
-								"lenient": false,
-								"zero_terms_query": "NONE",
-								"auto_generate_synonyms_phrase_query": true,
-								"boost": 1.0
-							}
-						}
-					},
-					"aggregations": {
-						"outcomes": {
-							"terms": {
-								"field": "event_type",
-								"size": 10,
-								"min_doc_count": 1,
-								"shard_min_doc_count": 0,
-								"show_term_doc_count_error": false,
-								"order": [
-									{
-										"_count": "desc"
-									},
-									{
-										"_key": "asc"
-									}
-								]
-							}
-						}
-					}
-				},
-				"completed": {
+				"end_event": {
 					"filter": {
 						"terms": {
 							"event_type": [
-								"RunnerEnd",
 								"TransferenceStatsEnd"
 							],
 							"boost": 1.0
 						}
 					}
 				},
-				"decoded": {
-					"filter": {
-						"terms": {
-							"event_type": [
-								"TransferenceStatsMoleculeDecodeEnd"
-							],
-							"boost": 1.0
+				"dishes": {
+					"terms": {
+						"field": "DishID",
+						"size": 100,
+						"min_doc_count": 1,
+						"shard_min_doc_count": 0,
+						"show_term_doc_count_error": false,
+						"order": [
+							{
+								"dish_start": "asc"
+							},
+							{
+								"_key": "asc"
+							}
+						]
+					},
+					"aggregations": {
+						"dish_start": {
+							"min": {
+								"field": "timestamp"
+							}
+						},
+						"dish_end": {
+							"max": {
+								"field": "timestamp"
+							}
+						},
+						"decodes": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"TransferenceStatsMoleculeDecodeStart",
+										"TransferenceStatsMoleculeDecodeEnd"
+									],
+									"boost": 1.0
+								}
+							},
+							"aggregations": {
+								"decode_start": {
+									"min": {
+										"field": "timestamp"
+									}
+								},
+								"decode_end": {
+									"max": {
+										"field": "timestamp"
+									}
+								},
+								"decoded": {
+									"filter": {
+										"terms": {
+											"event_type": [
+												"TransferenceStatsMoleculeDecodeEnd"
+											],
+											"boost": 1.0
+										}
+									}
+								}
+							}
+						},
+						"actions": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"TransferenceStatsMoleculeSelected",
+										"TransferenceStatsMoleculeRejected"
+									],
+									"boost": 1.0
+								}
+							},
+							"aggregations": {
+								"first_action": {
+									"min": {
+										"field": "timestamp"
+									}
+								},
+								"last_action": {
+									"max": {
+										"field": "timestamp"
+									}
+								},
+								"rejections": {
+									"filter": {
+										"terms": {
+											"event_type": [
+												"TransferenceStatsMoleculeRejected"
+											],
+											"boost": 1.0
+										}
+									}
+								}
+							}
+						},
+						"display": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"TransferenceStatsMoleculeDisplay"
+									],
+									"boost": 1.0
+								}
+							},
+							"aggregations": {
+								"first_displayed": {
+									"min": {
+										"field": "timestamp"
+									}
+								}
+							}
 						}
-					}
-				},
-				"decodes_target": {
-					"max": {
-						"field": "TargetDecodes",
-						"missing": 0
 					}
 				}
 			}

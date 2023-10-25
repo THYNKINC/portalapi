@@ -811,14 +811,10 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "transference"))
-				.must(QueryBuilders.termsQuery("session_start", sessionId))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		AggregationBuilder sessions = AggregationBuilders
-				.terms("sessions")
-				.field("session_start.keyword")
-				.size(100)
-				.order(BucketOrder.aggregation("started", true))
+				.filter("session", QueryBuilders.termsQuery("session_start.keyword", sessionId))
 				.subAggregation(AggregationBuilders
 						.min("started")
 						.field("timestamp"))
