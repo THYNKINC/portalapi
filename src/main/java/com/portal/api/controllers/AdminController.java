@@ -132,14 +132,14 @@ public class AdminController {
     
     @GetMapping("/me")
     public Parent getMe(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	return mongoService.getParent(jwt.getClaim("cognito:username"));		
     }
     
     @GetMapping("/parents/{id}")
     public Parent getParent(@PathVariable("id") String id, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	return mongoService.getParent(id);		
     }
@@ -149,7 +149,7 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
@@ -170,7 +170,7 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
@@ -184,7 +184,7 @@ public class AdminController {
     public PaginatedResponse<AttemptSummary> getAttempts(HttpServletRequest request, @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	SearchResponse searchResponse = analyticsService.attempts(page, size);
     	
@@ -240,7 +240,7 @@ public class AdminController {
     @GetMapping("/dashboard")
     public DashboardMetrics getDashboard(HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	SearchResponse searchResponse = analyticsService.dashboardMetrics();
     	
@@ -752,7 +752,7 @@ public class AdminController {
     @GetMapping("/children/{username}/state")
     public GameState getChildState(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
