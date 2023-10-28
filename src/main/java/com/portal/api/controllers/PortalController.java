@@ -2,7 +2,6 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,7 +11,6 @@ import java.util.stream.Stream;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
-import org.codehaus.jackson.node.ObjectNode;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;

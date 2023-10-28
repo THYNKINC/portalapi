@@ -38,14 +38,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -280,7 +277,7 @@ public class AdminController {
     		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
     		
     		Max power = bucket.getAggregations().get("power");
-    		powers.put(bucket.getKeyAsString(), (int)power.value());
+    		powers.put(bucket.getKeyAsString(), Math.max(0, (int)power.value()));
     	});
     	
     	return DashboardMetrics.builder()
@@ -289,7 +286,7 @@ public class AdminController {
     			.missions(missions)
     			.power(powers)
     			.sessions(sessions)
-    			.totalPlaytime(TimeUtil.prettyPrint(playtime))
+    			.totalPlaytime(TimeUtil.prettyPrint(playtime)) // limit to 30 m
     			.totalUsers((int)users.getValue())
     			.build();
     }

@@ -29,6 +29,7 @@ import org.opensearch.search.aggregations.BucketOrder;
 import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
+import org.opensearch.search.aggregations.bucket.histogram.LongBounds;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
@@ -46,7 +47,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.portal.api.controllers.AdminController;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.util.OpensearchService;
 
@@ -119,9 +119,11 @@ public class AnalyticsService {
 						.dateHistogram("daily")
 						.field("timestamp")
 						.dateHistogramInterval(DateHistogramInterval.days(1))
+						.extendedBounds(new LongBounds("now-7d", "now"))
 						.subAggregation(AggregationBuilders
 								.max("power")
-								.field("Score"))
+								.field("Score")
+								.missing(0))
 						.subAggregation(AggregationBuilders
 								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
 								.subAggregation(AggregationBuilders
@@ -145,7 +147,8 @@ public class AnalyticsService {
 					// here we don't know what the last event for that session was so we take the max duration
 					.subAggregation(AggregationBuilders
 						.max("duration")
-						.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000"))))
+						// limit to 30 min max to avoid weird unfinished sessions
+						.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())"))))
 				.subAggregation(AggregationBuilders
 						.cardinality("users")
 						.field("user_id"));
@@ -189,7 +192,8 @@ public class AnalyticsService {
 			// here we're only looking at the end event, so no need to aggregate further
 			.subAggregation(AggregationBuilders
 				.sum("playtime")
-				.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000")));
+				// limit to 30 min max to avoid weird unfinished sessions
+				.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())")));
 		
 		// TODO how to detect missions? Transference doesn't exist for mission 1
 		FilterAggregationBuilder missions = AggregationBuilders
@@ -206,7 +210,8 @@ public class AnalyticsService {
 				// here we don't know what the last event for that session was so we take the max duration
 				.subAggregation(AggregationBuilders
 					.max("duration")
-					.script(new Script("doc['timestamp'].value.getMillis() - doc['timestamp'].value.getMillis() + 300000"))));
+					// limit to 30 min max to avoid weird unfinished sessions
+					.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())"))));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
