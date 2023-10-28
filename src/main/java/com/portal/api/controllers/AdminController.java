@@ -614,7 +614,7 @@ public class AdminController {
     		
     		String sessionType = (String)firstDocFields.get("session_type");
     		
-    		Max ended = aggs.get("ended");
+    		Max ended = ((Filter)aggs.get("actual-end")).getAggregations().get("ended");
     		Min started = aggs.get("started");
     		
     		long duration = (long)ended.getValue() - (long)started.getValue();

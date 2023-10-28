@@ -260,8 +260,10 @@ public class AnalyticsService {
 				.sort("timestamp", SortOrder.ASC)
 				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
 			.subAggregation(AggregationBuilders
-				.max("ended")
-				.field("timestamp"))
+					.filter("actual-end", QueryBuilders.boolQuery().mustNot(QueryBuilders.termQuery("event_type", "Abandoned")))
+					.subAggregation(AggregationBuilders
+						.max("ended")
+						.field("timestamp")))
 			.subAggregation(AggregationBuilders
 				.min("started")
 				.field("timestamp"))
