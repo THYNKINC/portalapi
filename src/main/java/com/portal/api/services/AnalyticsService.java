@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -101,6 +102,12 @@ public class AnalyticsService {
 	@CacheEvict(value = "dashboard", allEntries = true)
     @Scheduled(cron = "0 0 2 * * *")
     public void emptyDashboardCache() {
+        logger.info("emptying dashboard cache");
+    }
+	
+	@CachePut(value = "dashboard")
+    @Scheduled(cron = "0 0 3 * * *")
+    public void populateDashboardCache() {
         logger.info("emptying dashboard cache");
     }
     

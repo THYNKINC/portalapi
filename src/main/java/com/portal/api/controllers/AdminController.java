@@ -797,12 +797,9 @@ public class AdminController {
     	Headset old = headsets.findById(id)
     			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
     	
-    	if (!headset.getId().equals(id))
-    		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset ID cannot be changed");
-    	
     	old.setManufacteDate(headset.getManufacteDate());
     	
-    	return headsets.insert(headset);
+    	return headsets.save(headset);
     }
     
     @GetMapping("/headsets")
