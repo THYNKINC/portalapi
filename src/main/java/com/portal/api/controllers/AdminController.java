@@ -618,7 +618,8 @@ public class AdminController {
     		Min started = aggs.get("started");
     		
     		long duration = (long)ended.getValue() - (long)started.getValue();
-    		duration = TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS);
+    		// sessions to 30 min in case of abandon
+    		duration = Math.min(30*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
     		
     		Max power = aggs.get("power");
     		ExtendedStats bci = aggs.get("bci");
