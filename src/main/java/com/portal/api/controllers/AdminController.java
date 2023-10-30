@@ -442,8 +442,9 @@ public class AdminController {
 			dishList.add(Dish.builder()
 					.decoded((int)decoded.getDocCount())
 					.duration(TimeUtil.msToSec(dishStart, dishEnd))
-					.decodeTime(TimeUtil.msToSec(decodeStart, decodeEnd))
-					.gapTime(TimeUtil.msToSec(firstAction, decodeStart))
+					// Infinity string indicates an absence of min/max
+					.decodeTime(decodeStart.getValueAsString() != "Infinity" & decodeEnd.getValueAsString() != "Infinity" ? TimeUtil.msToSec(decodeStart, decodeEnd) : 0)
+					.gapTime(decodeStart.getValueAsString() != "Infinity"  ? TimeUtil.msToSec(firstAction, decodeStart) : 0)
 					.rejected((int)rejections.getDocCount())
 					// here we assume that if there are no rejections, actions are selections
 					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
@@ -451,13 +452,13 @@ public class AdminController {
 					.tapTime(TimeUtil.msToSec(firstDisplayed, firstAction))
 					.type(rejections.getDocCount() > 0 ? "rejected" : "selected")
 					.build());
-			
-			
 		}
 		
 		// TODO turn into method
 		double decodeAvg = dishList.stream()
 				.mapToInt(dish -> dish.getDecodeTime())
+				// 1511828489 value indicates an absence of min/max
+				.filter(i -> Math.abs(i) != 1511828489)
 				.average().orElse(0);
 		
 		double decodeVariance = dishList.stream()
@@ -467,6 +468,7 @@ public class AdminController {
 		
 		double gapAvg = dishList.stream()
 				.mapToInt(dish -> dish.getGapTime())
+				.filter(i -> Math.abs(i) != 1511828489)
 				.average().orElse(0);
 		
 		double gapVariance = dishList.stream()
@@ -476,6 +478,7 @@ public class AdminController {
 		
 		double tapAvg = dishList.stream()
 				.mapToInt(dish -> dish.getTapTime())
+				.filter(i -> Math.abs(i) != 1511828489)
 				.average().orElse(0);
 		
 		double tapVariance = dishList.stream()
@@ -485,6 +488,7 @@ public class AdminController {
 		
 		double selectAvg = dishList.stream()
 				.mapToInt(dish -> dish.getSelectTime())
+				.filter(i -> Math.abs(i) != 1511828489)
 				.average().orElse(0);
 		
 		double selectVariance = dishList.stream()
