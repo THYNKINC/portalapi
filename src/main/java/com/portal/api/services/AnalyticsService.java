@@ -108,7 +108,8 @@ public class AnalyticsService {
 	@CachePut(value = "dashboard")
     @Scheduled(cron = "0 0 3 * * *")
     public void populateDashboardCache() {
-        logger.info("emptying dashboard cache");
+		dashboardMetrics();
+        logger.info("filling dashboard cache");
     }
     
     @Cacheable("dashboard")
@@ -260,7 +261,10 @@ public class AnalyticsService {
 				.sort("timestamp", SortOrder.ASC)
 				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
 			.subAggregation(AggregationBuilders
-					.filter("actual-end", QueryBuilders.boolQuery().mustNot(QueryBuilders.termQuery("event_type", "Abandoned")))
+					.filter("actual-end", QueryBuilders
+							.boolQuery()
+							.mustNot(QueryBuilders
+									.termsQuery("event_type", "Abandoned", "LoginSuccess")))
 					.subAggregation(AggregationBuilders
 						.max("ended")
 						.field("timestamp")))
