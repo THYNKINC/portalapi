@@ -107,9 +107,9 @@ public class AnalyticsService {
 	
 	@CachePut(value = "dashboard")
     @Scheduled(cron = "0 0 3 * * *")
-    public void populateDashboardCache() {
-		dashboardMetrics();
+    public SearchResponse populateDashboardCache() throws Exception {
         logger.info("filling dashboard cache");
+        return dashboardMetrics();
     }
     
     @Cacheable("dashboard")
