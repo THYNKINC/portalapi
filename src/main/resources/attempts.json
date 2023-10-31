@@ -1,141 +1,129 @@
 {
 	"size": 0,
-	"query": {
-		"bool": {
-			"must": [
-				{
-					"term": {
-						"user_id": "emiliegalic"
-					}
-				},
-				{
-					"exists": {
-						"field": "MissionID"
+	"aggregations": {
+		"range": {
+			"filter": {
+				"range": {
+					"timestamp": {
+						"from": "now-7d/d",
+						"to": null,
+						"include_lower": true,
+						"include_upper": true,
+						"boost": 1.0
 					}
 				}
-			],
-			"adjust_pure_negative": true,
-			"boost": 1.0
-		}
-	},
-	"aggs": {
-		"sessions": {
-			"terms": {
-				"field": "session_start.keyword"
 			},
-			"aggs": {
-				"first_doc": {
-					"top_hits": {
-						"size": 1,
-						"_source": {
-							"includes": [
-								"timestamp",
-								"session_type",
-								"MissionID"
-							]
+			"aggregations": {
+				"daily": {
+					"date_histogram": {
+						"field": "timestamp",
+						"interval": "1d",
+						"offset": 0,
+						"order": {
+							"_key": "asc"
+						},
+						"keyed": false,
+						"min_doc_count": 0,
+						"extended_bounds": {
+							"min": "now-7d",
+							"max": "now"
+						}
+					},
+					"aggregations": {
+						"power": {
+							"max": {
+								"field": "Score",
+								"missing": 0
+							}
+						},
+						"attempts": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"RunnerEnd",
+										"TransferenceStatsEnd"
+									],
+									"boost": 1.0
+								}
+							},
+							"aggregations": {
+								"sessions": {
+									"date_histogram": {
+										"field": "timestamp",
+										"interval": "12h",
+										"offset": 0,
+										"order": {
+											"_key": "asc"
+										},
+										"keyed": false,
+										"min_doc_count": 0
+									}
+								}
+							}
+						},
+						"starts": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"RunnerStart",
+										"TransferenceStatsStart"
+									],
+									"boost": 1.0
+								}
+							}
+						},
+						"missions": {
+							"filter": {
+								"terms": {
+									"event_type": [
+										"TransferenceStatsEnd"
+									],
+									"boost": 1.0
+								}
+							}
 						}
 					}
-				},
-				"bci_avg": {
-					"extended_stats": {
-						"field": "bci"
-					}
-				},
-				"ended": {
-					"max": {
-						"field": "timestamp"
-					}
-				},
-				"stars": {
+				}
+			}
+		},
+		"active": {
+			"filter": {
+				"exists": {
+					"field": "MissionID",
+					"boost": 1.0
+				}
+			},
+			"aggregations": {
+				"sessions": {
 					"terms": {
-						"field": "StarReached"
+						"field": "session_start.keyword",
+						"size": 100000,
+						"min_doc_count": 1,
+						"shard_min_doc_count": 0,
+						"show_term_doc_count_error": false,
+						"order": [
+							{
+								"_count": "desc"
+							},
+							{
+								"_key": "asc"
+							}
+						]
 					},
-					"aggs": {
-						"events": {
-							"top_hits": {
-								"size": 1,
-								"_source": {
-									"includes": [
-										"timestamp",
-										"Score"
-									]
+					"aggregations": {
+						"duration": {
+							"max": {
+								"script": {
+									"source": "Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())",
+									"lang": "painless"
 								}
 							}
 						}
 					}
 				},
-				"results": {
-					"terms": {
-						"field": "ResultID"
-					},
-					"aggs": {
-						"actions": {
-							"terms": {
-								"field": "event_type"
-							}
-						}
-					}
-				},
-				"opportunities": {
-					"sum_bucket": {
-						"buckets_path": "results>_count"
-					}
-				},
-				"crystals": {
-					"filter": {
-						"terms": {
-							"ObjectTypeID": [
-								"Token"
-							]
-						}
-					},
-					"aggs": {
-						"outcomes": {
-							"terms": {
-								"field": "event_type"
-							}
-						}
-					}
-				},
-				"obstacles": {
-					"filter": {
-						"terms": {
-							"ObjectTypeID": [
-								"Obstacle"
-							]
-						}
-					},
-					"aggs": {
-						"outcomes": {
-							"terms": {
-								"field": "event_type"
-							}
-						}
-					}
-				},
-				"completed": {
-					"filter": {
-						"terms": {
-							"event_type": [
-								"RunnerEnd",
-								"TransferenceStatsEnd"
-							]
-						}
-					}
-				},
-				"decoded": {
-					"filter": {
-						"terms": {
-							"event_type": [
-								"TransferenceStatsMoleculeDecodeEnd"
-							]
-						}
-					}
-				},
-				"decodes_target": {
-					"max": {
-						"field": "TargetDecodes",
-						"missing": 0
+				"users": {
+					"cardinality": {
+						"field": "user_id"
 					}
 				}
 			}

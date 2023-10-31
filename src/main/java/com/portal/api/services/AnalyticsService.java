@@ -129,7 +129,7 @@ public class AnalyticsService {
 						.dateHistogramInterval(DateHistogramInterval.days(1))
 						.extendedBounds(new LongBounds("now-7d", "now"))
 						.subAggregation(AggregationBuilders
-								.max("power")
+								.avg("power")
 								.field("Score")
 								.missing(0))
 						.subAggregation(AggregationBuilders

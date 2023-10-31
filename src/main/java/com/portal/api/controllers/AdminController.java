@@ -271,7 +271,9 @@ public class AdminController {
     		attempts.put(bucket.getKeyAsString(), (int)completed);
     		
     		Histogram sessionsBuckets = agg.getAggregations().get("sessions");
-    		sessions.put(bucket.getKeyAsString(), sessionsBuckets.getBuckets().size());
+    		sessions.put(bucket.getKeyAsString(), sessionsBuckets.getBuckets().stream()
+    				.mapToInt(b -> (int)b.getDocCount())
+    				.sum());
     		
     		agg = bucket.getAggregations().get("starts");
     		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
