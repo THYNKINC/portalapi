@@ -446,7 +446,7 @@ public class AdminController {
 					.duration(TimeUtil.msToSec(dishStart, dishEnd))
 					// Infinity string indicates an absence of min/max
 					.decodeTime(decodeStart.getValueAsString() != "Infinity" & decodeEnd.getValueAsString() != "Infinity" ? TimeUtil.msToSec(decodeStart, decodeEnd) : 0)
-					.gapTime(decodeStart.getValueAsString() != "Infinity"  ? TimeUtil.msToSec(firstAction, decodeStart) : 0)
+					.gapTime(decodeStart.getValueAsString() != "Infinity"  ? TimeUtil.msToSec(firstDisplayed, decodeStart) : 0)
 					.rejected((int)rejections.getDocCount())
 					// here we assume that if there are no rejections, actions are selections
 					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
