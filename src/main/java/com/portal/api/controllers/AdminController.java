@@ -28,6 +28,7 @@ import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.Terms.Bucket;
+import org.opensearch.search.aggregations.metrics.Avg;
 import org.opensearch.search.aggregations.metrics.Cardinality;
 import org.opensearch.search.aggregations.metrics.ExtendedStats;
 import org.opensearch.search.aggregations.metrics.Max;
@@ -278,7 +279,7 @@ public class AdminController {
     		agg = bucket.getAggregations().get("starts");
     		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
     		
-    		Max power = bucket.getAggregations().get("power");
+    		Avg power = bucket.getAggregations().get("power");
     		powers.put(bucket.getKeyAsString(), Math.max(0, (int)power.value()));
     	});
     	
