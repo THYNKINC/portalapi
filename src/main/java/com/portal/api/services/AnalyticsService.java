@@ -130,8 +130,7 @@ public class AnalyticsService {
 						.extendedBounds(new LongBounds("now-7d", "now"))
 						.subAggregation(AggregationBuilders
 								.avg("power")
-								.field("Score")
-								.missing(0))
+								.field("Score"))
 						.subAggregation(AggregationBuilders
 								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
 								.subAggregation(AggregationBuilders
