@@ -658,10 +658,10 @@ public class AdminController {
     			
     			for (Bucket action: actions.getBuckets()) {
     				
-    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusSelected")) cs++;
-    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusRejected")) cr++;
-    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusSelected")) is++;
-    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusRejected")) ir++;
+    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusSelected")) cs = (int)action.getDocCount();
+    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusRejected")) cr = (int)action.getDocCount();
+    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusSelected")) is = (int)action.getDocCount();
+    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusRejected")) ir = (int)action.getDocCount();
     				if (result.getKeyAsString().equals("Impulse")) impulses++;
     			}
     		}
