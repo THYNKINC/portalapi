@@ -287,12 +287,6 @@ public class AnalyticsService {
 					.min("at_score")
 					.field("Score")))
 			.subAggregation(AggregationBuilders
-				.terms("results")
-				.field("ResultID")
-				.subAggregation(AggregationBuilders
-					.terms("actions")
-					.field("event_type")))
-			.subAggregation(AggregationBuilders
 				.filter("crystals", QueryBuilders.matchQuery("ObjectTypeID", "Token"))
 				.subAggregation(AggregationBuilders
 					.terms("outcomes")
@@ -300,7 +294,13 @@ public class AnalyticsService {
 			.subAggregation(AggregationBuilders
 				.filter("bots", QueryBuilders.boolQuery()
 						.must(QueryBuilders.termQuery("ObjectTypeID", "Enemy"))
-						.must(QueryBuilders.termsQuery("event_type", "ObjectStatusInRange", "ObjectStatusSelected")))
+						.must(QueryBuilders.termsQuery("event_type", "ObjectStatusInRange", "ObjectStatusSelected", "ObjectStatusRejected")))
+				.subAggregation(AggregationBuilders
+					.terms("results")
+					.field("ResultID")
+					.subAggregation(AggregationBuilders
+						.terms("actions")
+						.field("event_type")))
 				.subAggregation(AggregationBuilders
 					.scriptedMetric("response_time")
 					.initScript(new Script("state.total = 0; state.start = 0; state.count = 0;"))

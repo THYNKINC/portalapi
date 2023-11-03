@@ -644,7 +644,10 @@ public class AdminController {
     			})
     			.collect(Collectors.toList());
     		
-    		Terms results = aggs.get("results");
+    		Filter bots = aggs.get("bots");
+    		ScriptedMetric responseTime = bots.getAggregations().get("response_time");
+    		
+    		Terms results = bots.getAggregations().get("results");
     		
     		int cs = 0;
     		int cr = 0;
@@ -697,9 +700,6 @@ public class AdminController {
 				.sum();
     		int totalObstacles = collidedObstacles + avoidedObstacles;
     		
-    		Filter bots = aggs.get("bots");
-    		ScriptedMetric responseTime = bots.getAggregations().get("response_time");
-    				
     		Filter completed = aggs.get("completed");
     		
     		Filter decoded = aggs.get("decoded");
