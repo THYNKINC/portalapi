@@ -143,42 +143,6 @@
 						}
 					}
 				},
-				"results": {
-					"terms": {
-						"field": "ResultID",
-						"size": 10,
-						"min_doc_count": 1,
-						"shard_min_doc_count": 0,
-						"show_term_doc_count_error": false,
-						"order": [
-							{
-								"_count": "desc"
-							},
-							{
-								"_key": "asc"
-							}
-						]
-					},
-					"aggregations": {
-						"actions": {
-							"terms": {
-								"field": "event_type",
-								"size": 10,
-								"min_doc_count": 1,
-								"shard_min_doc_count": 0,
-								"show_term_doc_count_error": false,
-								"order": [
-									{
-										"_count": "desc"
-									},
-									{
-										"_key": "asc"
-									}
-								]
-							}
-						}
-					}
-				},
 				"crystals": {
 					"filter": {
 						"match": {
@@ -231,7 +195,8 @@
 									"terms": {
 										"event_type": [
 											"ObjectStatusInRange",
-											"ObjectStatusSelected"
+											"ObjectStatusSelected",
+											"ObjectStatusRejected"
 										],
 										"boost": 1.0
 									}
@@ -242,6 +207,42 @@
 						}
 					},
 					"aggregations": {
+						"results": {
+							"terms": {
+								"field": "ResultID",
+								"size": 10,
+								"min_doc_count": 1,
+								"shard_min_doc_count": 0,
+								"show_term_doc_count_error": false,
+								"order": [
+									{
+										"_count": "desc"
+									},
+									{
+										"_key": "asc"
+									}
+								]
+							},
+							"aggregations": {
+								"actions": {
+									"terms": {
+										"field": "event_type",
+										"size": 10,
+										"min_doc_count": 1,
+										"shard_min_doc_count": 0,
+										"show_term_doc_count_error": false,
+										"order": [
+											{
+												"_count": "desc"
+											},
+											{
+												"_key": "asc"
+											}
+										]
+									}
+								}
+							}
+						},
 						"response_time": {
 							"scripted_metric": {
 								"init_script": {

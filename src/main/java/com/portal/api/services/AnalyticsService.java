@@ -277,6 +277,9 @@ public class AnalyticsService {
 				.extendedStats("bci")
 				.field("bci"))
 			.subAggregation(AggregationBuilders
+				.avg("tier")
+				.field("Tier"))
+			.subAggregation(AggregationBuilders
 				.terms("stars")
 				.field("StarReached")
 				.order(BucketOrder.aggregation("at_ts", true))

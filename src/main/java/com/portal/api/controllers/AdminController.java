@@ -90,6 +90,8 @@ import com.portal.api.util.MappingService;
 import com.portal.api.util.MongoService;
 import com.portal.api.util.TimeUtil;
 
+import software.amazon.awssdk.services.applicationinsights.model.Tier;
+
 @RestController
 @RequestMapping("/admin")
 @Validated
@@ -632,6 +634,8 @@ public class AdminController {
     		Max power = aggs.get("power");
     		ExtendedStats bci = aggs.get("bci");
     		
+    		Avg avgTier = aggs.get("tier");
+    		
     		Terms stars = aggs.get("stars");
     		List<StarEarned> starsEarned = stars.getBuckets().stream()
 				.filter(b -> b.getKeyAsNumber().intValue() > 0)
@@ -734,7 +738,7 @@ public class AdminController {
 	    		.stars(starsEarned)
 	    		.startTime((long)started.getValue())
 	    		.status(pass ? "PASS" : "FAIL")
-	    		.tierAvg(0)
+	    		.tierAvg(avgTier.getValueAsString().equals("Infinity") ? 0 : (int)avgTier.value())
 	    		.type(sessionType)
 	    		.build();
     		
