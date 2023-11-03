@@ -23,7 +23,7 @@ public class Attempt {
 	int maxPower;
 	int tierAvg;
 	Accuracy accuracy;
-	int responseTime;
+	String responseTime;
 	CognitiveSkillsResponse scores;
 	String[] ranks;
 	String[] badges;

@@ -33,6 +33,7 @@ import org.opensearch.search.aggregations.metrics.Cardinality;
 import org.opensearch.search.aggregations.metrics.ExtendedStats;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.Min;
+import org.opensearch.search.aggregations.metrics.ScriptedMetric;
 import org.opensearch.search.aggregations.metrics.Sum;
 import org.opensearch.search.aggregations.metrics.TopHits;
 import org.slf4j.Logger;
@@ -672,25 +673,33 @@ public class AdminController {
     		int collectedCrystals = (int) crystalOutcome.getBuckets()
 				.stream()
 				.filter(b -> b.getKeyAsString().equals("ObjectStatusCollected"))
-				.count();
+				.mapToLong(b -> b.getDocCount())
+				.sum();
+    		
     		int missedCrystals = (int) crystalOutcome.getBuckets()
 				.stream()
 				.filter(b -> b.getKeyAsString().equals("ObjectStatusOutOfRange"))
-				.count();
+				.mapToLong(b -> b.getDocCount())
+				.sum();
     		int totalCrystals = collectedCrystals + missedCrystals;
     		
-    		Filter obstacles = aggs.get("crystals");
+    		Filter obstacles = aggs.get("obstacles");
     		Terms obstacleOutcome = obstacles.getAggregations().get("outcomes");
     		int collidedObstacles = (int) obstacleOutcome.getBuckets()
 				.stream()
 				.filter(b -> b.getKeyAsString().equals("ObjectStatusCollided"))
-				.count();
+				.mapToLong(b -> b.getDocCount())
+				.sum();
     		int avoidedObstacles = (int) crystalOutcome.getBuckets()
 				.stream()
 				.filter(b -> b.getKeyAsString().equals("ObjectStatusOutOfRange"))
-				.count();
+				.mapToLong(b -> b.getDocCount())
+				.sum();
     		int totalObstacles = collidedObstacles + avoidedObstacles;
     		
+    		Filter bots = aggs.get("bots");
+    		ScriptedMetric responseTime = bots.getAggregations().get("response_time");
+    				
     		Filter completed = aggs.get("completed");
     		
     		Filter decoded = aggs.get("decoded");
@@ -720,7 +729,7 @@ public class AdminController {
 	    		.maxPower((int)power.getValue())
 	    		.missionId(Integer.valueOf(MappingService.getKey((String)firstDocFields.get("MissionID"))))
 	    		.ranks(null)
-	    		.responseTime(0)
+	    		.responseTime(String.format("%.3f", (int)responseTime.aggregation() / 1000f))
 	    		.scores(null)
 	    		.stars(starsEarned)
 	    		.startTime((long)started.getValue())
@@ -734,9 +743,8 @@ public class AdminController {
     			if (totalCrystals > 0) {
 	    			attempt.setCrystals(Crystals.builder()
 						.collected(collectedCrystals)
-						.pctCollected(collectedCrystals / totalCrystals * 100)
+						.pctCollected((int)(collectedCrystals / (float)totalCrystals * 100))
 						.missed(missedCrystals)
-						.record(0)
 						.build());
     			}
 	    		
@@ -744,8 +752,7 @@ public class AdminController {
 		    		attempt.setObstacles(Obstacles.builder()
 	    				.avoided(avoidedObstacles)
 	    				.collided(collidedObstacles)
-	    				.pctAvoided(avoidedObstacles / totalObstacles * 100)
-	    				.record(0)
+	    				.pctAvoided((int)(avoidedObstacles / (float)totalObstacles * 100))
 	    				.build());
     			}
     		}

@@ -9,6 +9,5 @@ public class Crystals {
 
 	int collected;
 	int missed;
-	float pctCollected;
-	int record;
+	int pctCollected;
 }

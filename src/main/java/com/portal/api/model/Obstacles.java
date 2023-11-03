@@ -9,6 +9,5 @@ public class Obstacles {
 
 	int avoided;
 	int collided;
-	float pctAvoided;
-	int record;
+	int pctAvoided;
 }

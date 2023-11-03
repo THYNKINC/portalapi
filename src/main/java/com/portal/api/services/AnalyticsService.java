@@ -298,6 +298,29 @@ public class AnalyticsService {
 					.terms("outcomes")
 					.field("event_type")))
 			.subAggregation(AggregationBuilders
+				.filter("bots", QueryBuilders.boolQuery()
+						.must(QueryBuilders.termQuery("ObjectTypeID", "Enemy"))
+						.must(QueryBuilders.termsQuery("event_type", "ObjectStatusInRange", "ObjectStatusSelected")))
+				.subAggregation(AggregationBuilders
+					.scriptedMetric("response_time")
+					.initScript(new Script("state.total = 0; state.start = 0; state.count = 0;"))
+					.mapScript(new Script("if (doc['event_type'].value == 'ObjectStatusInRange') {\r\n"
+							+ "            state.start = doc['timestamp'].value.getMillis();\r\n"
+							+ "          }\r\n"
+							+ "          if (doc['event_type'].value == 'ObjectStatusSelected') {\r\n"
+							+ "            state.total += doc['timestamp'].value.getMillis() - state.start;\r\n"
+							+ "            state.count++;\r\n"
+							+ "          }"))
+					.combineScript(new Script("return state.count > 0 ? state.total / state.count : 0;"))
+					.reduceScript(new Script("def total = 0;\r\n"
+							+ "          def count = 0;\r\n"
+							+ "          for (agg in states) {\r\n"
+							+ "            total += agg;\r\n"
+							+ "            count++;\r\n"
+							+ "          }\r\n"
+							+ "          def average = (count == 0) ? 0 : total / count;\r\n"
+							+ "          return average;"))))
+			.subAggregation(AggregationBuilders
 				.filter("obstacles", QueryBuilders.matchQuery("ObjectTypeID", "Obstacle"))
 				.subAggregation(AggregationBuilders
 					.terms("outcomes")

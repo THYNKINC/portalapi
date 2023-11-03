@@ -7,6 +7,11 @@ import org.opensearch.search.aggregations.metrics.NumericMetricsAggregation.Sing
 
 public abstract class TimeUtil {
 
+	public static int msToSec(int value) {
+		
+		return (int)TimeUnit.SECONDS.convert(Integer.valueOf(value).longValue(), TimeUnit.MILLISECONDS);
+	}
+	
 	public static int msToSec(SingleValue first, SingleValue last) {
 		
 		return (int)TimeUnit.SECONDS.convert((long)(last.value() - first.value()), TimeUnit.MILLISECONDS);
