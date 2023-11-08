@@ -78,7 +78,7 @@ public class AnalyticsService {
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders
@@ -132,7 +132,7 @@ public class AnalyticsService {
 								.avg("power")
 								.field("Score"))
 						.subAggregation(AggregationBuilders
-								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
+								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
 								.subAggregation(AggregationBuilders
 										.dateHistogram("sessions")
 										.field("timestamp")
@@ -141,7 +141,7 @@ public class AnalyticsService {
 								.filter("starts", QueryBuilders.termsQuery("event_type", List.of("RunnerStart", "TransferenceStatsStart"))))
 						// TODO this is supposed to be missions but mission 1 doesn't have transference so...
 						.subAggregation(AggregationBuilders
-								.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd")))));
+								.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))));
 		
 		// totals
 		FilterAggregationBuilder active = AggregationBuilders
@@ -186,7 +186,7 @@ public class AnalyticsService {
 				.field("timestamp");
 		
 		FilterAggregationBuilder attempts = AggregationBuilders
-			.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")))
+			.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
 					.max("lastAttempt")
 					.field("timestamp"))
@@ -202,9 +202,8 @@ public class AnalyticsService {
 				// limit to 30 min max to avoid weird unfinished sessions
 				.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())")));
 		
-		// TODO how to detect missions? Transference doesn't exist for mission 1
 		FilterAggregationBuilder missions = AggregationBuilders
-			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd")))
+			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
 					.cardinality("idCount")
 					.field("MissionID"));
@@ -329,7 +328,7 @@ public class AnalyticsService {
 					.terms("outcomes")
 					.field("event_type")))
 			.subAggregation(AggregationBuilders
-				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd")))
+				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
 				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd")))
 			.subAggregation(AggregationBuilders
@@ -370,7 +369,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(rangeQueryBuilder);
 		
@@ -398,7 +397,7 @@ public class AnalyticsService {
 
 		// Build the match queries
 		QueryBuilder eventTypeQuery = QueryBuilders
-				.matchQuery("event_type", "TransferenceStatsEnd");
+				.termsQuery("event_type", "TransferenceStatsEnd", "PVTEnd");
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
 
@@ -436,7 +435,7 @@ public class AnalyticsService {
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("TaskID", missionId))
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd"))
+				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Set up the source builder
@@ -476,7 +475,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastNAttempts(String userId, int sessions) throws Exception {
 
-		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd"));
+		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd"));
 	}
 	
 	/**
@@ -545,7 +544,7 @@ public class AnalyticsService {
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd")));
+				.must(QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")));
 
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();

@@ -209,7 +209,8 @@ public class AdminController {
     		attempt.setDate((String) sourceAsMap.get("session_start"));
     		attempt.setUsername((String) sourceAsMap.get("user_id"));
     		attempt.setMission((String) sourceAsMap.get("TaskID"));
-    		attempt.setType(sourceAsMap.get("event_type").equals("RunnerEnd") ? "runner" : "transference");
+    		attempt.setType(sourceAsMap.get("event_type").equals("RunnerEnd") ? "runner" : 
+    			sourceAsMap.get("event_type").equals("PVTEnd") ? "vigilock" :  "transference");
     		
     		// TODO
     		attempt.setPass(false);

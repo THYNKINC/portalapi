@@ -353,12 +353,19 @@ public class PortalController {
     		recentMissionResponse.setType("runner");
     	}
     	
-    	else {
+    	else if ("TranferenceStatsEnd".equals(eventType)) {
     		
     		FogAnalysisResponse xfer = childMissionFogAnalysis(username, sessionId, request);
     		recentMissionResponse.setMissionStatus(xfer.isPass() ? "PASS" : "FAIL");
     		recentMissionResponse.setMissionRating(xfer.getDecodedMolecules() * 100 / xfer.getTargetDecodes());
     		recentMissionResponse.setType("transference");
+    	}
+    	
+    	else {
+    		
+    		recentMissionResponse.setMissionStatus("PASS");
+    		recentMissionResponse.setMissionRating(100);
+    		recentMissionResponse.setType("vigilock");
     	}
     	
     	recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
