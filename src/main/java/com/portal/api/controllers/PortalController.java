@@ -281,7 +281,13 @@ public class PortalController {
     	// we need the max so we have to convert the string missions x.y format to doubles
 	    double highestMission = Stream
 	    	.of(hits)
-	    	.mapToDouble(hit -> Double.valueOf((String)hit.getSourceAsMap().get("TaskID")))
+	    	.mapToDouble(hit -> {
+	    		
+	    		if (hit.getSourceAsMap().get("event_type").equals("PVTEnd"))
+	    			return 1;
+	    		
+	    		return Double.valueOf((String)hit.getSourceAsMap().get("TaskID"));
+	    	})
 	    	.max()
 	    	.orElse(0);
     	
@@ -353,7 +359,7 @@ public class PortalController {
     		recentMissionResponse.setType("runner");
     	}
     	
-    	else if ("TranferenceStatsEnd".equals(eventType)) {
+    	else if ("TransferenceStatsEnd".equals(eventType)) {
     		
     		FogAnalysisResponse xfer = childMissionFogAnalysis(username, sessionId, request);
     		recentMissionResponse.setMissionStatus(xfer.isPass() ? "PASS" : "FAIL");

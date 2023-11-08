@@ -205,6 +205,12 @@ public class AdminController {
     	
     		Map<String, Object> sourceAsMap = hit.getSourceAsMap();
     		
+//    		boolean pass = sessionType.equals("runner") ?
+//    				starsEarned.size() > 0
+//    				: sessionType.equals("transference") ?
+//    						decoded != null && decoded.getDocCount() > decodesTarget.getValue()
+//    						: true;
+    		
     		AttemptSummary attempt = new AttemptSummary();
     		attempt.setDate((String) sourceAsMap.get("session_start"));
     		attempt.setUsername((String) sourceAsMap.get("user_id"));
@@ -712,7 +718,9 @@ public class AdminController {
     		
     		boolean pass = sessionType.equals("runner") ?
 				starsEarned.size() > 0
-				: decoded != null && decoded.getDocCount() > decodesTarget.getValue();
+				: sessionType.equals("transference") ?
+						decoded != null && decoded.getDocCount() > decodesTarget.getValue()
+						: true;
     		
     		Attempt attempt = Attempt.builder()
 	    		.accuracy(Accuracy.builder()

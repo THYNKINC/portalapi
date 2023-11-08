@@ -545,7 +545,7 @@ public class AnalyticsService {
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")));
-
+		
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
@@ -557,6 +557,55 @@ public class AnalyticsService {
 		searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID", "user_id" }, new String[] {});
 
 		// Add the source builder to the request
+		searchRequest.source(searchSourceBuilder);
+
+		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
+
+//		response = attempts(response);
+//		response.getHits().getTotalHits();
+		
+		return response;
+	}
+	
+	public SearchResponse attempts(SearchResponse attempts) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		QueryBuilder sessionQuery = QueryBuilders
+				.termsQuery("session_start.keyword", parseAttempts(attempts));
+		
+		TermsAggregationBuilder sessions = AggregationBuilders
+			.terms("sessions")
+			.field("session_start.keyword")
+			// we know there's gonna be only as many as the number of attempts passed
+			.size(attempts.getHits().getHits().length)
+			.order(BucketOrder.aggregation("started", false))
+			.subAggregation(AggregationBuilders
+					.min("started")
+					.field("timestamp"))
+			.subAggregation(AggregationBuilders
+				.topHits("first_event")
+				.size(1)
+				.sort("timestamp", SortOrder.ASC)
+				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start", "user_id"}, null))
+			.subAggregation(AggregationBuilders
+				.max("stars")
+				.field("StarReached"))
+			.subAggregation(AggregationBuilders
+				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd")))
+			.subAggregation(AggregationBuilders
+					.max("decodes_target")
+					.field("TargetDecodes")
+					.missing(0));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(sessionQuery);
+		searchSourceBuilder.aggregation(sessions);
+		
+		searchSourceBuilder.size(0);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
 		searchRequest.source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
