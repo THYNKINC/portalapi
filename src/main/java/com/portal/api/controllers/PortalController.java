@@ -44,6 +44,7 @@ import com.portal.api.model.CreateUserRequest;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.FogAnalysisResponse;
 import com.portal.api.model.GraphResponse;
+import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.ImpulseControl;
 import com.portal.api.model.LoginRequest;
 import com.portal.api.model.Parent;
@@ -243,7 +244,11 @@ public class PortalController {
     
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	SearchResponse response = analyticsService.historicalProgress(username);
+    	HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
     	
     	SearchResponse searchResponse;
     	Aggregations aggregations;
@@ -273,35 +278,8 @@ public class PortalController {
     	int sessionsPerWeekCount = buckets.size();
     	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
     	
-    	// TODO change MissionID type to double in elastic so we can use a max query directly
-    	searchResponse = analyticsService.lastNAttempts(username, 1000); 
-    	
-    	SearchHit[] hits = searchResponse.getHits().getHits();
-    	
-    	// we need the max so we have to convert the string missions x.y format to doubles
-	    double highestMission = Stream
-	    	.of(hits)
-	    	.mapToDouble(hit -> {
-	    		
-	    		if (hit.getSourceAsMap().get("event_type").equals("PVTEnd"))
-	    			return 1;
-	    		
-	    		return Double.valueOf((String)hit.getSourceAsMap().get("TaskID"));
-	    	})
-	    	.max()
-	    	.orElse(0);
-    	
-	    // TODO calculate abandonned attempts
-	    // as number of runner start + xfer start - runner end + xfer end
-    	progressResponse.setAbandonedAttempts(0);
-    	    	
-    	// we need to convert the double mission ID from double back to a string
-    	// then get the mission number as an int
-    	// TODO simplify that
-    	int maxMissionNo = Integer.valueOf(MappingService
-				.getKey(String.valueOf(highestMission)));
-    	
-		progressResponse.setMissionsCompleted(maxMissionNo);
+    	progressResponse.setAbandonedAttempts(progressReport.getAbandons());
+    	progressResponse.setMissionsCompleted(progressReport.getHighestMission());
 		
 		// get the last attempt (could be different from highest mission if they went back to an old mission)
 		searchResponse = analyticsService.lastNRunners(username, 1);
@@ -320,7 +298,7 @@ public class PortalController {
 				.getFocus();
 		
 		// calculate thynk score
-		double thynkScore = (1.7 * maxMissionNo + sessionsCount)
+		double thynkScore = (1.7 * progressReport.getHighestMission() + sessionsCount)
 				* (compositeFocus / 100 + 1);
 		
     	progressResponse.setThynkScore((int)Math.ceil(thynkScore));

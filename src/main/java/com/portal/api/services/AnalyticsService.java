@@ -171,8 +171,13 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-		
-	public SearchResponse historicalProgress(String userId) throws Exception {
+	
+    public SearchResponse historicalProgress(String userId) throws Exception {
+    	
+    	return historicalProgress(userId, true);
+    }
+    
+	public SearchResponse historicalProgress(String userId, boolean includePlayTime) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -194,30 +199,47 @@ public class AnalyticsService {
 					.dateHistogram("sessions")
 					.field("timestamp")
 					.dateHistogramInterval(DateHistogramInterval.hours(12))
-					.minDocCount(1))
+					.minDocCount(1));
+		
+			// this is a slow operation, don't run if not needed
+			if (includePlayTime) {
 			
-			// here we're only looking at the end event, so no need to aggregate further
-			.subAggregation(AggregationBuilders
-				.sum("playtime")
-				// limit to 30 min max to avoid weird unfinished sessions
-				.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())")));
+				// here we're only looking at the end event, so no need to aggregate further
+				attempts.subAggregation(AggregationBuilders
+					.sum("playtime")
+					// limit to 30 min max to avoid weird unfinished sessions
+					.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())")));
+			}
 		
 		FilterAggregationBuilder missions = AggregationBuilders
 			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
-					.cardinality("idCount")
-					.field("MissionID"));
+					.cardinality("id-count")
+					.field("MissionID"))
+			.subAggregation(AggregationBuilders
+					.topHits("highest-missions")
+					.size(1)
+					.sort("MissionID", SortOrder.DESC)
+					.fetchSource(new String[] {"MissionID"}, null));
 		
 		FilterAggregationBuilder active = AggregationBuilders
 			.filter("active", QueryBuilders.existsQuery("MissionID"))
 			.subAggregation(AggregationBuilders
+				.cardinality("starts-count")
+				.field("session_start.keyword"));
+		
+		// this is a slow operation, don't run if not needed
+		if (includePlayTime) {
+			active.subAggregation(AggregationBuilders
 				.terms("sessions")
 				.field("session_start.keyword")
+				.size(500)
 				// here we don't know what the last event for that session was so we take the max duration
 				.subAggregation(AggregationBuilders
 					.max("duration")
 					// limit to 30 min max to avoid weird unfinished sessions
 					.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())"))));
+		}
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);

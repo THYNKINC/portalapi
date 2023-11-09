@@ -354,62 +354,9 @@ public class AdminController {
     @GetMapping("/children/{username}/progress-report")
     public HistoricalProgressReport getChildProgressReport(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    	
     	SearchResponse response = analyticsService.historicalProgress(username);
-    	    	
-    	Map<String, Aggregation> aggs = response.getAggregations().asMap();
-    	
-    	Min started = (Min)aggs.get("startDate");
-    	Filter attempts = (Filter)aggs.get("attempts");
-    	
-    	Map<String, Aggregation> attemptAggs = attempts.getAggregations().asMap();
-    	Max lastAttempt = (Max)attemptAggs.get("lastAttempt");
-    	Histogram sessions = (Histogram)attemptAggs.get("sessions");
-    	Sum completedPlaytime = (Sum)attemptAggs.get("playtime");
-    	
-    	Filter missions = (Filter)aggs.get("missions");
-    	Map<String, Aggregation> missionAggs = missions.getAggregations().asMap();
-    	Cardinality completedMissions = (Cardinality)missionAggs.get("idCount");
-    	
-    	long totalPlaytime = 0;
-    	Filter active = (Filter)aggs.get("active");
-    	Terms sessionGroup = (Terms)active.getAggregations().get("sessions");
-    	
-    	for (Terms.Bucket bucket : sessionGroup.getBuckets()) {
-    		Max duration = bucket.getAggregations().get("duration");
-    		totalPlaytime += duration.getValue();
-    	}
-    	
-    	// TODO use value() instead, already a timestamp
-    	long lastAttemptTs = df.parse(lastAttempt.getValueAsString()).getTime();
-    	long startDateTs = df.parse(started.getValueAsString()).getTime();
-    	
-    	long today = new Date().getTime();
-    	int totalDays = (int)TimeUnit.DAYS.convert(today - startDateTs, TimeUnit.MILLISECONDS);
-    	
-    	double weeks = totalDays / 7;
-    	
-    	HistoricalProgressReport builder = HistoricalProgressReport.builder()
-    		.achievements(0)
-    		.attemptsPerWeek(attempts.getDocCount() / weeks)
-    		.daysSinceLastAttempt((int)TimeUnit.DAYS.convert(today - lastAttemptTs, TimeUnit.MILLISECONDS))
-    		.daysSinceStart(totalDays)
-    		.missionsCompleted((int)completedMissions.value())
-    		.missionsPerWeek(completedMissions.value() / weeks)
-    		.playtimeCompletedPerWeek(TimeUtil.prettyPrint(completedPlaytime.value() / weeks))
-    		.playtimePerWeek(TimeUtil.prettyPrint(totalPlaytime / weeks))
-    		.projectedCompletionDate(null)
-    		.sessionsCompleted(sessions.getBuckets().size())
-    		.sessionsPerWeek(sessions.getBuckets().size() / weeks)
-    		.startDate(LocalDate.ofInstant(Instant.ofEpochMilli(startDateTs), TimeZone
-    		        .getDefault().toZoneId()))
-    		.totalAttempts((int)attempts.getDocCount())
-    		.totalPlaytime(TimeUtil.prettyPrint(totalPlaytime))
-    		.totalPlaytimeCompleted(TimeUtil.prettyPrint(completedPlaytime.value()))
-    		.build();
-    	
-    	return builder;
+
+    	return HistoricalProgressReport.parse(response);
     }
     
     @GetMapping("/children/{username}/transferences/{session_id}")
