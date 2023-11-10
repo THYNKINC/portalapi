@@ -370,7 +370,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 
-	public SearchResponse completedSessionsWeek(String userId) throws Exception {
+	public SearchResponse weeklyStats(String userId) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -391,19 +391,24 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(rangeQueryBuilder);
 		
-		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders
-				.dateHistogram("documents_per_bucket")
-				.field("timestamp")
-				.minDocCount(1)
-				.fixedInterval(new DateHistogramInterval("12h"));
+		FilterAggregationBuilder starts = AggregationBuilders
+				.filter("starts", QueryBuilders.termsQuery("event_type", "RunnerStart", "TransferenceStatsStart", "PVTStart"));
+		
+		FilterAggregationBuilder attempts = AggregationBuilders
+				.filter("attempts", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
+				.subAggregation(AggregationBuilders
+						.dateHistogram("sessions")
+						.field("timestamp")
+						.minDocCount(1)
+						.fixedInterval(new DateHistogramInterval("12h")));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
-		searchSourceBuilder.aggregation(dateHistogramAgg);
+		searchSourceBuilder.aggregation(starts);
+		searchSourceBuilder.aggregation(attempts);
 		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");

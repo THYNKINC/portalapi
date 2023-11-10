@@ -14,7 +14,9 @@ import javax.validation.Valid;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
+import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregations;
+import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
 import org.opensearch.search.aggregations.metrics.Max;
@@ -270,15 +272,19 @@ public class PortalController {
     	
     	progressResponse.setSessionsCompleted(sessionsCount);
     	
-    	searchResponse = analyticsService.completedSessionsWeek(username); 
+    	searchResponse = analyticsService.weeklyStats(username); 
     	
     	aggregations = searchResponse.getAggregations();
-    	terms = aggregations.get("documents_per_bucket");
-    	buckets = terms.getBuckets();
-    	int sessionsPerWeekCount = buckets.size();
-    	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
     	
-    	progressResponse.setAbandonedAttempts(progressReport.getAbandons());
+    	int starts = (int)((Filter)aggregations.get("starts")).getDocCount();
+    	Filter attempts = aggregations.get("attempts");
+    	int attemptsCount = (int)attempts.getDocCount();
+    	
+    	Histogram sessions = attempts.getAggregations().get("sessions");
+    	int sessionsPerWeekCount = sessions.getBuckets().size();
+    	progressResponse.setSessionsCompletedPerWeek(sessionsPerWeekCount);
+ 
+    	progressResponse.setAbandonedAttempts(starts - attemptsCount);
     	progressResponse.setMissionsCompleted(progressReport.getHighestMission());
 		
 		// get the last attempt (could be different from highest mission if they went back to an old mission)
@@ -845,7 +851,7 @@ public class PortalController {
     @Hidden
     @GetMapping("/opensearch/completed-sessions-week")
     public SearchResponse completedSessionsWeek(HttpServletRequest request) throws Exception {
-    	return analyticsService.completedSessionsWeek("388357544");
+    	return analyticsService.weeklyStats("388357544");
     }
     
     @Hidden
