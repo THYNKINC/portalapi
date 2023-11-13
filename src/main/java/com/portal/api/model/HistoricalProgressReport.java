@@ -69,9 +69,12 @@ public class HistoricalProgressReport {
     	Cardinality completedMissions = (Cardinality)missionAggs.get("id-count");
     	TopHits highestMissions = (TopHits)missionAggs.get("highest-missions");
     	String highestMission = null;
+    	int highestMissionNo = 0;
     	
-    	if (highestMissions.getHits().getHits().length > 0)
+    	if (highestMissions.getHits().getHits().length > 0) {
     		highestMission = (String)highestMissions.getHits().getHits()[0].getSourceAsMap().get("MissionID");
+    		highestMissionNo = Integer.valueOf(MappingService.getKey(highestMission));
+    	}
     	
     	long totalPlaytime = 0;
     	Filter active = (Filter)aggs.get("active");
@@ -102,7 +105,7 @@ public class HistoricalProgressReport {
     		.attemptsPerWeek(attempts.getDocCount() / weeks)
     		.daysSinceLastAttempt((int)TimeUnit.DAYS.convert(today - lastAttemptTs, TimeUnit.MILLISECONDS))
     		.daysSinceStart(totalDays)
-    		.highestMission(Integer.valueOf(MappingService.getKey(highestMission)))
+    		.highestMission(highestMissionNo)
     		.missionsCompleted((int)completedMissions.value())
     		.missionsPerWeek(completedMissions.value() / weeks)
     		.playtimeCompletedPerWeek(TimeUtil.prettyPrint(completedPlaytime.value() / weeks))
