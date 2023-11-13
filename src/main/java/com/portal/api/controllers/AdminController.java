@@ -667,7 +667,7 @@ public class AdminController {
 				starsEarned.size() > 0
 				: sessionType.equals("transference") ?
 						decoded != null && decoded.getDocCount() > decodesTarget.getValue()
-						: true;
+						: completed.getDocCount() > 0;
     		
     		Attempt attempt = Attempt.builder()
 	    		.accuracy(Accuracy.builder()
