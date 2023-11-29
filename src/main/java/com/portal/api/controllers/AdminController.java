@@ -290,7 +290,7 @@ public class AdminController {
     		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
     		
     		Avg power = bucket.getAggregations().get("power");
-    		powers.put(bucket.getKeyAsString(), power.getValueAsString() != "Infinity" ? (int)power.value() : 0);
+    		powers.put(bucket.getKeyAsString(), power.getValueAsString() != "Infinity" ? Math.round((float)power.value() * 100 / 19808) : 0);
     	});
     	
     	return DashboardMetrics.builder()
