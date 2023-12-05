@@ -9,9 +9,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.LimitOperation;
+import org.springframework.data.mongodb.core.aggregation.SkipOperation;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.portal.api.model.Child;
@@ -85,31 +89,35 @@ public class MongoService {
         return parentRepository.findAll(pageable);
     }
 	
-	public PaginatedResponse<Child> getChildrenByNameStartingWith(String nameStartingWith, Pageable page) {
+	public PaginatedResponse<Child> getChildrenByNameStartingWith(String nameStartingWith, Pageable pageable) {
         
-		Criteria usernameCriteria = Criteria.where("username").regex("^" + nameStartingWith, "i");
+		Criteria matchCriteria = Criteria.where("username").regex("^" + nameStartingWith);
+
+		// Aggregation for counting
+		AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
+		AggregationOperation unwindOperation = Aggregation.unwind("children");
+		AggregationOperation matchOperation = Aggregation.match(matchCriteria);
+        AggregationOperation countOperation = Aggregation.count().as("total");
+        Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, replaceRootOperation, matchOperation, countOperation);
+
+        AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
+        long total = countResults.getUniqueMappedResult().getTotal();
+
+        // Aggregation for paginated result
+        AggregationOperation skipOperation = Aggregation.skip(pageable.getOffset());
+        AggregationOperation limitOperation = Aggregation.limit(pageable.getPageSize());
         
-		TypedAggregation<Parent> aggregation = Aggregation.newAggregation(Parent.class, 
-				Aggregation.unwind("children"),
-                Aggregation.replaceRoot("children"),
-                Aggregation.match(usernameCriteria),
-                Aggregation.facet(
-                		Aggregation.limit(page.getPageSize()),
-                		Aggregation.skip((long)(page.getPageNumber()) * page.getPageSize())
-            	).as("paginatedChildren")
-                .and(
-                	Aggregation.count().as("count")
-            	).as("totalCount"),
-                Aggregation
-                	.project("paginatedChildren")
-                	.and("$totalCount.count")
-                	.arrayElementAt(0)
-                	.as("totalCount")
-         );
-		
-		AggregationResults<ChildSearchResult> result = mongoTemplate.aggregate(aggregation, ChildSearchResult.class);
-		
-		return new PaginatedResponse<Child>(result.getUniqueMappedResult().getPaginatedChildren(),result.getUniqueMappedResult().getTotalCount());
+        Aggregation aggregation = Aggregation.newAggregation(
+        		unwindOperation,
+                replaceRootOperation,
+        		matchOperation,
+        		skipOperation,
+                limitOperation
+        );
+
+        List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
+
+		return new PaginatedResponse<Child>(paginatedChildren, total);
     }
 	
 	public List<Child> getChildrenByUsername(Collection<String> usernames) {
@@ -128,30 +136,32 @@ public class MongoService {
 		return result.getMappedResults();
     }
 	
-	public PaginatedResponse<Child> getAllChildren(Pageable page) {
+	public PaginatedResponse<Child> getAllChildren(Pageable pageable) {
 		
-		//Criteria usernameCriteria = Criteria.where("username").regex("^" + usernameFilter, "i");
+        // Aggregation for counting
+		AggregationOperation unwindOperation = Aggregation.unwind("children");
+        AggregationOperation groupCountOperation = Aggregation.group().count().as("total");
+        Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, groupCountOperation);
+
+        AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
+        long total = countResults.getUniqueMappedResult().getTotal();
+
+        // Aggregation for paginated result
+        AggregationOperation skipOperation = Aggregation.skip(pageable.getOffset());
+        AggregationOperation limitOperation = Aggregation.limit(pageable.getPageSize());
+
+        AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
         
-		TypedAggregation<Parent> aggregation = Aggregation.newAggregation(Parent.class, 
-				Aggregation.unwind("children"),
-                Aggregation.replaceRoot("children"),
-                Aggregation.facet(
-                		Aggregation.limit(page.getPageSize()),
-                		Aggregation.skip((long)(page.getPageNumber()) * page.getPageSize())
-            	).as("paginatedChildren")
-                .and(
-                	Aggregation.count().as("count")
-            	).as("totalCount"),
-                Aggregation
-                	.project("paginatedChildren")
-                	.and("$totalCount.count")
-                	.arrayElementAt(0)
-                	.as("totalCount")
-         );
-		
-		AggregationResults<ChildSearchResult> result = mongoTemplate.aggregate(aggregation, ChildSearchResult.class);
-		
-		return new PaginatedResponse<Child>(result.getUniqueMappedResult().getPaginatedChildren(),result.getUniqueMappedResult().getTotalCount());
+        Aggregation aggregation = Aggregation.newAggregation(
+                unwindOperation,
+                skipOperation,
+                limitOperation,
+                replaceRootOperation
+        );
+
+        List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
+
+		return new PaginatedResponse<Child>(paginatedChildren, total);
     }
 
 	public void updateChild(Child child) {
