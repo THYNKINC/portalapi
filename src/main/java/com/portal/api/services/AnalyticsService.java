@@ -74,6 +74,7 @@ public class AnalyticsService {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AnalyticsService.class);
 
+	@Autowired
 	private ParentService parents;
 	
 	@Autowired
@@ -83,12 +84,6 @@ public class AnalyticsService {
 
 	private static final DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	
-	private String loadFromFile(String filename) throws IOException {
-		
-		Resource resource = new ClassPathResource(filename);
-		return new String(Files.readAllBytes(resource.getFile().toPath()));
-	}
-
 	public SearchResponse completedSessions(String userId) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
@@ -169,7 +164,7 @@ public class AnalyticsService {
 		searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
 				.fetchSource(includeFields, excludeFields)
-				.size(1000)
+				.size(2000)
 				.sort("timestamp", SortOrder.ASC);
 
 		searchRequest = new SearchRequest("gamelogs")
