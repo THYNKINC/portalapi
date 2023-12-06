@@ -6,6 +6,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -58,10 +59,13 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.portal.api.model.Child;
 import com.portal.api.model.CustomSearchResponse;
+import com.portal.api.model.Parent;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.util.OpensearchService;
+import com.portal.api.util.ParentService;
 
 @Component
 public class AnalyticsService {
@@ -70,6 +74,8 @@ public class AnalyticsService {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AnalyticsService.class);
 
+	private ParentService parents;
+	
 	@Autowired
 	public AnalyticsService(OpensearchService opensearchService) {
 		this.opensearchService = opensearchService;
@@ -171,6 +177,8 @@ public class AnalyticsService {
 		
 		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
+		Map<String, Parent> parentCache = new HashMap<>();
+		
 		ObjectMapper json = new ObjectMapper()
 				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 		
@@ -197,6 +205,19 @@ public class AnalyticsService {
 				continue;
 			}
 			
+			Parent parent = parentCache.get(username);
+			
+			if (parent == null) {
+				
+				parent = parents.getParentByChildName(username);
+				parentCache.put(username, parent);
+			}
+			
+			Child child = parent.getChildren().stream()
+					.filter(c -> c.getUsername().equals(username))
+					.findFirst()
+					.orElseThrow();
+			
 			switch (sessionType) {
 			
 			case "runner":
@@ -219,6 +240,12 @@ public class AnalyticsService {
 		    default:
 		    	throw new RuntimeException("session type not supported " + sessionType);
 			}
+			
+			summary.setFirstName(child.getFirstName());
+	    	summary.setLastName(child.getLastName());
+	    	summary.setParentFirstName(parent.getFirstName());
+	    	summary.setParentLastName(parent.getLastName());
+	    	summary.setParentEmail(parent.getEmail());
 			
 			// store back in elastic
 			IndexRequest document = new IndexRequest("sessions");

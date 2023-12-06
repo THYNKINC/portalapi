@@ -26,14 +26,14 @@ import com.portal.api.repositories.ParentRepository;
 
 
 @Service
-public class MongoService {
+public class ParentService {
 	
 	private final MongoTemplate mongoTemplate;
 	
 	private final ParentRepository parentRepository;
 
     @Autowired
-    public MongoService(MongoTemplate mongoTemplate, ParentRepository parentRepository) {
+    public ParentService(MongoTemplate mongoTemplate, ParentRepository parentRepository) {
         this.mongoTemplate = mongoTemplate;
         this.parentRepository = parentRepository;
     }

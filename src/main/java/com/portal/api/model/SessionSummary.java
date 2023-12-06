@@ -10,6 +10,11 @@ public abstract class SessionSummary {
 	String id;
 	String type;
 	String userId;
+	String firstName;
+	String lastName;
+	String parentFirstName;
+	String parentLastName;
+	String parentEmail;
 	int missionId;
 	long startDate;
 	long endDate;

@@ -39,10 +39,10 @@ public class JwtService {
 	
     private final JwtDecoder jwtDecoder;
     
-    private final MongoService mongoService;
+    private final ParentService mongoService;
 
     @Autowired
-    public JwtService(JwtDecoder jwtDecoder, MongoService mongoService) {
+    public JwtService(JwtDecoder jwtDecoder, ParentService mongoService) {
         this.jwtDecoder = jwtDecoder;
         this.mongoService = mongoService;
     }

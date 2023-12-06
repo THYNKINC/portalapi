@@ -82,7 +82,7 @@ import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
-import com.portal.api.util.MongoService;
+import com.portal.api.util.ParentService;
 import com.portal.api.util.TimeUtil;
 
 @RestController
@@ -107,7 +107,7 @@ public class AdminController {
 	
 	private final JwtService jwtService;
 	
-	private final MongoService mongoService;
+	private final ParentService mongoService;
 	
 	private final AnalyticsService analyticsService;
 	
@@ -118,7 +118,7 @@ public class AdminController {
     @Autowired
     public AdminController(
     		JwtService jwtService,
-    		MongoService mongoService,
+    		ParentService mongoService,
     		AnalyticsService analyticsService,
     		HeadsetRepository headsets) {
         this.jwtService = jwtService;

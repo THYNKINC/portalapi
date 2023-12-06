@@ -61,7 +61,7 @@ import com.portal.api.services.AnalyticsService;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
-import com.portal.api.util.MongoService;
+import com.portal.api.util.ParentService;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -103,14 +103,14 @@ public class PortalController {
 	
 	private final JwtService jwtService;
 	
-	private final MongoService mongoService;
+	private final ParentService mongoService;
 	
 	private final AnalyticsService analyticsService;
 
     @Autowired
     public PortalController(
     		JwtService jwtService,
-    		MongoService mongoService,
+    		ParentService mongoService,
     		AnalyticsService analyticsService) {
         this.jwtService = jwtService;
         this.mongoService = mongoService;
