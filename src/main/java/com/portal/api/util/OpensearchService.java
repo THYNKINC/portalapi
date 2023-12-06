@@ -15,6 +15,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.RequestOptions;
@@ -58,9 +59,23 @@ public class OpensearchService {
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
 	
 	        // Execute the search request
-	    	// #TODO turn search response into a proper response object
-	        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+	    	SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
 	        return searchResponse;
+	    }  
+	    
+	}
+	
+	public void insert(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, IndexRequest request) throws IOException {
+		
+		// Build the rest client
+	    try (RestHighLevelClient client = new RestHighLevelClient(
+	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+	                            .setDefaultCredentialsProvider(credentialsProvider)
+	                            .setSSLContext(sslContext)
+	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
+	
+	        client.index(request, RequestOptions.DEFAULT);
 	    }  
 	    
 	}

@@ -1,0 +1,47 @@
+{
+	"id": "2021-05-26 17:28:23.195",
+	"type": "runner",
+	"user_id": "1345932688",
+	"mission_id": 1,
+	"start_date": 1622050103195,
+	"end_date": 1622050778320,
+	"duration": 675,
+	"status": "PASS",
+	"bci_avg": 41,
+	"bci_std_deviation": 36,
+	"completed": true,
+	"response_time": "0.000",
+	"stars": [
+		{
+			"at_second": 208,
+			"at_power": 1552
+		},
+		{
+			"at_second": 296,
+			"at_power": 2526
+		}
+	],
+	"max_power": 4259,
+	"tier_avg": 0,
+	"accuracy": {
+		"correct_rejected": 0,
+		"incorrect_rejected": 0,
+		"correct_selected": 0,
+		"incorrect_selected": 0,
+		"impulses": 0,
+		"opportunities": 0
+	},
+	"scores": null,
+	"ranks": null,
+	"badges": null,
+	"crystals": {
+		"collected": 70,
+		"missed": 25,
+		"pct_collected": 73
+	},
+	"obstacles": {
+		"avoided": 25,
+		"collided": 0,
+		"pct_avoided": 100
+	}
+}

@@ -4,16 +4,12 @@ import java.util.List;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.experimental.SuperBuilder;
 
+@SuperBuilder
 @Data
-@Builder
-public class TransferenceSummary {
-
-	long startDate;
-	long endDate;
-	int duration;
-	String status;
-	int bciAvg;
+public class TransferenceSummary extends SessionSummary {
+	
 	int selectAvg;
 	int selectStdDev;
 	int decodeAvg;
@@ -23,8 +19,10 @@ public class TransferenceSummary {
 	int gapAvg;
 	int gapStdDev;
 	List<Dish> dishes;
-	boolean completed;
 	int target;
 	int decoded;
 	int pctDecoded;
+	
+	@Builder.Default
+	final String type = "transference";
 }
