@@ -205,6 +205,13 @@ public class AnalyticsService {
 			if (parent == null) {
 				
 				parent = parents.getParentByChildName(username);
+							
+				if (parent == null) {
+					
+					logger.warn("Orphaned child found during sessions processing: " + username);
+					continue;
+				}				
+				
 				parentCache.put(username, parent);
 			}
 			
