@@ -1,11 +1,12 @@
 package com.portal.api.controllers;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
@@ -61,7 +62,6 @@ import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CreateHeadsetRequest;
 import com.portal.api.model.Crystals;
 import com.portal.api.model.DashboardMetrics;
-import com.portal.api.model.Dish;
 import com.portal.api.model.GameState;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
@@ -187,56 +187,27 @@ public class AdminController {
     	
     	PaginatedResponse<AttemptSummary> response = new PaginatedResponse<>();
     	response.setContent(new ArrayList<>());
-    	
     	response.setTotal(searchResponse.getHits().getTotalHits().value);
     	
-    	Set<String> uniqueUsers = new HashSet<>();
-    	Set<String> uniqueMissionIds = new HashSet<>();
+    	DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.sss");
     	
-    	// pass 1: get attempts
     	for (SearchHit hit : searchResponse.getHits().getHits()) {
     	
     		Map<String, Object> sourceAsMap = hit.getSourceAsMap();
     		
-//    		boolean pass = sessionType.equals("runner") ?
-//    				starsEarned.size() > 0
-//    				: sessionType.equals("transference") ?
-//    						decoded != null && decoded.getDocCount() > decodesTarget.getValue()
-//    						: true;
-    		
     		AttemptSummary attempt = new AttemptSummary();
-    		attempt.setDate((String) sourceAsMap.get("session_start"));
+    		attempt.setDate(df.format(new Date((Long) sourceAsMap.get("start_date"))));
     		attempt.setUsername((String) sourceAsMap.get("user_id"));
-    		attempt.setMission((String) sourceAsMap.get("TaskID"));
-    		attempt.setType(sourceAsMap.get("event_type").equals("RunnerEnd") ? "runner" : 
-    			sourceAsMap.get("event_type").equals("PVTEnd") ? "vigilock" :  "transference");
+    		attempt.setMission((Integer) sourceAsMap.get("mission_id") + "");
+    		attempt.setType((String)sourceAsMap.get("type"));
     		
     		// TODO
-    		attempt.setPass(false);
-			attempt.setFirstName(attempt.getUsername());
-			attempt.setLastName(attempt.getUsername());
-			
-			uniqueUsers.add(attempt.getUsername());
-			uniqueMissionIds.add(attempt.getMission());
+    		attempt.setPass(sourceAsMap.get("status").equals("PASS") ? true : false);
+			attempt.setFirstName((String)sourceAsMap.get("first_name"));
+			attempt.setLastName((String)sourceAsMap.get("last_name"));
 			
 			response.getContent().add(attempt);
     	}
-    	
-    	// pass 2: get names
-    	List<Child> children = mongoService.getChildrenByUsername(uniqueUsers);
-    	
-    	for (AttemptSummary attempt : response.getContent()) {
-			
-    		Child child = children.stream()
-    				.filter(c -> c.getUsername().equals(attempt.getUsername()))
-    				.findFirst()
-    				.get();
-    		
-    		attempt.setFirstName(child.getFirstName());
-    		attempt.setLastName(child.getLastName());
-		}
-    	
-    	// pass 3: count tries
     	
     	return response;
     }

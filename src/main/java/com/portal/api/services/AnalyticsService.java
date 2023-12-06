@@ -1,7 +1,5 @@
 package com.portal.api.services;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -12,7 +10,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.annotation.PostConstruct;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.impl.client.BasicCredentialsProvider;
@@ -50,19 +47,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.portal.api.model.Child;
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.model.Parent;
-import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.util.OpensearchService;
 import com.portal.api.util.ParentService;
@@ -711,29 +703,26 @@ public class AnalyticsService {
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		SearchRequest searchRequest = new SearchRequest("sessions");
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")));
+				.must(QueryBuilders.termsQuery("completed", true));
 		
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
 		searchSourceBuilder.from(size * (page - 1));
 		searchSourceBuilder.size(size);
-		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
+		searchSourceBuilder.sort("start_date", SortOrder.DESC);
 
 		// Add the fields to the request
-		searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID", "user_id" }, new String[] {});
+		searchSourceBuilder.fetchSource(new String[] { "start_date", "type", "first_name", "user_id", "last_name", "mission_id", "status" }, new String[] {});
 
 		// Add the source builder to the request
 		searchRequest.source(searchSourceBuilder);
 
 		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
-
-//		response = attempts(response);
-//		response.getHits().getTotalHits();
 		
 		return response;
 	}
