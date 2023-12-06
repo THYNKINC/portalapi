@@ -124,8 +124,7 @@ public class AnalyticsService {
         return dashboardMetrics();
     }
 	
-	@PostConstruct
-	@Async
+	@Scheduled(fixedDelay = 300000)
     public void computeSessions() throws Exception {
         
 		logger.info("computing sessions");
