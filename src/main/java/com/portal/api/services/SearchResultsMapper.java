@@ -63,7 +63,7 @@ public class SearchResultsMapper {
     		.duration((int)duration)
     		.endDate((long)ended.getValue())
     		.id(sessionId)
-    		.missionId(Integer.valueOf(MappingService.getKey((String)firstDocFields.get("MissionID"))))
+    		.missionId(1)
     		.status(pass ? "PASS" : "FAIL")
     		.userId(username)
     		.build();
