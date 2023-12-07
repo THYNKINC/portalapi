@@ -3,8 +3,6 @@ package com.portal.api.services;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -13,19 +11,16 @@ import java.util.stream.Stream;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
-import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.MatchQueryBuilder;
 import org.opensearch.index.query.QueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.query.TermQueryBuilder;
 import org.opensearch.script.Script;
-import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.BucketOrder;
@@ -36,7 +31,6 @@ import org.opensearch.search.aggregations.bucket.histogram.LongBounds;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
-import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
@@ -47,17 +41,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.portal.api.model.Child;
 import com.portal.api.model.CustomSearchResponse;
-import com.portal.api.model.Parent;
-import com.portal.api.model.SessionSummary;
 import com.portal.api.util.OpensearchService;
-import com.portal.api.util.ParentService;
 
 @Component
 public class AnalyticsService {
@@ -66,9 +55,6 @@ public class AnalyticsService {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AnalyticsService.class);
 
-	@Autowired
-	private ParentService parents;
-	
 	@Autowired
 	public AnalyticsService(OpensearchService opensearchService) {
 		this.opensearchService = opensearchService;
@@ -115,137 +101,6 @@ public class AnalyticsService {
     public SearchResponse populateDashboardCache() throws Exception {
         logger.info("filling dashboard cache");
         return dashboardMetrics();
-    }
-	
-	@Scheduled(fixedDelay = 300000)
-    public void computeSessions() throws Exception {
-        
-		logger.info("computing sessions");
-        
-		// get the last computed session from elastic
-		SSLContext sslContext = opensearchService.getSSLContext();
-		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-
-		MaxAggregationBuilder ended = AggregationBuilders
-				.max("ended")
-				.field("end_date");
-		
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-				.aggregation(ended);
-
-		SearchRequest searchRequest = new SearchRequest("sessions")
-				.source(searchSourceBuilder);
-
-		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
-		
-		Max lastProcessed = response.getAggregations().get("ended");
-		
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-		
-		// get all new sessions which ended after the last session end date
-		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandonned"));
-		
-		if (lastProcessed.value() > 0)
-			boolQuery.must(QueryBuilders.rangeQuery("timestamp")
-					.gt(df.format(new Date((long)lastProcessed.value()))));
-			
-		// Specify the fields to return
-		String[] includeFields = new String[] { "session_start", "session_type", "user_id", "event_type" };
-		String[] excludeFields = new String[] {};
-		searchSourceBuilder = new SearchSourceBuilder()
-				.query(boolQuery)
-				.fetchSource(includeFields, excludeFields)
-				.size(2000)
-				.sort("timestamp", SortOrder.ASC);
-
-		searchRequest = new SearchRequest("gamelogs")
-				.source(searchSourceBuilder);
-		
-		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
-		
-		Map<String, Parent> parentCache = new HashMap<>();
-		
-		ObjectMapper json = new ObjectMapper()
-				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-		
-		logger.info("Adding " + response.getHits().getTotalHits() + " sessions");
-		
-		int i = 0;
-		
-		// compute that session
-		for (SearchHit hit : response.getHits().getHits()) {
-			
-			i++;
-			
-			if (i % 100 == 0)
-				logger.info("Added " + i + " sessions");
-			
-			String sessionType = (String)hit.getSourceAsMap().get("session_type");
-			String sessionId = (String)hit.getSourceAsMap().get("session_start");
-			String username = (String)hit.getSourceAsMap().get("user_id");
-			
-			SessionSummary summary = null;
-			
-			if (sessionType == null) {
-				logger.warn(hit.getSourceAsString());
-				continue;
-			}
-			
-			Parent parent = parentCache.get(username);
-			
-			if (parent == null) {
-				
-				parent = parents.getParentByChildName(username);
-							
-				if (parent == null) {
-					
-					logger.warn("Orphaned child found during sessions processing: " + username);
-					continue;
-				}				
-				
-				parentCache.put(username, parent);
-			}
-			
-			Child child = parent.getChildren().stream()
-					.filter(c -> c.getUsername().equals(username))
-					.findFirst()
-					.orElseThrow();
-			
-			switch (sessionType) {
-			
-			case "runner":
-				
-				response = runner(username, sessionId);
-		    	summary = SearchResultsMapper.getRunner(response, username, sessionId);
-		    	break;
-		    
-			case "transference":
-
-				response = transference(username, sessionId);
-		    	summary = SearchResultsMapper.getTransference(response, username, sessionId);
-		    	break;
-		    	
-			case "pvt":
-				response = pvt(username, sessionId);
-		    	summary = SearchResultsMapper.getPvt(response, username, sessionId);
-		    	break;
-		    	
-		    default:
-		    	throw new RuntimeException("session type not supported " + sessionType);
-			}
-			
-			summary.setFirstName(child.getFirstName());
-	    	summary.setLastName(child.getLastName());
-	    	summary.setParentFirstName(parent.getFirstName());
-	    	summary.setParentLastName(parent.getLastName());
-	    	summary.setParentEmail(parent.getEmail());
-			
-			// store back in elastic
-			IndexRequest document = new IndexRequest("sessions");
-	    	document.source(json.writeValueAsString(summary), XContentType.JSON);
-	    	opensearchService.insert(sslContext, credentialsProvider, document);
-		}
     }
     
     @Cacheable("dashboard")
@@ -396,7 +251,28 @@ public class AnalyticsService {
 		return null;
 	}
 	
-	public SearchResponse sessions(String userId) throws Exception {
+	public SearchResponse sessions(String userId, Pageable pageable) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+		
+		searchSourceBuilder.from((int)pageable.getOffset());
+		searchSourceBuilder.size(pageable.getPageSize());
+
+		SearchRequest searchRequest = new SearchRequest("sessions");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	public SearchResponse session(String userId, String sessionId) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -404,103 +280,12 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
-				.must(QueryBuilders.existsQuery("MissionID"));
-		
-		TermsAggregationBuilder sessions = AggregationBuilders
-			.terms("sessions")
-			.field("session_start.keyword")
-			.size(500)
-			.order(BucketOrder.aggregation("started", true))
-			.subAggregation(AggregationBuilders
-				.topHits("first_event")
-				.size(1)
-				.sort("timestamp", SortOrder.ASC)
-				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
-			.subAggregation(AggregationBuilders
-					.filter("actual-end", QueryBuilders
-							.boolQuery()
-							.mustNot(QueryBuilders
-									.termsQuery("event_type", "Abandoned", "LoginSuccess")))
-					.subAggregation(AggregationBuilders
-						.max("ended")
-						.field("timestamp")))
-			.subAggregation(AggregationBuilders
-				.min("started")
-				.field("timestamp"))
-			.subAggregation(AggregationBuilders
-				.max("power")
-				.field("Score"))
-			.subAggregation(AggregationBuilders
-				.extendedStats("bci")
-				.field("bci"))
-			.subAggregation(AggregationBuilders
-				.avg("tier")
-				.field("Tier"))
-			.subAggregation(AggregationBuilders
-				.terms("stars")
-				.field("StarReached")
-				.order(BucketOrder.aggregation("at_ts", true))
-				.subAggregation(AggregationBuilders
-					.min("at_ts")
-					.field("timestamp"))
-				.subAggregation(AggregationBuilders
-					.min("at_score")
-					.field("Score")))
-			.subAggregation(AggregationBuilders
-				.filter("crystals", QueryBuilders.matchQuery("ObjectTypeID", "Token"))
-				.subAggregation(AggregationBuilders
-					.terms("outcomes")
-					.field("event_type")))
-			.subAggregation(AggregationBuilders
-				.filter("bots", QueryBuilders.boolQuery()
-						.must(QueryBuilders.termQuery("ObjectTypeID", "Enemy"))
-						.must(QueryBuilders.termsQuery("event_type", "ObjectStatusInRange", "ObjectStatusSelected", "ObjectStatusRejected")))
-				.subAggregation(AggregationBuilders
-					.terms("results")
-					.field("ResultID")
-					.subAggregation(AggregationBuilders
-						.terms("actions")
-						.field("event_type")))
-				.subAggregation(AggregationBuilders
-					.scriptedMetric("response_time")
-					.initScript(new Script("state.total = 0; state.start = 0; state.count = 0;"))
-					.mapScript(new Script("if (doc['event_type'].value == 'ObjectStatusInRange') {\r\n"
-							+ "            state.start = doc['timestamp'].value.getMillis();\r\n"
-							+ "          }\r\n"
-							+ "          if (doc['event_type'].value == 'ObjectStatusSelected') {\r\n"
-							+ "            state.total += doc['timestamp'].value.getMillis() - state.start;\r\n"
-							+ "            state.count++;\r\n"
-							+ "          }"))
-					.combineScript(new Script("return state.count > 0 ? state.total / state.count : 0;"))
-					.reduceScript(new Script("def total = 0;\r\n"
-							+ "          def count = 0;\r\n"
-							+ "          for (agg in states) {\r\n"
-							+ "            total += agg;\r\n"
-							+ "            count++;\r\n"
-							+ "          }\r\n"
-							+ "          def average = (count == 0) ? 0 : total / count;\r\n"
-							+ "          return average;"))))
-			.subAggregation(AggregationBuilders
-				.filter("obstacles", QueryBuilders.matchQuery("ObjectTypeID", "Obstacle"))
-				.subAggregation(AggregationBuilders
-					.terms("outcomes")
-					.field("event_type")))
-			.subAggregation(AggregationBuilders
-				.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
-			.subAggregation(AggregationBuilders
-				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd")))
-			.subAggregation(AggregationBuilders
-					.max("decodes_target")
-					.field("TargetDecodes")
-					.missing(0));
+				.must(QueryBuilders.matchQuery("session_id", sessionId));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
-		searchSourceBuilder.aggregation(sessions);
-		
-		searchSourceBuilder.size(0);
 
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		SearchRequest searchRequest = new SearchRequest("sessions");
 		searchRequest.source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);

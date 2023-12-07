@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -17,18 +16,12 @@ import javax.servlet.http.HttpServletRequest;
 import org.instancio.Instancio;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
-import org.opensearch.search.aggregations.bucket.terms.Terms.Bucket;
 import org.opensearch.search.aggregations.metrics.Avg;
 import org.opensearch.search.aggregations.metrics.Cardinality;
-import org.opensearch.search.aggregations.metrics.ExtendedStats;
 import org.opensearch.search.aggregations.metrics.Max;
-import org.opensearch.search.aggregations.metrics.Min;
-import org.opensearch.search.aggregations.metrics.ScriptedMetric;
-import org.opensearch.search.aggregations.metrics.TopHits;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,24 +47,20 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.exception.ResourceNotFoundException;
-import com.portal.api.model.Accuracy;
-import com.portal.api.model.Attempt;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CreateHeadsetRequest;
-import com.portal.api.model.Crystals;
 import com.portal.api.model.DashboardMetrics;
 import com.portal.api.model.GameState;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
 import com.portal.api.model.HistoricalProgressReport;
-import com.portal.api.model.Obstacles;
 import com.portal.api.model.PVTSummary;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.model.RunnerSummary;
-import com.portal.api.model.StarEarned;
+import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SummaryReport;
 import com.portal.api.model.TransferenceSummary;
 import com.portal.api.model.UpdateChildRequest;
@@ -81,7 +70,6 @@ import com.portal.api.services.AnalyticsService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
-import com.portal.api.util.MappingService;
 import com.portal.api.util.ParentService;
 import com.portal.api.util.TimeUtil;
 
@@ -342,9 +330,8 @@ public class AdminController {
     @GetMapping("/children/{username}/transferences/{session_id}")
     public TransferenceSummary getTransference(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	SearchResponse response = analyticsService.transference(username, sessionId);
-    	
-    	return SearchResultsMapper.getTransference(response, username, sessionId);
+    	SearchResponse response = analyticsService.session(username, sessionId);
+    	return (TransferenceSummary)SearchResultsMapper.getSession(response.getHits().getHits()[0]);
     }
     
     @GetMapping("/children/{username}/stats")
@@ -422,170 +409,18 @@ public class AdminController {
     }
     
     @GetMapping("/children/{username}/perf-report")
-    public PaginatedResponse<Attempt> getChildSessions(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    public PaginatedResponse<SessionSummary> getChildSessions(@PathVariable("username") String username, @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size, HttpServletRequest request) throws Exception {
     	
-    	SearchResponse response = analyticsService.sessions(username);
+    	SearchResponse response = analyticsService.sessions(username, PageRequest.of(page, size));
+    	List<SessionSummary> sessions = new ArrayList<>();
+
+    	for (SearchHit hit: response.getHits().getHits()) {
+    		
+    		sessions.add(SearchResultsMapper.getSession(hit));
+		}
     	
-    	Terms sessions = response.getAggregations().get("sessions");
-    	
-    	List<Attempt> attempts = new ArrayList<>();
-    	
-    	int attemptNo = 0;
-    	
-    	for (Terms.Bucket bucket : sessions.getBuckets()) {
-    		
-    		attemptNo++;
-    		
-    		Aggregations aggs = bucket.getAggregations();
-    		
-    		TopHits firstEvent = aggs.get("first_event");
-    		Map<String, Object> firstDocFields = firstEvent.getHits().getHits()[0].getSourceAsMap();
-    		
-    		String sessionType = (String)firstDocFields.get("session_type");
-    		
-    		Max ended = ((Filter)aggs.get("actual-end")).getAggregations().get("ended");
-    		Min started = aggs.get("started");
-    		
-    		long duration = (long)ended.getValue() - (long)started.getValue();
-    		// sessions to 30 min in case of abandon
-    		duration = Math.min(30*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
-    		
-    		Max power = aggs.get("power");
-    		ExtendedStats bci = aggs.get("bci");
-    		
-    		Avg avgTier = aggs.get("tier");
-    		
-    		Terms stars = aggs.get("stars");
-    		List<StarEarned> starsEarned = stars.getBuckets().stream()
-				.filter(b -> b.getKeyAsNumber().intValue() > 0)
-    			.map(b -> {
-    				Min atSecond = b.getAggregations().get("at_ts");
-    				Min atScore = b.getAggregations().get("at_score");
-    				long delta = (long)atSecond.getValue() - (long)started.getValue();
-    				delta = TimeUnit.SECONDS.convert(delta, TimeUnit.MILLISECONDS);
-    				return new StarEarned((int)delta, (int)atScore.getValue());
-    			})
-    			.collect(Collectors.toList());
-    		
-    		Filter bots = aggs.get("bots");
-    		ScriptedMetric responseTime = bots.getAggregations().get("response_time");
-    		
-    		Terms results = bots.getAggregations().get("results");
-    		
-    		int cs = 0;
-    		int cr = 0;
-    		int is = 0;
-    		int ir = 0;
-    		int impulses = 0;
-    		
-    		for(Bucket result: results.getBuckets()) {
-    			
-    			Terms actions = result.getAggregations().get("actions");
-    			
-    			for (Bucket action: actions.getBuckets()) {
-    				
-    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusSelected")) cs = (int)action.getDocCount();
-    				if (result.getKeyAsString().equals("Correct") && action.getKeyAsString().equals("ObjectStatusRejected")) cr = (int)action.getDocCount();
-    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusSelected")) is = (int)action.getDocCount();
-    				if (result.getKeyAsString().equals("Incorrect") && action.getKeyAsString().equals("ObjectStatusRejected")) ir = (int)action.getDocCount();
-    				if (result.getKeyAsString().equals("Impulse")) impulses++;
-    			}
-    		}
-    		
-    		int opportunities = cs + cr + is + ir + impulses;
-    		
-    		Filter crystals = aggs.get("crystals");
-    		Terms crystalOutcome = crystals.getAggregations().get("outcomes");
-    		int collectedCrystals = (int) crystalOutcome.getBuckets()
-				.stream()
-				.filter(b -> b.getKeyAsString().equals("ObjectStatusCollected"))
-				.mapToLong(b -> b.getDocCount())
-				.sum();
-    		
-    		int missedCrystals = (int) crystalOutcome.getBuckets()
-				.stream()
-				.filter(b -> b.getKeyAsString().equals("ObjectStatusOutOfRange"))
-				.mapToLong(b -> b.getDocCount())
-				.sum();
-    		int totalCrystals = collectedCrystals + missedCrystals;
-    		
-    		Filter obstacles = aggs.get("obstacles");
-    		Terms obstacleOutcome = obstacles.getAggregations().get("outcomes");
-    		int collidedObstacles = (int) obstacleOutcome.getBuckets()
-				.stream()
-				.filter(b -> b.getKeyAsString().equals("ObjectStatusCollided"))
-				.mapToLong(b -> b.getDocCount())
-				.sum();
-    		int avoidedObstacles = (int) crystalOutcome.getBuckets()
-				.stream()
-				.filter(b -> b.getKeyAsString().equals("ObjectStatusOutOfRange"))
-				.mapToLong(b -> b.getDocCount())
-				.sum();
-    		int totalObstacles = collidedObstacles + avoidedObstacles;
-    		
-    		Filter completed = aggs.get("completed");
-    		
-    		Filter decoded = aggs.get("decoded");
-    		Max decodesTarget = aggs.get("decodes_target");
-    		
-    		boolean pass = sessionType.equals("runner") ?
-				starsEarned.size() > 0
-				: sessionType.equals("transference") ?
-						decoded != null && decoded.getDocCount() > decodesTarget.getValue()
-						: completed.getDocCount() > 0;
-    		
-    		Attempt attempt = Attempt.builder()
-	    		.accuracy(Accuracy.builder()
-	    			.opportunities(opportunities)
-	    			.correctRejected(cr)
-	    			.correctSelected(cs)
-	    			.incorrectRejected(ir)
-	    			.incorrectSelected(is)
-	    			.impulses(impulses)
-	    			.build())
-	    		.attemptNumber(attemptNo)
-	    		.badges(null)
-	    		.bciMean((int)Math.round(bci.getAvg()))
-	    		.bciStdDeviation((int)Math.round(bci.getStdDeviation()))
-	    		.completed(completed.getDocCount() > 0 ? true : false)
-	    		.duration((int)duration)
-	    		.endTime((long)ended.getValue())
-	    		.id((String)firstDocFields.get("session_start"))
-	    		.maxPower((int)power.getValue())
-	    		.missionId(Integer.valueOf(MappingService.getKey((String)firstDocFields.get("MissionID"))))
-	    		.ranks(null)
-	    		.responseTime(String.format("%.3f", (int)responseTime.aggregation() / 1000f))
-	    		.scores(null)
-	    		.stars(starsEarned)
-	    		.startTime((long)started.getValue())
-	    		.status(pass ? "PASS" : "FAIL")
-	    		.tierAvg(avgTier.getValueAsString().equals("Infinity") ? 0 : (int)avgTier.value())
-	    		.type(sessionType)
-	    		.build();
-    		
-    		if (sessionType.equals("runner")) {
-	    		
-    			if (totalCrystals > 0) {
-	    			attempt.setCrystals(Crystals.builder()
-						.collected(collectedCrystals)
-						.pctCollected((int)(collectedCrystals / (float)totalCrystals * 100))
-						.missed(missedCrystals)
-						.build());
-    			}
-	    		
-    			if (totalObstacles > 0) {
-		    		attempt.setObstacles(Obstacles.builder()
-	    				.avoided(avoidedObstacles)
-	    				.collided(collidedObstacles)
-	    				.pctAvoided((int)(avoidedObstacles / (float)totalObstacles * 100))
-	    				.build());
-    			}
-    		}
-    		
-    		attempts.add(attempt);
-    	}
-    	
-    	return new PaginatedResponse<>(attempts, attempts.size());
+    	return new PaginatedResponse<>(sessions, response.getHits().getTotalHits().value);
     }
     
     @GetMapping("/children/{username}/state")

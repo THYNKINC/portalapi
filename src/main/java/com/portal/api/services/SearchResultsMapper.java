@@ -1,6 +1,9 @@
 package com.portal.api.services;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -9,6 +12,7 @@ import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
 
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
@@ -22,12 +26,18 @@ import org.opensearch.search.aggregations.metrics.TopHits;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.Accuracy;
+import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Crystals;
 import com.portal.api.model.Dish;
 import com.portal.api.model.Obstacles;
 import com.portal.api.model.PVTSummary;
 import com.portal.api.model.RunnerSummary;
+import com.portal.api.model.SessionSummary;
 import com.portal.api.model.StarEarned;
 import com.portal.api.model.TransferenceSummary;
 import com.portal.api.util.MappingService;
@@ -332,5 +342,34 @@ public class SearchResultsMapper {
 		}
 		
 		return runner;
+    }
+    
+    public static SessionSummary getSession(SearchHit hit) {
+    	
+    	ObjectMapper json = new ObjectMapper()
+				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
+    	
+    	try {
+    		String type = (String)hit.getSourceAsMap().get("type");
+        	
+        	switch (type) {
+        	
+        	case "runner":
+        		return json.readValue(hit.getSourceAsString(), RunnerSummary.class);
+        		
+        	case "transference":
+        		return json.readValue(hit.getSourceAsString(), TransferenceSummary.class);
+        		
+        	case "pvt":
+        		return json.readValue(hit.getSourceAsString(), PVTSummary.class);
+        		
+        	default:
+        		throw new RuntimeException("Unknown session type " + type);
+        	}
+    	} catch (JsonMappingException e) {
+    		throw new RuntimeException("Unable to map session", e);
+    	} catch (JsonProcessingException e) {
+    		throw new RuntimeException("Unable to map session", e);
+    	}
     }
 }

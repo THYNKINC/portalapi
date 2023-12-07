@@ -2,12 +2,16 @@ package com.portal.api.model;
 
 import java.util.List;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class TransferenceSummary extends SessionSummary {
 	
 	int selectAvg;
