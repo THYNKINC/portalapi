@@ -183,7 +183,7 @@ public class SessionsComputer {
 	    	try {
 	    		opensearchService.insert(sslContext, credentialsProvider, document);
 	    	} catch (Exception e) {
-	    		throw new RuntimeException("Invalid record: " + json.writeValueAsString(summary), e);
+	    		logger.error("Invalid record: " + json.writeValueAsString(summary), e);
 	    	}
 		}
     }
