@@ -1,88 +1,20 @@
 {
-	"size": 0,
-	"aggregations": {
-		"range": {
-			"filter": {
-				"range": {
-					"start_date": {
-						"from": "now-7d/d",
-						"to": null,
-						"include_lower": true,
-						"include_upper": true,
-						"boost": 1.0
-					}
-				}
-			},
-			"aggregations": {
-				"dates": {
-					"date_histogram": {
-						"field": "start_date",
-						"interval": "1d",
-						"offset": 0,
-						"order": {
-							"_key": "asc"
-						},
-						"keyed": false,
-						"min_doc_count": 0,
-						"extended_bounds": {
-							"min": "now-7d/d",
-							"max": "now"
-						}
-					},
-					"aggregations": {
-						"power": {
-							"avg": {
-								"field": "Score"
-							}
-						},
-						"attempts": {
-							"filter": {
-								"term": {
-									"completed": {
-										"value": true,
-										"boost": 1.0
-									}
-								}
-							},
-							"aggregations": {
-								"sessions": {
-									"date_histogram": {
-										"field": "start_date",
-										"interval": "12h",
-										"offset": 0,
-										"order": {
-											"_key": "asc"
-										},
-										"keyed": false,
-										"min_doc_count": 0
-									}
-								}
-							}
-						},
-						"missions": {
-							"filter": {
-								"terms": {
-									"type": [
-										"transference",
-										"pvt"
-									],
-									"boost": 1.0
-								}
-							}
-						}
-					}
-				}
-			}
-		},
-		"playtime": {
-			"sum": {
-				"field": "duration"
-			}
-		},
-		"users": {
-			"cardinality": {
-				"field": "user_id"
-			}
-		}
-	}
+	"id": "2023-08-29 10:03:23.794",
+	"type": "pvt",
+	"user_id": "camille1",
+	"first_name": "Camille",
+	"last_name": "Beaubien",
+	"parent_first_name": "one",
+	"parent_last_name": "two",
+	"parent_email": "testparent1@metisminds.com",
+	"mission_id": 1,
+	"start_date": 0,
+	"end_date": -9223372036854775808,
+	"duration": 1800,
+	"status": "FAIL",
+	"bci_avg": 0,
+	"bci_std_deviation": 0,
+	"completed": false
 }
+[
+	2

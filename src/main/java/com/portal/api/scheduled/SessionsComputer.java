@@ -179,7 +179,12 @@ public class SessionsComputer {
 			// store back in elastic
 			IndexRequest document = new IndexRequest("sessions");
 	    	document.source(json.writeValueAsString(summary), XContentType.JSON);
-	    	opensearchService.insert(sslContext, credentialsProvider, document);
+	    	
+	    	try {
+	    		opensearchService.insert(sslContext, credentialsProvider, document);
+	    	} catch (Exception e) {
+	    		throw new RuntimeException("Invalid record: " + json.writeValueAsString(summary), e);
+	    	}
 		}
     }
 }

@@ -936,14 +936,14 @@ public class AnalyticsService {
 						.size(1)
 						.sort("timestamp", SortOrder.ASC)
 						.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
-					.subAggregation(AggregationBuilders
-							.filter("actual-end", QueryBuilders
-									.boolQuery()
-									.mustNot(QueryBuilders
-											.termsQuery("event_type", "Abandoned", "LoginSuccess")))
-							.subAggregation(AggregationBuilders
-								.max("ended")
-								.field("timestamp")))
+				.subAggregation(AggregationBuilders
+						.filter("actual-end", QueryBuilders
+								.boolQuery()
+								.mustNot(QueryBuilders
+										.termsQuery("event_type", "Abandoned", "LoginSuccess")))
+						.subAggregation(AggregationBuilders
+							.max("ended")
+							.field("timestamp")))
 				.subAggregation(AggregationBuilders
 					.extendedStats("bci")
 					.field("bci"))
@@ -978,14 +978,14 @@ public class AnalyticsService {
 						.size(1)
 						.sort("timestamp", SortOrder.ASC)
 						.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start"}, null))
-					.subAggregation(AggregationBuilders
-							.filter("actual-end", QueryBuilders
-									.boolQuery()
-									.mustNot(QueryBuilders
-											.termsQuery("event_type", "Abandoned", "LoginSuccess")))
-							.subAggregation(AggregationBuilders
-								.max("ended")
-								.field("timestamp")))
+				.subAggregation(AggregationBuilders
+						.filter("actual-end", QueryBuilders
+								.boolQuery()
+								.mustNot(QueryBuilders
+										.termsQuery("event_type", "Abandoned", "LoginSuccess")))
+						.subAggregation(AggregationBuilders
+							.max("ended")
+							.field("timestamp")))
 				.subAggregation(AggregationBuilders
 						.min("started")
 						.field("timestamp"))
