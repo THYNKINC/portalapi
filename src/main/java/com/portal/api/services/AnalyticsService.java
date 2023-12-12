@@ -35,6 +35,7 @@ import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.SumAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
+import org.opensearch.search.sort.SortBuilders;
 import org.opensearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -193,6 +194,9 @@ public class AnalyticsService {
 		FilterAggregationBuilder active = AggregationBuilders
 			.filter("active", QueryBuilders.existsQuery("MissionID"))
 			.subAggregation(AggregationBuilders
+				.min("first_played")
+				.field("timestamp"))
+			.subAggregation(AggregationBuilders
 				.cardinality("starts-count")
 				.field("session_start.keyword"));
 		
@@ -242,6 +246,7 @@ public class AnalyticsService {
 		
 		searchSourceBuilder.from((int)pageable.getOffset());
 		searchSourceBuilder.size(pageable.getPageSize());
+		searchSourceBuilder.sort("start_date", SortOrder.DESC);
 
 		SearchRequest searchRequest = new SearchRequest("sessions");
 		searchRequest.source(searchSourceBuilder);

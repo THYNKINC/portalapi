@@ -32,6 +32,7 @@ import lombok.Data;
 public class HistoricalProgressReport {
 
 	LocalDate startDate;
+	LocalDate firstPlayed;
 	int daysSinceStart;
 	int daysSinceLastAttempt;
 	LocalDate projectedCompletionDate;
@@ -78,6 +79,7 @@ public class HistoricalProgressReport {
     	
     	long totalPlaytime = 0;
     	Filter active = (Filter)aggs.get("active");
+    	Min firstPlayed = (Min)aggs.get("first-played");
     	
     	if (active.getAggregations().get("sessions") != null) {
 	    	Terms sessionGroup = (Terms)active.getAggregations().get("sessions");
@@ -105,6 +107,8 @@ public class HistoricalProgressReport {
     		.attemptsPerWeek(attempts.getDocCount() / weeks)
     		.daysSinceLastAttempt((int)TimeUnit.DAYS.convert(today - lastAttemptTs, TimeUnit.MILLISECONDS))
     		.daysSinceStart(totalDays)
+    		.firstPlayed(LocalDate.ofInstant(Instant.ofEpochMilli(startDateTs), TimeZone
+    		        .getDefault().toZoneId()))
     		.highestMission(highestMissionNo)
     		.missionsCompleted((int)completedMissions.value())
     		.missionsPerWeek(completedMissions.value() / weeks)
