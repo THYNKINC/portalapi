@@ -51,7 +51,6 @@ public class SearchResultsMapper {
     	Aggregations aggs = session.getAggregations();
     	
     	TopHits firstEvent = aggs.get("first_event");
-		Map<String, Object> firstDocFields = firstEvent.getHits().getHits()[0].getSourceAsMap();
 		
 		Max ended = ((Filter)aggs.get("actual-end")).getAggregations().get("ended");
 		Min started = aggs.get("started");

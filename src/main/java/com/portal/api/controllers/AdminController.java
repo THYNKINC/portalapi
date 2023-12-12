@@ -22,6 +22,7 @@ import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.metrics.Avg;
 import org.opensearch.search.aggregations.metrics.Cardinality;
 import org.opensearch.search.aggregations.metrics.Max;
+import org.opensearch.search.aggregations.metrics.Sum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -201,22 +202,17 @@ public class AdminController {
     }
     
     @GetMapping("/dashboard")
-    public DashboardMetrics getDashboard(HttpServletRequest request) throws Exception {
+    public DashboardMetrics getDashboard(@RequestParam(required = false, defaultValue = "daily") String scale, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
-    	SearchResponse searchResponse = analyticsService.dashboardMetrics();
+    	SearchResponse searchResponse = analyticsService.dashboardMetrics(scale);
     	
-    	Filter active = searchResponse.getAggregations().get("active");
-    	Terms activeSessions = active.getAggregations().get("sessions");
-    	
-    	double playtime = activeSessions.getBuckets().stream()
-    		.collect(Collectors.summingDouble(b -> ((Max)b.getAggregations().get("duration")).getValue()));
-    	
-    	Cardinality users = active.getAggregations().get("users");
+    	Cardinality users = searchResponse.getAggregations().get("users");
+    	Sum playtime = searchResponse.getAggregations().get("playtime");
     	
     	Filter range = searchResponse.getAggregations().get("range");
-    	Histogram daily = range.getAggregations().get("daily");
+    	Histogram daily = range.getAggregations().get("dates");
     	
     	SortedMap<String, Integer> sessions = new TreeMap<>();
     	SortedMap<String, Integer> missions = new TreeMap<>();
@@ -238,11 +234,10 @@ public class AdminController {
     				.mapToInt(b -> (int)b.getDocCount())
     				.sum());
     		
-    		agg = bucket.getAggregations().get("starts");
-    		abandons.put(bucket.getKeyAsString(), (int)(agg.getDocCount() - completed));
+    		abandons.put(bucket.getKeyAsString(), (int)(bucket.getDocCount() - completed));
     		
     		Avg power = bucket.getAggregations().get("power");
-    		powers.put(bucket.getKeyAsString(), power.getValueAsString() != "Infinity" ? Math.round((float)power.value() * 100 / 19808) : 0);
+    		powers.put(bucket.getKeyAsString(), power.getValueAsString() != "Infinity" ? (int)Math.round(power.value()) : 0);
     	});
     	
     	return DashboardMetrics.builder()
@@ -251,7 +246,7 @@ public class AdminController {
     			.missions(missions)
     			.power(powers)
     			.sessions(sessions)
-    			.totalPlaytime(TimeUtil.prettyPrint(playtime)) // limit to 30 m
+    			.totalPlaytime(TimeUtil.prettyPrint(playtime.getValue() * 1000)) // limit to 30 m
     			.totalUsers((int)users.getValue())
     			.build();
     }

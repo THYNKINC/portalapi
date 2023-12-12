@@ -22,6 +22,11 @@ public abstract class TimeUtil {
 		return (int)TimeUnit.MINUTES.convert((long)(last.value() - first.value()), TimeUnit.MILLISECONDS);
 	}
 	
+	/**
+	 * 
+	 * @param duration milliseconds
+	 * @return
+	 */
 	public static String prettyPrint(long duration) {
 		
 		return Duration.ofMillis(duration).toString()
@@ -30,6 +35,11 @@ public abstract class TimeUtil {
 	            .toLowerCase();
 	}
 	
+	/**
+	 * 
+	 * @param duration milliseconds
+	 * @return
+	 */
 	public static String prettyPrint(double duration) {
 		
 		return prettyPrint((long)duration);

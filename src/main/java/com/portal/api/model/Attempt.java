@@ -7,6 +7,7 @@ import lombok.Data;
 
 @Data
 @Builder
+// TODO delete
 public class Attempt {
 
 	String id;

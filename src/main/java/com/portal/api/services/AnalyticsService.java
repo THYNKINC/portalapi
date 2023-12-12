@@ -33,6 +33,7 @@ import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.MinAggregationBuilder;
+import org.opensearch.search.aggregations.metrics.SumAggregationBuilder;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.slf4j.Logger;
@@ -47,6 +48,7 @@ import org.springframework.stereotype.Component;
 
 import com.portal.api.model.CustomSearchResponse;
 import com.portal.api.util.OpensearchService;
+import com.tdunning.math.stats.Histogram;
 
 @Component
 public class AnalyticsService {
@@ -90,74 +92,49 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	@CacheEvict(value = "dashboard", allEntries = true)
-    @Scheduled(cron = "0 0 2 * * *")
-    public void emptyDashboardCache() {
-        logger.info("emptying dashboard cache");
-    }
-	
-	@CachePut(value = "dashboard")
-    @Scheduled(cron = "0 0 3 * * *")
-    public SearchResponse populateDashboardCache() throws Exception {
-        logger.info("filling dashboard cache");
-        return dashboardMetrics();
-    }
-    
-    @Cacheable("dashboard")
-	public SearchResponse dashboardMetrics() throws Exception {
+	public SearchResponse dashboardMetrics(String scale) throws Exception {
+		
+		Map<String, String> ranges = Map.of("daily", "now-7d/d", "weekly", "now-12w/w", "monthly", "now-12M/M", "yearly", "now-10y/y");
+		Map<String, DateHistogramInterval> intervals = Map.of("daily", DateHistogramInterval.DAY, "weekly",  DateHistogramInterval.WEEK, "monthly",  DateHistogramInterval.MONTH, "yearly",  DateHistogramInterval.YEAR);
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 		
-		// 7 days aggregates
+		// aggregates
 		FilterAggregationBuilder days = AggregationBuilders
 				.filter("range", QueryBuilders
-						.rangeQuery("timestamp")
-						.gte("now-7d/d"))
+						.rangeQuery("start_date")
+						.gte(ranges.get(scale)))
 				.subAggregation(AggregationBuilders
-						.dateHistogram("daily")
-						.field("timestamp")
-						.dateHistogramInterval(DateHistogramInterval.days(1))
-						.extendedBounds(new LongBounds("now-7d", "now"))
+						.dateHistogram("dates")
+						.field("start_date")
+						.calendarInterval(intervals.get(scale))
+						.extendedBounds(new LongBounds(ranges.get(scale), "now"))
 						.subAggregation(AggregationBuilders
 								.avg("power")
-								.field("Score"))
+								.field("max_power"))
 						.subAggregation(AggregationBuilders
-								.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
+								.filter("attempts", QueryBuilders.termQuery("completed", true))
 								.subAggregation(AggregationBuilders
 										.dateHistogram("sessions")
-										.field("timestamp")
+										.field("start_date")
 										.dateHistogramInterval(DateHistogramInterval.hours(12))))
 						.subAggregation(AggregationBuilders
-								.filter("starts", QueryBuilders.termsQuery("event_type", List.of("RunnerStart", "TransferenceStatsStart"))))
-						// TODO this is supposed to be missions but mission 1 doesn't have transference so...
-						.subAggregation(AggregationBuilders
-								.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))));
-		
-		// totals
-		FilterAggregationBuilder active = AggregationBuilders
-				.filter("active", QueryBuilders.existsQuery("MissionID"))
-				.subAggregation(AggregationBuilders
-					.terms("sessions")
-					// TODO obviously that's not gonna scale, playtime total and number of users should be running count
-					.size(100000)
-					.field("session_start.keyword")
-					// here we don't know what the last event for that session was so we take the max duration
-					.subAggregation(AggregationBuilders
-						.max("duration")
-						// limit to 30 min max to avoid weird unfinished sessions
-						.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())"))))
-				.subAggregation(AggregationBuilders
-						.cardinality("users")
-						.field("user_id"));
+								.filter("missions", QueryBuilders.termsQuery("type", List.of("transference", "pvt")))));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-		searchSourceBuilder.aggregation(days);
-		searchSourceBuilder.aggregation(active);
+		searchSourceBuilder
+			.aggregation(days)
+			.aggregation(AggregationBuilders
+				.sum("playtime")
+				.field("duration"))
+			.aggregation(AggregationBuilders
+				.cardinality("users")
+				.field("user_id"));
 		
 		searchSourceBuilder.size(0);
 
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		SearchRequest searchRequest = new SearchRequest("sessions");
 		searchRequest.source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);

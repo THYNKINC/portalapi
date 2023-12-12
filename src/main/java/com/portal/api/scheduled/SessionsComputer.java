@@ -39,7 +39,7 @@ import com.portal.api.util.ParentService;
 
 @Component
 @Profile("prod")
-public abstract class SessionsComputer {
+public class SessionsComputer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SessionsComputer.class);
 
@@ -79,7 +79,7 @@ public abstract class SessionsComputer {
 		
 		// get all new sessions which ended after the last session end date
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandonned"));
+				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandoned"));
 		
 		if (lastProcessed.value() > 0)
 			boolQuery.must(QueryBuilders.rangeQuery("timestamp")
@@ -91,7 +91,7 @@ public abstract class SessionsComputer {
 		searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
 				.fetchSource(includeFields, excludeFields)
-				.size(2000)
+				.size(10000)
 				.sort("timestamp", SortOrder.ASC);
 
 		searchRequest = new SearchRequest("gamelogs")

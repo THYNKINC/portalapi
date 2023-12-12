@@ -1,1 +1,88 @@
-{"timestamp":"2023-11-29 19:10:40.729","Accuracy":null,"Ach_BotBane":null,"Ach_BotSniperSpree":null,"Ach_BotSwarm":null,"Ach_Brainiac1":null,"Ach_Brainiac2":null,"Ach_Brainiac3":null,"Ach_BurntBackside":null,"Ach_CoolHand":null,"Ach_CrystalAce":null,"Ach_CrystalCatcher":null,"Ach_CrystalCollector":null,"Ach_CrystalMaster":null,"Ach_CrystalScout":null,"Ach_CrystalSpotter":null,"Ach_Defogger":null,"Ach_EagerRanger":null,"Ach_EagleEye":null,"Ach_ExpertSniffer":null,"Ach_FlexMind":null,"Ach_Focused":null,"Ach_FogSmasher":null,"Ach_GStarRecruit":null,"Ach_Healer":null,"Ach_LabRat":null,"Ach_LittleLeague":null,"Ach_LaserFocus":null,"Ach_MadScientist":null,"Ach_OneSmallStep":null,"Ach_RockSolid":null,"Ach_RookieZapper":null,"Ach_SmogbotSlayer":null,"Ach_SpaceDodger":null,"Ach_SpeedRun":null,"Ach_Speedy":null,"Ach_Stage1":null,"Ach_Stage2":null,"Ach_Stage3":null,"Ach_Stage4":null,"Ach_Stage5":null,"Ach_Supersonic":null,"Ach_SwitchBots":null,"Ach_TakeaHit":null,"Ach_TheRightStuff":null,"Ach_TripleJumper":null,"Ach_Unselfish":null,"Ach_Untouchable":null,"Ach_Vigilant":null,"Ach_YogaBrain":null,"AvatarID":null,"AverageBS":null,"AverageCorrect":null,"AvgBS":null,"BS":null,"Bad":null,"Color":null,"ComicID":null,"ComponentID":null,"ComponentStatus":null,"CorrectResponseCount":null,"Corrupted":null,"CurrentRank":null,"DecodeThreshold":null,"Device":null,"DeviceMemory":null,"DeviceName":null,"DeviceOS":null,"DishID":null,"DistanceTraveled":null,"Elapsed":1456.111,"Frame":null,"GMEV":null,"Good":null,"IncorrectResponseCount":null,"Lane":null,"LevelID":null,"MissionID":"1.2","MoleculeID":null,"MoleculeType":null,"ObjectID":null,"ObjectTypeID":null,"PauseReason":null,"PowerMeterMax":null,"PromptID":null,"Reason":null,"Report_Intro":null,"ResultID":null,"Score":null,"Sessions":null,"StarReached":null,"StarValues":null,"Stat_BestTimeWithoutHit":null,"Stat_BestPortBotsStreak":null,"Stat_BotsShot":null,"Stat_BrainiacLength1":null,"Stat_BrainiacLength2":null,"Stat_BrainiacLength3":null,"Stat_ClustersShot":null,"Stat_Crystals":null,"Stat_Decodes":null,"Stat_FakersPassed":null,"Stat_FogWallsCleared":null,"Stat_HighestCrystalsEarned":null,"Stat_Jumps":null,"Stat_Male":null,"Stat_MaxDecodes":null,"Stat_PortGroupBotMax":null,"Stat_Sham":null,"Stat_Slides":null,"Stat_SwitchesRode":null,"Stat_TakeAHitCount":null,"Stat_TransferenceActive":null,"Stat_TransferenceCompleted":null,"Success":null,"Symbol":null,"TargetDecodes":null,"TargetId":null,"TaskID":"1.2","TasksCompleted":49,"Tier":null,"Upload_All_Files":null,"Username":null,"Version":null,"VoiceoverID":null,"attentionBurstTier":null,"bci":82,"current_brain_score":82,"current_threshold":0,"event_type":"TransferenceStatsEnd","gender":null,"intro_runner_comic_1_1":null,"intro_transference_comic_1_1":null,"lastLevel":null,"lastSaveDate":null,"lastSubLevel":null,"outro_runner_comic_1_1":null,"outro_transference_comic_1_1":null,"prologue_comic":null,"restPeriodStart":null,"runnerComplete":null,"runnerCompleteTime":null,"runnerFails":null,"shamToggle":null,"showSubtitles":null,"starsPerMission":null,"testkey":null,"transferFails":null,"unlocksPerMission":null,"voVolume":null,"parsed_on":null,"user_id":"mattr","session_id":null,"file":null,"session_type":"transference","session_start":"2023-11-29 19:04:08.121"}
+{
+	"size": 0,
+	"aggregations": {
+		"range": {
+			"filter": {
+				"range": {
+					"start_date": {
+						"from": "now-7d/d",
+						"to": null,
+						"include_lower": true,
+						"include_upper": true,
+						"boost": 1.0
+					}
+				}
+			},
+			"aggregations": {
+				"dates": {
+					"date_histogram": {
+						"field": "start_date",
+						"interval": "1d",
+						"offset": 0,
+						"order": {
+							"_key": "asc"
+						},
+						"keyed": false,
+						"min_doc_count": 0,
+						"extended_bounds": {
+							"min": "now-7d/d",
+							"max": "now"
+						}
+					},
+					"aggregations": {
+						"power": {
+							"avg": {
+								"field": "Score"
+							}
+						},
+						"attempts": {
+							"filter": {
+								"term": {
+									"completed": {
+										"value": true,
+										"boost": 1.0
+									}
+								}
+							},
+							"aggregations": {
+								"sessions": {
+									"date_histogram": {
+										"field": "start_date",
+										"interval": "12h",
+										"offset": 0,
+										"order": {
+											"_key": "asc"
+										},
+										"keyed": false,
+										"min_doc_count": 0
+									}
+								}
+							}
+						},
+						"missions": {
+							"filter": {
+								"terms": {
+									"type": [
+										"transference",
+										"pvt"
+									],
+									"boost": 1.0
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"playtime": {
+			"sum": {
+				"field": "duration"
+			}
+		},
+		"users": {
+			"cardinality": {
+				"field": "user_id"
+			}
+		}
+	}
+}
