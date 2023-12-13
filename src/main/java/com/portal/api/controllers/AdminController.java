@@ -204,6 +204,9 @@ public class AdminController {
     @GetMapping("/dashboard")
     public DashboardMetrics getDashboard(@RequestParam(required = false, defaultValue = "daily") String scale, @RequestParam(required = false) String type, HttpServletRequest request) throws Exception {
     	
+    	Map<String, Integer> scales = Map.of("daily", 10, "weekly", 10, "monthly", 7, "yearly", 4);
+    	int dateLength = scales.get(scale);
+    	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	SearchResponse searchResponse = analyticsService.dashboardMetrics(scale, type);
@@ -231,21 +234,21 @@ public class AdminController {
     	daily.getBuckets().forEach(bucket -> {
     		
     		Filter agg = bucket.getAggregations().get("missions");
-    		missions.put(bucket.getKeyAsString(), (int)agg.getDocCount());
+    		missions.put(bucket.getKeyAsString().substring(0, dateLength), (int)agg.getDocCount());
     		
     		agg = bucket.getAggregations().get("attempts");
     		long completed = agg.getDocCount();
-    		attempts.put(bucket.getKeyAsString(), (int)completed);
+    		attempts.put(bucket.getKeyAsString().substring(0, dateLength), (int)completed);
     		
     		Histogram sessionsBuckets = agg.getAggregations().get("sessions");
-    		sessions.put(bucket.getKeyAsString(), sessionsBuckets.getBuckets().stream()
+    		sessions.put(bucket.getKeyAsString().substring(0, dateLength), sessionsBuckets.getBuckets().stream()
     				.mapToInt(b -> (int)b.getDocCount())
     				.sum());
     		
-    		abandons.put(bucket.getKeyAsString(), (int)(bucket.getDocCount() - completed));
+    		abandons.put(bucket.getKeyAsString().substring(0, dateLength), (int)(bucket.getDocCount() - completed));
     		
     		Avg power = bucket.getAggregations().get("power");
-    		powers.put(bucket.getKeyAsString(), power.getValueAsString() != "Infinity" ? (int)Math.round(power.value()) : 0);
+    		powers.put(bucket.getKeyAsString().substring(0, dateLength), power.getValueAsString() != "Infinity" ? (int)Math.round(power.value()) : 0);
     	});
     	
     	return DashboardMetrics.builder()
