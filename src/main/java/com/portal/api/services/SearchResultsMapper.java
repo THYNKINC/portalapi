@@ -56,8 +56,8 @@ public class SearchResultsMapper {
 		Min started = aggs.get("started");
 		
 		long duration = (long)ended.getValue() - (long)started.getValue();
-		// sessions to 30 min in case of abandon
-		duration = Math.min(30*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
+		// sessions to 60 min in case of abandon
+		duration = Math.min(60*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
 		
 		ExtendedStats bci = aggs.get("bci");
 		
@@ -96,6 +96,11 @@ public class SearchResultsMapper {
 		Terms dishes = session.getAggregations().get("dishes");
 		
 		List<Dish> dishList = new ArrayList<>();
+		
+		long duration = (long)sessionEnd.getValue() - (long)sessionStart.getValue();
+		
+		// limit sessions to 60 minutes max in case of abandon
+		duration = Math.min(60*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
 		
 		for (Bucket dish: dishes.getBuckets()) {
     		
@@ -187,7 +192,7 @@ public class SearchResultsMapper {
 				.decoded(decoded)
 				.decodeStdDev((int)Math.sqrt(decodeVariance))
 				.dishes(dishList)
-				.duration(TimeUtil.msToMin(sessionStart, sessionEnd))
+				.duration((int)duration)
 				.endDate((long)sessionEnd.getValue())
 				.gapAvg((int)gapAvg)
 				.gapStdDev((int)Math.sqrt(gapVariance))
@@ -216,8 +221,9 @@ public class SearchResultsMapper {
 		Min started = aggs.get("started");
 		
 		long duration = (long)ended.getValue() - (long)started.getValue();
-		// sessions to 30 min in case of abandon
-		duration = Math.min(30*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
+		
+		// limit sessions to 60 minutes max in case of abandon
+		duration = Math.min(60*60, TimeUnit.SECONDS.convert(duration, TimeUnit.MILLISECONDS));
 		
 		Max power = aggs.get("power");
 		ExtendedStats bci = aggs.get("bci");
