@@ -93,7 +93,7 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
-	public SearchResponse dashboardMetrics(String scale) throws Exception {
+	public SearchResponse dashboardMetrics(String scale, String type) throws Exception {
 		
 		Map<String, String> ranges = Map.of("daily", "now-7d/d", "weekly", "now-12w/w", "monthly", "now-12M/M", "yearly", "now-10y/y");
 		Map<String, DateHistogramInterval> intervals = Map.of("daily", DateHistogramInterval.DAY, "weekly",  DateHistogramInterval.WEEK, "monthly",  DateHistogramInterval.MONTH, "yearly",  DateHistogramInterval.YEAR);
@@ -124,8 +124,17 @@ public class AnalyticsService {
 								.filter("missions", QueryBuilders.termsQuery("type", List.of("transference", "pvt")))));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		
+		if (type != null) {
+			searchSourceBuilder
+				.aggregation(AggregationBuilders
+						.filter("by_type", QueryBuilders.matchQuery("type", type))
+						.subAggregation(days));
+		} else { 
+			searchSourceBuilder.aggregation(days);
+		}
+		
 		searchSourceBuilder
-			.aggregation(days)
 			.aggregation(AggregationBuilders
 				.sum("playtime")
 				.field("duration"))

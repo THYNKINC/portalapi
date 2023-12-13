@@ -202,16 +202,24 @@ public class AdminController {
     }
     
     @GetMapping("/dashboard")
-    public DashboardMetrics getDashboard(@RequestParam(required = false, defaultValue = "daily") String scale, HttpServletRequest request) throws Exception {
+    public DashboardMetrics getDashboard(@RequestParam(required = false, defaultValue = "daily") String scale, @RequestParam(required = false) String type, HttpServletRequest request) throws Exception {
     	
     	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
     	
-    	SearchResponse searchResponse = analyticsService.dashboardMetrics(scale);
+    	SearchResponse searchResponse = analyticsService.dashboardMetrics(scale, type);
     	
     	Cardinality users = searchResponse.getAggregations().get("users");
     	Sum playtime = searchResponse.getAggregations().get("playtime");
     	
-    	Filter range = searchResponse.getAggregations().get("range");
+    	Filter range = null;
+    	
+    	if (type != null)
+    		range = ((Filter)searchResponse
+    			.getAggregations().get("by_type"))
+    			.getAggregations().get("range");
+    	else
+    		range = searchResponse.getAggregations().get("range");
+    	
     	Histogram daily = range.getAggregations().get("dates");
     	
     	SortedMap<String, Integer> sessions = new TreeMap<>();
