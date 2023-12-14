@@ -71,6 +71,8 @@ import com.portal.api.util.JwtService;
 import com.portal.api.util.ParentService;
 import com.portal.api.util.TimeUtil;
 
+import io.swagger.v3.oas.annotations.Parameter;
+
 @RestController
 @RequestMapping("/admin")
 @Validated
@@ -149,7 +151,11 @@ public class AdminController {
     }
     
     @GetMapping("/children")
-    public PaginatedResponse<Child> getChildren(HttpServletRequest request, @RequestParam(required = false) String partialName,
+    public PaginatedResponse<Child> getChildren(HttpServletRequest request,
+    		@Parameter(description = "The begining of the child's username")
+    		@RequestParam(required = false) String partialName,
+    		@Parameter(description = "key-value pairs to filter by label, where key needs to start with l_. Ex: l_region=test&l_cohort=test")
+    		@RequestParam(required = false) Map<String, String> labels,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
@@ -157,8 +163,8 @@ public class AdminController {
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
-    	if (StringUtils.hasText(partialName))
-    		return mongoService.getChildrenByNameStartingWith(partialName, pageRequest);
+    	if (StringUtils.hasText(partialName) || (labels != null && !labels.isEmpty()))
+    		return mongoService.getChildrenByFilter(partialName, labels, pageRequest);
     	
     	return mongoService.getAllChildren(pageRequest);
     }
@@ -301,6 +307,7 @@ public class AdminController {
     	child.setDob(update.getDob());
     	child.setFirstName(update.getFirstName());
     	child.setLastName(update.getLastName());
+    	child.setLabels(update.getLabels());
     	mongoService.updateChild(child);
     	
     	return child;

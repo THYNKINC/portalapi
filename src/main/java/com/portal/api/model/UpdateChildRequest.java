@@ -1,12 +1,10 @@
 package com.portal.api.model;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
-
-import org.springframework.format.annotation.DateTimeFormat;
 
 import lombok.Data;
 
@@ -22,4 +20,6 @@ public class UpdateChildRequest {
     private String lastName;
     
     private LocalDate dob;
+    
+    private Map<String, String> labels;
 }

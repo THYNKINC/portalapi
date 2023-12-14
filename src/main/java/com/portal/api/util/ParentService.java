@@ -2,6 +2,7 @@ package com.portal.api.util;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -89,9 +90,27 @@ public class ParentService {
         return parentRepository.findAll(pageable);
     }
 	
-	public PaginatedResponse<Child> getChildrenByNameStartingWith(String nameStartingWith, Pageable pageable) {
+	public PaginatedResponse<Child> getChildrenByFilter(String nameStartingWith, Map<String, String> labels, Pageable pageable) {
         
-		Criteria matchCriteria = Criteria.where("username").regex("^" + nameStartingWith);
+		Criteria matchCriteria = new Criteria();
+		
+		if (nameStartingWith != null) {
+			
+			matchCriteria
+				.and("username")
+				.regex("^" + nameStartingWith);
+		}
+		
+		if (labels != null) {
+			
+			labels.forEach((key, value) -> {
+				
+				if (key.startsWith("l_"))
+					matchCriteria
+						.and("labels." + key.substring(2))
+						.is(value);
+			});
+		}
 
 		// Aggregation for counting
 		AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");

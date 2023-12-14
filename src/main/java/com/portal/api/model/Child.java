@@ -1,8 +1,7 @@
 package com.portal.api.model;
 
 import java.time.LocalDate;
-
-import org.springframework.format.annotation.DateTimeFormat;
+import java.util.Map;
 
 import lombok.Data;
 
@@ -17,5 +16,7 @@ public class Child {
 	
 	private String headsetId;
 	private LocalDate startDate;
+	private Map<String, String> labels;
+	
 	private boolean locked;
 }
