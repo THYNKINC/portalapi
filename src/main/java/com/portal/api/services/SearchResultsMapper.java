@@ -230,6 +230,8 @@ public class SearchResultsMapper {
 		
 		Avg avgTier = aggs.get("tier");
 		
+		Terms tiers = aggs.get("tiers");
+		
 		Terms stars = aggs.get("stars");
 		List<StarEarned> starsEarned = stars.getBuckets().stream()
 			.filter(b -> b.getKeyAsNumber().intValue() > 0)
@@ -327,6 +329,7 @@ public class SearchResultsMapper {
     		.startDate((long)started.getValue())
     		.status(pass ? "PASS" : "FAIL")
     		.tierAvg(avgTier.getValueAsString().equals("Infinity") ? 0 : (int)avgTier.value())
+    		.tierMode(tiers.getBuckets().size() > 0 ? (int)tiers.getBuckets().get(0).getKeyAsNumber() : 0)
     		.userId(username)
     		.build();
 		

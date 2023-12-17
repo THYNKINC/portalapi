@@ -16,6 +16,7 @@ public class RunnerSummary extends SessionSummary {
 	List<StarEarned> stars;
 	int maxPower;
 	int tierAvg;
+	int tierMode;
 	Accuracy accuracy;
 	CognitiveSkillsResponse scores;
 	String[] ranks;

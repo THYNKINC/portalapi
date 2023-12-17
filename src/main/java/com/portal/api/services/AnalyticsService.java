@@ -868,6 +868,10 @@ public class AnalyticsService {
 					.avg("tier")
 					.field("Tier"))
 				.subAggregation(AggregationBuilders
+					.terms("tiers")
+					.field("Tier")
+					.size(1))
+				.subAggregation(AggregationBuilders
 					.terms("stars")
 					.field("StarReached")
 					.order(BucketOrder.aggregation("at_ts", true))
