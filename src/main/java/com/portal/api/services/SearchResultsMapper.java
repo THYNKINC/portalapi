@@ -329,7 +329,7 @@ public class SearchResultsMapper {
     		.startDate((long)started.getValue())
     		.status(pass ? "PASS" : "FAIL")
     		.tierAvg(avgTier.getValueAsString().equals("Infinity") ? 0 : (int)avgTier.value())
-    		.tierMode(tiers.getBuckets().size() > 0 ? (int)tiers.getBuckets().get(0).getKeyAsNumber() : 0)
+    		.tierMode(tiers.getBuckets().size() > 0 ? ((Long)tiers.getBuckets().get(0).getKeyAsNumber()).intValue() : 0)
     		.userId(username)
     		.build();
 		
