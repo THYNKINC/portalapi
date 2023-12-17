@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
@@ -126,10 +128,13 @@ public class ParentService {
         AggregationOperation skipOperation = Aggregation.skip(pageable.getOffset());
         AggregationOperation limitOperation = Aggregation.limit(pageable.getPageSize());
         
+        AggregationOperation sortOperation = Aggregation.sort(Sort.by(Direction.DESC, "createdDate"));
+        
         Aggregation aggregation = Aggregation.newAggregation(
         		unwindOperation,
                 replaceRootOperation,
         		matchOperation,
+        		sortOperation,
         		skipOperation,
                 limitOperation
         );
@@ -157,25 +162,27 @@ public class ParentService {
 	
 	public PaginatedResponse<Child> getAllChildren(Pageable pageable) {
 		
-        // Aggregation for counting
+		// Aggregation for counting
+		AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
 		AggregationOperation unwindOperation = Aggregation.unwind("children");
-        AggregationOperation groupCountOperation = Aggregation.group().count().as("total");
-        Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, groupCountOperation);
+		AggregationOperation countOperation = Aggregation.count().as("total");
+        Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, replaceRootOperation, countOperation);
 
         AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
         long total = countResults.getUniqueMappedResult().getTotal();
 
+        AggregationOperation sortOperation = Aggregation.sort(Sort.by(Direction.DESC, "createdDate"));
+        
         // Aggregation for paginated result
         AggregationOperation skipOperation = Aggregation.skip(pageable.getOffset());
         AggregationOperation limitOperation = Aggregation.limit(pageable.getPageSize());
-
-        AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
         
         Aggregation aggregation = Aggregation.newAggregation(
-                unwindOperation,
-                skipOperation,
-                limitOperation,
-                replaceRootOperation
+        		unwindOperation,
+                replaceRootOperation,
+        		sortOperation,
+        		skipOperation,
+                limitOperation
         );
 
         List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();

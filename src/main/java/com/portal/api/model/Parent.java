@@ -1,5 +1,6 @@
 package com.portal.api.model;
 
+import java.util.Date;
 import java.util.List;
 
 import org.springframework.data.annotation.Id;
@@ -22,4 +23,7 @@ public class Parent {
 	private String city;
 	private String zipCode;
 	private String country;
+	
+	private Date createdDate;
+	private Date updatedDate;
 }

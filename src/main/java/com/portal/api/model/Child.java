@@ -1,6 +1,7 @@
 package com.portal.api.model;
 
 import java.time.LocalDate;
+import java.util.Date;
 import java.util.Map;
 
 import lombok.Data;
@@ -13,6 +14,9 @@ public class Child {
 	private String lastName;
 	
 	private LocalDate dob;
+	
+	private Date createdDate;
+	private Date updatedDate;
 	
 	private String headsetId;
 	private LocalDate startDate;

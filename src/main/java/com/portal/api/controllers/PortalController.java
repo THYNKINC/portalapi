@@ -2,6 +2,7 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -196,6 +197,7 @@ public class PortalController {
     	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
     	
     	Parent parent = new Parent();
+    	parent.setCreatedDate(new Date());
     	parent.setChildren(new ArrayList<>());
     	parent.setEmail(createParentRequest.getEmail());
     	parent.setFirstName(createParentRequest.getFirstName());
@@ -238,10 +240,10 @@ public class PortalController {
         child.setFirstName(createChildRequest.getFirstName());
         child.setLastName(createChildRequest.getLastName());
         child.setUsername(createChildRequest.getUsername());
+        child.setCreatedDate(new Date());
         
         //TODO get parent from mongo, add child, save
         mongoService.updateParent(jwt.getClaim("cognito:username"), child);
-
     }
     
     @GetMapping("/children/{username}/progress")

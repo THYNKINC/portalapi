@@ -163,10 +163,7 @@ public class AdminController {
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
-    	if (StringUtils.hasText(partialName) || (labels != null && !labels.isEmpty()))
-    		return mongoService.getChildrenByFilter(partialName, labels, pageRequest);
-    	
-    	return mongoService.getAllChildren(pageRequest);
+    	return mongoService.getChildrenByFilter(partialName, labels, pageRequest);
     }
     
     @GetMapping("/attempts")
@@ -308,6 +305,7 @@ public class AdminController {
     	child.setFirstName(update.getFirstName());
     	child.setLastName(update.getLastName());
     	child.setLabels(update.getLabels());
+    	child.setUpdatedDate(new Date());
     	mongoService.updateChild(child);
     	
     	return child;
