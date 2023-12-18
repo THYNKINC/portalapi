@@ -200,7 +200,7 @@ public class SearchResultsMapper {
 				.selectAvg((int)selectAvg)
 				.selectStdDev((int)Math.sqrt(selectVariance))
 				.startDate((long)sessionStart.getValue())
-				.status(decoded > target.value() ? "PASS" : "FAIL")
+				.status(decoded >= target.value() ? "PASS" : "FAIL")
 				.completed(endEvent.getDocCount() > 0)
 				.tapAvg((int)tapAvg)
 				.tapStdDev((int)Math.sqrt(tapVariance))
