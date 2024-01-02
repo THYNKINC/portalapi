@@ -374,7 +374,7 @@ public class SearchResultsMapper {
     	}
     }
     
-    public CognitiveSkillsResponse getCognitiveSkills(SearchHit[] hits) {
+    public static CognitiveSkillsResponse getCognitiveSkills(SearchHit[] hits) {
     	
     	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
     	

@@ -59,6 +59,7 @@ import com.portal.api.model.SessionData;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
@@ -523,64 +524,7 @@ public class PortalController {
     	
     	SearchHit[] hits = searchResponse.getHits().getHits();
 
-    	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
-    	    	
-    	for (SearchHit hit : hits) {
-    		
-    		String metricName = (String) hit.getSourceAsMap().get("metric_type");
-    		
-    		Object o = hit.getSourceAsMap().get("metric_value");
-    		Double value = 0d;
-    		
-    		if (o != null)
-    			value = (Double)o ;
-    	    
-    	    switch (metricName) {
-    	    	case "alternating_attention": 
-    	    		response.setAlternatingAttention((int)Math.round(value));
-    	    		break;
-    	    	case "behavioral_inhibition": 
-    	    		response.setBehavioralInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "cognitive_inhibition": 
-    	    		response.setCognitiveInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "delayed_gratification": 
-    	    		response.setDelayOfGratification((int)Math.round(value));
-    	    		break;
-    	    	case "divided_attention": 
-    	    		response.setDividedAttention((int)Math.round(value));
-    	    		break;
-    	    	case "focused_attention": 
-    	    		response.setFocusedAttention((int)Math.round(value));
-    	    		break;
-    	    	case "inner_voice": 
-    	    		response.setInnerVoice((int)Math.round(value));
-    	    		break;
-    	    	case "interference_control": 
-    	    		response.setInterferenceControl((int)Math.round(value));
-    	    		break;
-    	    	case "motivational_inhibition": 
-    	    		response.setMotivationalInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "novelty_inhibition": 
-    	    		response.setNoveltyInhibition((int)Math.round(value));
-    	    		break;
-    	    	case "selective_attention": 
-    	    		response.setSelectiveAttention((int)Math.round(value));
-    	    		break;
-    	    	case "self_regulation": 
-    	    		response.setSelfRegulation((int)Math.round(value));
-    	    		break;
-    	    	case "sustained_attention": 
-    	    		response.setSustainedAttention((int)Math.round(value));
-    	    		break;
-    	    	default:
-    	    		throw new RuntimeException("Unknown metric name: " + metricName);
-    	    }
-    	}
-    	    	
-    	return response;
+    	return SearchResultsMapper.getCognitiveSkills(hits);
     }
     
     @GetMapping("/children/{username}/cognitive-skills")

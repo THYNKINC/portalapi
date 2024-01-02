@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.Child;
 import com.portal.api.model.Parent;
+import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.services.SearchResultsMapper;
@@ -153,6 +154,12 @@ public class SessionsComputer {
 				
 				response = analytics.runner(username, sessionId);
 		    	summary = SearchResultsMapper.getRunner(response, username, sessionId);
+		    	
+		    	SearchResponse searchResponse = analytics.attemptCognitiveSkills(username, sessionId); 		    	
+		    	SearchHit[] hits = searchResponse.getHits().getHits();
+		    	
+		    	((RunnerSummary)summary).setScores(SearchResultsMapper.getCognitiveSkills(hits));
+		    	
 		    	break;
 		    
 			case "transference":

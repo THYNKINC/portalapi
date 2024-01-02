@@ -18,4 +18,6 @@ public class CognitiveSkillsResponse {
 	int delayOfGratification = -1;
 	int innerVoice = -1;
 	int selfRegulation = -1;
+	int compositeFocus;
+	int compositeImpulse;
 }

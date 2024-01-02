@@ -18,6 +18,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.action.update.UpdateRequest;
 import org.opensearch.client.RequestOptions;
 import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
@@ -76,6 +77,21 @@ public class OpensearchService {
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
 	
 	        client.index(request, RequestOptions.DEFAULT);
+	    }  
+	    
+	}
+	
+	public void update(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, UpdateRequest request) throws IOException {
+		
+		// Build the rest client
+	    try (RestHighLevelClient client = new RestHighLevelClient(
+	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+	                            .setDefaultCredentialsProvider(credentialsProvider)
+	                            .setSSLContext(sslContext)
+	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
+	
+	        client.update(request, RequestOptions.DEFAULT);
 	    }  
 	    
 	}

@@ -1,5 +1,7 @@
 package com.portal.api.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -9,6 +11,9 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public abstract class SessionSummary {
 
+	@JsonIgnore
+	String _id;
+	
 	String id;
 	String type;
 	String userId;
