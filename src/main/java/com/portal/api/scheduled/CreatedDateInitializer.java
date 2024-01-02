@@ -24,7 +24,7 @@ import com.portal.api.model.Child;
 import com.portal.api.util.OpensearchService;
 import com.portal.api.util.ParentService;
 
-@Component
+// @Component
 public class CreatedDateInitializer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(CreatedDateInitializer.class);

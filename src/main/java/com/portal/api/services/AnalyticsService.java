@@ -271,7 +271,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
-				.must(QueryBuilders.matchQuery("session_id", sessionId));
+				.must(QueryBuilders.matchQuery("id", sessionId));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);

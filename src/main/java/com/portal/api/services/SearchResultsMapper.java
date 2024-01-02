@@ -1,15 +1,10 @@
 package com.portal.api.services;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
 
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
@@ -23,15 +18,13 @@ import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.Min;
 import org.opensearch.search.aggregations.metrics.ScriptedMetric;
 import org.opensearch.search.aggregations.metrics.TopHits;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.Accuracy;
-import com.portal.api.model.AttemptSummary;
+import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.Crystals;
 import com.portal.api.model.Dish;
 import com.portal.api.model.Obstacles;
@@ -379,5 +372,67 @@ public class SearchResultsMapper {
     	} catch (JsonProcessingException e) {
     		throw new RuntimeException("Unable to map session", e);
     	}
+    }
+    
+    public CognitiveSkillsResponse getCognitiveSkills(SearchHit[] hits) {
+    	
+    	CognitiveSkillsResponse response = new CognitiveSkillsResponse();
+    	
+    	for (SearchHit hit : hits) {
+    		
+    		String metricName = (String) hit.getSourceAsMap().get("metric_type");
+    		
+    		Object o = hit.getSourceAsMap().get("metric_value");
+    		Double value = 0d;
+    		
+    		if (o != null)
+    			value = (Double)o ;
+    	    
+    	    switch (metricName) {
+    	    	case "alternating_attention": 
+    	    		response.setAlternatingAttention((int)Math.round(value));
+    	    		break;
+    	    	case "behavioral_inhibition": 
+    	    		response.setBehavioralInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "cognitive_inhibition": 
+    	    		response.setCognitiveInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "delayed_gratification": 
+    	    		response.setDelayOfGratification((int)Math.round(value));
+    	    		break;
+    	    	case "divided_attention": 
+    	    		response.setDividedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "focused_attention": 
+    	    		response.setFocusedAttention((int)Math.round(value));
+    	    		break;
+    	    	case "inner_voice": 
+    	    		response.setInnerVoice((int)Math.round(value));
+    	    		break;
+    	    	case "interference_control": 
+    	    		response.setInterferenceControl((int)Math.round(value));
+    	    		break;
+    	    	case "motivational_inhibition": 
+    	    		response.setMotivationalInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "novelty_inhibition": 
+    	    		response.setNoveltyInhibition((int)Math.round(value));
+    	    		break;
+    	    	case "selective_attention": 
+    	    		response.setSelectiveAttention((int)Math.round(value));
+    	    		break;
+    	    	case "self_regulation": 
+    	    		response.setSelfRegulation((int)Math.round(value));
+    	    		break;
+    	    	case "sustained_attention": 
+    	    		response.setSustainedAttention((int)Math.round(value));
+    	    		break;
+    	    	default:
+    	    		throw new RuntimeException("Unknown metric name: " + metricName);
+    	    }
+    	}
+    	
+    	return response;
     }
 }
