@@ -1,5 +1,6 @@
 package com.portal.api.util;
-class CountDTO {
+
+public class CountDTO {
     private long total;
 
     public long getTotal() {

@@ -1,9 +1,5 @@
 package com.portal.api.model;
 
-import java.util.Date;
-import java.util.List;
-
-import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import lombok.Builder;
@@ -14,9 +10,9 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @Data
 @NoArgsConstructor
-@Document(collection = "parent")
-public class Parent extends PortalUser {
+@Document(collection = "delegate")
+public class Delegate  extends PortalUser {
 	
 	@Builder.Default
-	final Role role = Role.parent;
+	final Role role = Role.delegate;
 }

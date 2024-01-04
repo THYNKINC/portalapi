@@ -24,6 +24,7 @@ import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -51,19 +53,21 @@ import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.ImpulseControl;
 import com.portal.api.model.LoginRequest;
 import com.portal.api.model.Parent;
+import com.portal.api.model.PortalUser;
 import com.portal.api.model.PowerResponse;
 import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
+import com.portal.api.model.Role;
 import com.portal.api.model.RunnerResponse;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
-import com.portal.api.util.ParentService;
 
 import io.swagger.v3.oas.annotations.Hidden;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -105,7 +109,7 @@ public class PortalController {
 	
 	private final JwtService jwtService;
 	
-	private final ParentService mongoService;
+	private final ParentService parentService;
 	
 	private final AnalyticsService analyticsService;
 
@@ -115,14 +119,14 @@ public class PortalController {
     		ParentService mongoService,
     		AnalyticsService analyticsService) {
         this.jwtService = jwtService;
-        this.mongoService = mongoService;
+        this.parentService = mongoService;
         this.analyticsService = analyticsService;
     }
     
     @GetMapping("/me")
-    public Parent getParent(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
-    	return mongoService.getParent(jwt.getClaim("cognito:username"));		
+    public PortalUser getMe(HttpServletRequest request) throws Exception {
+    	
+    	return jwtService.decodeJwtFromRequest(request, false, null);
     }
     
     @PostMapping("/login")
@@ -205,27 +209,29 @@ public class PortalController {
     	parent.setLastName(createParentRequest.getLastName());
     	parent.setUsername(signUpResponse.userSub());
     	
-    	mongoService.upsertParent(parent);
+    	parentService.upsertParent(parent);
     }
     
     @GetMapping("/children")
     public List<Child> getChildren(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
-    	
-    	Parent parent = mongoService.getParent(jwt.getClaim("cognito:username"));
-    	return parent.getChildren();
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+    	return user.getChildren();
     }
 
     @PostMapping("/children")
     public void createChild(@Valid @RequestBody CreateChildRequest createChildRequest, HttpServletRequest request) throws Exception {
         
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+    	
+    	if (user.getRole() != Role.parent) {
+    		throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only parents can create children");
+    	}
     	
     	CreateUserRequest createUserRequest = new CreateUserRequest();
-    	createUserRequest.setEmail(jwt.getClaim("email"));
+    	createUserRequest.setEmail(user.getEmail());
     	createUserRequest.setFirstName(createChildRequest.getFirstName());
     	createUserRequest.setLastName(createChildRequest.getLastName());
-    	createUserRequest.setParent(jwt.getClaim("cognito:username"));
+    	createUserRequest.setParent(user.getUsername());
     	createUserRequest.setPassword(createChildRequest.getPassword());
     	createUserRequest.setUsername(createChildRequest.getUsername());
     	
@@ -244,13 +250,13 @@ public class PortalController {
         child.setCreatedDate(new Date());
         
         //TODO get parent from mongo, add child, save
-        mongoService.updateParent(jwt.getClaim("cognito:username"), child);
+        parentService.updateParent(user.getUsername(), child);
     }
     
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse response = analyticsService.historicalProgress(username);
     	HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
@@ -318,7 +324,7 @@ public class PortalController {
     @GetMapping("/children/{username}/recent-mission")
     public RecentMissionResponse childRecentMission(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
@@ -372,7 +378,7 @@ public class PortalController {
     		@PathVariable("sessionId") String sessionId,
     		HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = analyticsService.maxStarReached(username, sessionId);
     	
@@ -394,7 +400,7 @@ public class PortalController {
     @GetMapping("/children/{username}/badges")
     public BadgesResponse childBadges(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	System.out.println("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users/" + username + "/game-state");
     	
@@ -422,7 +428,7 @@ public class PortalController {
     
     @GetMapping("/children/{username}/missions/{missionId}")
     public List<SessionData> childMission(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	String convertedMissionId = MappingService.getValue(missionId);
     	
@@ -453,7 +459,7 @@ public class PortalController {
     		// TODO use Spring Boot auth Principal injection here (see legacy API)
     		HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = analyticsService.power(username, sessionId); 
     	
@@ -518,7 +524,7 @@ public class PortalController {
     public CognitiveSkillsResponse childMissionCognitiveSkills(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = analyticsService.attemptCognitiveSkills(username, sessionId); 
     	
@@ -530,7 +536,7 @@ public class PortalController {
     @GetMapping("/children/{username}/cognitive-skills")
     public CognitiveSkillsResponse latestCognitiveSkills(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	List<String> attempts = analyticsService.parseAttempts(analyticsService.lastNRunners(username, 1));
     	
@@ -540,7 +546,7 @@ public class PortalController {
     @GetMapping("/children/{username}/cognitive-skills-progress")
     public CognitiveSkillsProgressResponse cognitiveSkillsProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	List<String> attempts = analyticsService.parseAttempts(analyticsService.lastNRunners(username, 2));
     	
@@ -568,7 +574,7 @@ public class PortalController {
     @GetMapping("/children/{username}/impulse-control")
     public List<ImpulseControl> impulseControl(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = analyticsService.allCognitiveSkills(username); 
     	
@@ -670,7 +676,7 @@ public class PortalController {
     		@PathVariable("sessionId") String sessionId,
     		HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse xferResponse = analyticsService.transferenceEvents(username, sessionId);
     	
@@ -748,7 +754,7 @@ public class PortalController {
     public AttentionResponse childMissionAttention(@PathVariable("username") String username, 
     		@PathVariable("sessionId") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, false, username);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse searchResponse = analyticsService.attention(username, sessionId); 
     	

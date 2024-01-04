@@ -1,4 +1,4 @@
-package com.portal.api.util;
+package com.portal.api.services;
 
 import java.util.Collection;
 import java.util.List;
@@ -26,6 +26,7 @@ import com.portal.api.model.ChildSearchResult;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.repositories.ParentRepository;
+import com.portal.api.util.CountDTO;
 
 
 @Service

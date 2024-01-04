@@ -21,8 +21,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.portal.api.model.Child;
+import com.portal.api.services.ParentService;
 import com.portal.api.util.OpensearchService;
-import com.portal.api.util.ParentService;
 
 // @Component
 public class CreatedDateInitializer {

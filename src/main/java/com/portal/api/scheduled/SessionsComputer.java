@@ -34,9 +34,9 @@ import com.portal.api.model.Parent;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.OpensearchService;
-import com.portal.api.util.ParentService;
 
 @Component
 @Profile("prod")

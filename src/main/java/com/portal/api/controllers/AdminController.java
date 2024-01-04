@@ -11,6 +11,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 
 import org.instancio.Instancio;
 import org.opensearch.action.search.SearchResponse;
@@ -48,8 +49,11 @@ import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.CognitiveSkillsResponse;
+import com.portal.api.model.CreateDelegateRequest;
 import com.portal.api.model.CreateHeadsetRequest;
+import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.DashboardMetrics;
+import com.portal.api.model.Delegate;
 import com.portal.api.model.GameState;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
@@ -57,21 +61,32 @@ import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.PVTSummary;
 import com.portal.api.model.PaginatedResponse;
 import com.portal.api.model.Parent;
+import com.portal.api.model.PortalUser;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SummaryReport;
 import com.portal.api.model.TransferenceSummary;
 import com.portal.api.model.UpdateChildRequest;
 import com.portal.api.model.UpdateParentRequest;
+import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.HeadsetRepository;
 import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
-import com.portal.api.util.ParentService;
 import com.portal.api.util.TimeUtil;
 
 import io.swagger.v3.oas.annotations.Parameter;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
 @RestController
 @RequestMapping("/admin")
@@ -90,12 +105,17 @@ public class AdminController {
 	@Value("${group-name-user}")
 	private String GROUP_NAME_USER;
 	
+	@Value("${group-name-delegate}")
+	private String GROUP_NAME_DELEGATE;
+	
 	@Value("${user-pool-id}")
 	private String USER_POOL_ID;
 	
 	private final JwtService jwtService;
 	
-	private final ParentService mongoService;
+	private final ParentService parentService;
+	
+	private final DelegateRepository delegates;
 	
 	private final AnalyticsService analyticsService;
 	
@@ -106,27 +126,85 @@ public class AdminController {
     @Autowired
     public AdminController(
     		JwtService jwtService,
-    		ParentService mongoService,
+    		ParentService parentService,
     		AnalyticsService analyticsService,
-    		HeadsetRepository headsets) {
+    		HeadsetRepository headsets,
+    		DelegateRepository delegates) {
         this.jwtService = jwtService;
-        this.mongoService = mongoService;
+        this.parentService = parentService;
         this.analyticsService = analyticsService;
         this.headsets = headsets;
+        this.delegates = delegates;
+    }
+    
+    @PostMapping("/delegates")
+    public void createDelegate(@Valid @RequestBody CreateDelegateRequest createParentRequest, HttpServletRequest request) throws Exception {
+    	
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+    	
+    	// Create a CognitoIdentityProviderClient
+    	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
+                .region(Region.US_EAST_1)
+                .credentialsProvider(DefaultCredentialsProvider.create())
+                .build();
+
+    	SignUpRequest signUpRequest = SignUpRequest.builder()
+    	        .clientId(APP_CLIENT_ID)
+    	        .username(createParentRequest.getEmail())
+    	        .password(createParentRequest.getPassword())
+    	        .userAttributes(
+    	                AttributeType.builder().name("email").value(createParentRequest.getEmail()).build(),
+    	                AttributeType.builder().name("family_name").value(createParentRequest.getLastName()).build(),
+    	                AttributeType.builder().name("given_name").value(createParentRequest.getFirstName()).build()
+    	        )
+    	        .build();
+    	
+    	// Call the signUp method to create the user
+    	SignUpResponse signUpResponse = cognitoClient.signUp(signUpRequest);
+
+    	// Access the user's username and other details from the signUpResponse
+    	String usern = signUpResponse.userSub();
+    	
+    	// Add user to user group
+    	AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
+    	        .userPoolId(USER_POOL_ID)
+    	        .username(createParentRequest.getEmail())
+    	        .groupName(GROUP_NAME_DELEGATE)
+    	        .build();
+    	
+    	cognitoClient.adminAddUserToGroup(addUserToGroupRequest);
+    	
+    	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
+    	        .userPoolId(USER_POOL_ID)
+    	        .username(createParentRequest.getEmail())
+    	        .build();
+    	
+    	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
+
+    	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
+    	
+    	Delegate delegate = new Delegate();
+    	delegate.setCreatedDate(new Date());
+    	delegate.setChildren(new ArrayList<>());
+    	delegate.setEmail(createParentRequest.getEmail());
+    	delegate.setFirstName(createParentRequest.getFirstName());
+    	delegate.setLastName(createParentRequest.getLastName());
+    	delegate.setUsername(signUpResponse.userSub());
+    	
+    	delegates.save(delegate);
     }
     
     @GetMapping("/me")
-    public Parent getMe(HttpServletRequest request) throws Exception {
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
-    	return mongoService.getParent(jwt.getClaim("cognito:username"));		
+    public PortalUser getMe(HttpServletRequest request) throws Exception {
+    	return jwtService.decodeJwtFromRequest(request, true, null);	
     }
     
     @GetMapping("/parents/{id}")
     public Parent getParent(@PathVariable("id") String id, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
-    	return mongoService.getParent(id);		
+    	return parentService.getParent(id);		
     }
     
     @GetMapping("/parents")
@@ -134,18 +212,18 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
     	if (StringUtils.hasText(partialName)) {
     		
-    		Page<Parent> parents = mongoService.getParentsByNameStartingWith(partialName, pageRequest);
+    		Page<Parent> parents = parentService.getParentsByNameStartingWith(partialName, pageRequest);
     		
     		return new PaginatedResponse<Parent>(parents.getContent(), parents.getTotalElements());
     	}
     	
-    	Page<Parent> parents = mongoService.getAllParents(partialName, pageRequest);
+    	Page<Parent> parents = parentService.getAllParents(partialName, pageRequest);
     	
     	return new PaginatedResponse<Parent>(parents.getContent(), parents.getTotalElements());
     }
@@ -159,18 +237,18 @@ public class AdminController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
     	
-    	return mongoService.getChildrenByFilter(partialName, labels, pageRequest);
+    	return parentService.getChildrenByFilter(partialName, labels, pageRequest);
     }
     
     @GetMapping("/attempts")
     public PaginatedResponse<AttemptSummary> getAttempts(HttpServletRequest request, @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	SearchResponse searchResponse = analyticsService.attempts(page, size);
     	
@@ -207,7 +285,7 @@ public class AdminController {
     	Map<String, Integer> scales = Map.of("daily", 10, "weekly", 10, "monthly", 7, "yearly", 4);
     	int dateLength = scales.get(scale);
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	SearchResponse searchResponse = analyticsService.dashboardMetrics(scale, type);
     	
@@ -265,7 +343,7 @@ public class AdminController {
     @GetMapping("/children/{username}")
     public Child getChild(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	List<Child> children = mongoService.getChildrenByUsername(Collections.singletonList(username));
+    	List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
     	
     	if (children.size() != 1)
     		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
@@ -276,7 +354,7 @@ public class AdminController {
     @PutMapping("/parents/{username}")
     public Parent updateParentDetails(@PathVariable("username") String username, @RequestBody UpdateParentRequest update, HttpServletRequest request) throws Exception {
     	
-    	Parent parent = mongoService.getParent(username);
+    	Parent parent = parentService.getParent(username);
     	
     	if (parent == null)
     		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find parent with username " + username);
@@ -288,13 +366,13 @@ public class AdminController {
     	parent.setZipCode(update.getZipCode());
     	parent.setCity(update.getCity());
     	
-    	return mongoService.upsertParent(parent);
+    	return parentService.upsertParent(parent);
     }
     
     @PutMapping("/children/{username}")
     public Child updateChild(@PathVariable("username") String username, @RequestBody UpdateChildRequest update, HttpServletRequest request) throws Exception {
     	
-    	List<Child> children = mongoService.getChildrenByUsername(Collections.singletonList(username));
+    	List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
     	
     	if (children.size() != 1)
     		throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
@@ -306,7 +384,7 @@ public class AdminController {
     	child.setLastName(update.getLastName());
     	child.setLabels(update.getLabels());
     	child.setUpdatedDate(new Date());
-    	mongoService.updateChild(child);
+    	parentService.updateChild(child);
     	
     	return child;
     }
@@ -368,7 +446,7 @@ public class AdminController {
     @GetMapping("/children/{username}/state")
     public GameState getChildState(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	// TODO change to use Spring web request, which includes JWT exchange
         String bearerToken = jwtService.getAdminJwt();
@@ -394,7 +472,7 @@ public class AdminController {
     @PostMapping("/headsets")
     public Headset createHeadset(@RequestBody CreateHeadsetRequest headset, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	if (headsets.findById(headset.getId()).isPresent())
     		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset ID already exists");
@@ -409,7 +487,7 @@ public class AdminController {
     @PutMapping("/headsets/{id}")
     public Headset updateHeadset(@PathVariable String id, @RequestBody Headset headset, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Headset old = headsets.findById(id)
     			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
@@ -423,7 +501,7 @@ public class AdminController {
     public Page<Headset> listHeadsets(@RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
     	Pageable pageRequest = PageRequest.of(page, size);
     	
@@ -433,7 +511,7 @@ public class AdminController {
     @GetMapping("/headsets/{id}")
     public Headset getHeadsets(@PathVariable String id, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	    	
     	return headsets.findById(id)
     			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
@@ -442,7 +520,7 @@ public class AdminController {
     @PostMapping("/headsets/{id}/assignment")
     public Headset assignHeadsets(@PathVariable String id, @RequestBody HeadsetAssignment assignment, HttpServletRequest request) throws Exception {
     	
-    	Jwt jwt = jwtService.decodeJwtFromRequest(request, true, null);
+    	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	    	
     	Headset headset = headsets.findById(id)
     			.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset with that ID doesn't exist"));
@@ -450,10 +528,10 @@ public class AdminController {
     	if (headset.getPlayer() != null && headset.getFirstUseTimestamp() != 0)
     		throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Headset is already in use");
     	
-    	Child child = mongoService.getChildrenByUsername(Collections.singletonList(assignment.getUsername())).get(0);
+    	Child child = parentService.getChildrenByUsername(Collections.singletonList(assignment.getUsername())).get(0);
     	
     	child.setHeadsetId(id);
-    	mongoService.updateChild(child);
+    	parentService.updateChild(child);
     	
     	headset.setPlayer(assignment.getUsername());
     	return headsets.save(headset);

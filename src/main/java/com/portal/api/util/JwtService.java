@@ -8,6 +8,10 @@ import org.springframework.stereotype.Service;
 
 import com.portal.api.model.Child;
 import com.portal.api.model.Parent;
+import com.portal.api.model.PortalUser;
+import com.portal.api.model.Role;
+import com.portal.api.repositories.DelegateRepository;
+import com.portal.api.services.ParentService;
 
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -37,14 +41,20 @@ public class JwtService {
 	@Value("${group-name-admin}")
 	private String GROUP_NAME_ADMIN;
 	
+	@Value("${group-name-delegate}")
+	private String GROUP_NAME_DELEGATE;
+	
     private final JwtDecoder jwtDecoder;
     
-    private final ParentService mongoService;
+    private final ParentService parentService;
+    
+    private final DelegateRepository delegates;
 
     @Autowired
-    public JwtService(JwtDecoder jwtDecoder, ParentService mongoService) {
+    public JwtService(JwtDecoder jwtDecoder, ParentService parentService, DelegateRepository delegates) {
         this.jwtDecoder = jwtDecoder;
-        this.mongoService = mongoService;
+        this.parentService = parentService;
+		this.delegates = delegates;
     }
     
     public String getAdminJwt() {
@@ -72,21 +82,44 @@ public class JwtService {
         return authResult.idToken();
     }
 
-    public Jwt decodeJwtFromRequest(HttpServletRequest request, boolean adminRequired, String child) throws Exception {
-        String bearerToken = extractBearerToken(request);
-        Jwt jwt = jwtDecoder.decode(bearerToken);
+    // TODO review for admins, cause we don't have a admin type right now, it's just parents and delegates
+    public PortalUser decodeJwtFromRequest(HttpServletRequest request, boolean adminRequired, String child) throws Exception {
         
-        List<String> groups = jwt.getClaim("cognito:groups");
-        if(!groups.contains(GROUP_NAME_ADMIN)) {
+    	String bearerToken = extractBearerToken(request);
+        
+    	Jwt jwt = jwtDecoder.decode(bearerToken);
+    	
+    	List<String> groups = jwt.getClaim("cognito:groups");
+        
+    	Role role = groups.contains(GROUP_NAME_DELEGATE) ? Role.delegate : 
+    		groups.contains(GROUP_NAME_ADMIN) ? Role.admin : Role.parent;
+    	
+    	PortalUser user = null;
+    	
+    	switch (role) {
+    	
+    	case parent:
+    	case admin:
+    		user = parentService.getParent(jwt.getClaim("cognito:username"));
+    		break;
+    		
+    	case delegate:
+    		user = delegates.findById(jwt.getClaim("cognito:username")).get();
+    		break;
+    	}
+    		
+        if(role != Role.admin) {
+        	
         	if(adminRequired) {
         		throw new Exception("You must be an admin to use this endpoint");
         	}
-        	if(child != null && !childFound(jwt.getClaim("cognito:username"), child)) {
+        	
+        	if(child != null && !childFound(user, child)) {
         		throw new Exception("This is not your child");
         	}
         }
         
-        return jwt;
+        return user;
     }
 
     public String extractBearerToken(HttpServletRequest request) {
@@ -97,13 +130,16 @@ public class JwtService {
         return null;
     }
     
-    private boolean childFound(String parent, String child) {
-    	List<Child> children = mongoService.getParent(parent).getChildren();
+    private boolean childFound(PortalUser user, String child) {
+    	
+    	List<Child> children = user.getChildren();
+    	
     	for (Child c : children) {
             if (c.getUsername().equals(child)) {
                 return true;
             }
         }
+    	
     	return false;
     }
 }
