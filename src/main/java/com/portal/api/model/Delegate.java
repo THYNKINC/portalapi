@@ -1,5 +1,6 @@
 package com.portal.api.model;
 
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import lombok.Builder;
@@ -14,5 +15,6 @@ import lombok.experimental.SuperBuilder;
 public class Delegate  extends PortalUser {
 	
 	@Builder.Default
+	@Transient
 	final Role role = Role.delegate;
 }
