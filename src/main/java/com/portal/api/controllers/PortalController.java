@@ -313,7 +313,7 @@ public class PortalController {
 				.getFocus();
 		
 		// calculate thynk score
-		double thynkScore = (1.7 * progressReport.getHighestMission() + sessionsCount)
+		double thynkScore = (1.7 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
 				* (compositeFocus / 100 + 1);
 		
     	progressResponse.setThynkScore((int)Math.ceil(thynkScore));
