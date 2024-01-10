@@ -3,6 +3,7 @@ package com.portal.api.scheduled;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.lucene.search.join.ScoreMode;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.action.update.UpdateRequest;
@@ -43,12 +44,19 @@ public class ImpulseComputer {
 		
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-				.aggregation(AggregationBuilders
-						.filter("composite", QueryBuilders.boolQuery()
-								.must(QueryBuilders
-										.termQuery("scores.composite_focus", 0))
-								.must(QueryBuilders
-										.termQuery("type", "runner"))));
+				.query(QueryBuilders.boolQuery()
+							.must(QueryBuilders
+									.termQuery("type", "runner"))
+							.must(QueryBuilders.boolQuery()
+									.should(QueryBuilders
+										.nestedQuery("scores", QueryBuilders
+												.rangeQuery("scores.focused_attention")
+												.gt(0), ScoreMode.None))
+									.should(QueryBuilders
+											.nestedQuery("scores", QueryBuilders
+													.rangeQuery("scores.sustained_attention")
+													.gt(0), ScoreMode.None))))
+				.size(10000);
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("sessions").source(searchSourceBuilder);
@@ -59,9 +67,16 @@ public class ImpulseComputer {
     	ObjectMapper json = new ObjectMapper()
 				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
     	
+    	logger.info("Found " + hits.length + " incomplete sessions");
+    	
+    	int i = hits.length;
+    	
     	for (SearchHit hit : hits) {
     		
+    		logger.info(i-- + " sessions left");
+    		
     		RunnerSummary runner = (RunnerSummary)SearchResultsMapper.getSession(hit);
+    		runner.set_id(hit.getId());
     		
     		ImpulseControl composites = 
     				ImpulseControl.fromSkills(runner.getId(), runner.getScores(), runner.getMissionId());

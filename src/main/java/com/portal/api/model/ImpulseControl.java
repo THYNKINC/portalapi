@@ -19,14 +19,11 @@ public class ImpulseControl {
 	public static ImpulseControl fromSkills(String attempt, CognitiveSkillsResponse skills, int missionNo) {
 		
 		double focus = 0;
+		int fa = skills.getFocusedAttention();
+		int sa = skills.getSustainedAttention();
 		
-		if (skills.getSustainedAttention() > 0)   		
-			if (skills.getFocusedAttention() <= 0)
-				focus = skills.getSustainedAttention();
-			else if (skills.getSustainedAttention() <= 0)
-				focus = skills.getSustainedAttention();
-			else
-				focus = (skills.getFocusedAttention() + skills.getSustainedAttention()) / 2;
+		focus = (fa > 0 && sa > 0) ? (fa + sa) / 2 : Math.max(fa, sa);
+		focus = Math.max(focus, 0);
 
 		// apply weights to composite focus
 		focus *= Constants.COMPOSITE_SCORE_WEIGHT[missionNo - 1];
