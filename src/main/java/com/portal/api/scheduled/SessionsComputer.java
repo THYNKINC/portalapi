@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.Child;
+import com.portal.api.model.ImpulseControl;
 import com.portal.api.model.Parent;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
@@ -158,7 +159,15 @@ public class SessionsComputer {
 		    	SearchResponse searchResponse = analytics.attemptCognitiveSkills(username, sessionId); 		    	
 		    	SearchHit[] hits = searchResponse.getHits().getHits();
 		    	
-		    	((RunnerSummary)summary).setScores(SearchResultsMapper.getCognitiveSkills(hits));
+		    	RunnerSummary runner = (RunnerSummary)summary;
+		    	
+		    	runner.setScores(SearchResultsMapper.getCognitiveSkills(hits));
+		    	
+		    	ImpulseControl composites = 
+	    				ImpulseControl.fromSkills(summary.getId(), runner.getScores(), runner.getMissionId());
+		    	
+	    		runner.getScores().setCompositeFocus((int)Math.round(composites.getFocus()));
+	    		runner.getScores().setCompositeImpulse((int)Math.round(composites.getImpulse()));
 		    	
 		    	break;
 		    

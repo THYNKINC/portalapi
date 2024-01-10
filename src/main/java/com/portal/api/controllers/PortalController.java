@@ -59,9 +59,12 @@ import com.portal.api.model.ProgressResponse;
 import com.portal.api.model.RecentMissionResponse;
 import com.portal.api.model.Role;
 import com.portal.api.model.RunnerResponse;
+import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionData;
+import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
+import com.portal.api.model.TransferenceSummary;
 import com.portal.api.services.AnalyticsService;
 import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
@@ -241,7 +244,9 @@ public class PortalController {
         String requestBody = mapper.writeValueAsString(createUserRequest);
         
         String bearerToken = jwtService.getAdminJwt();
-        String result = HttpService.sendHttpPostRequest("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users", requestBody, bearerToken);
+        
+        // TODO convert to Spring Rest
+        HttpService.sendHttpPostRequest("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users", requestBody, bearerToken);
         
         Child child = new Child();
         child.setFirstName(createChildRequest.getFirstName());
@@ -256,36 +261,24 @@ public class PortalController {
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
+    	jwtService.decodeJwtFromRequest(request, false, username);
     	
     	SearchResponse response = analyticsService.historicalProgress(username);
     	HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
     	
     	SearchResponse searchResponse;
     	Aggregations aggregations;
-    	ParsedDateHistogram terms;
-    	List<? extends Histogram.Bucket> buckets;
-
-    	searchResponse = analyticsService.completedSessions(username); 
-
-    	aggregations = searchResponse.getAggregations();
-    	terms = aggregations.get("documents_per_bucket"); // Get the aggregation
-    	buckets = terms.getBuckets();
-    	int sessionsCount = buckets.size();
-    	
+    	    	
     	ProgressResponse progressResponse = new ProgressResponse();
-
-    	if (sessionsCount == 0) {
-    		return progressResponse;
-    	}
     	
-    	progressResponse.setSessionsCompleted(sessionsCount);
+    	progressResponse.setSessionsCompleted(progressReport.getSessionsCompleted());
     	
     	searchResponse = analyticsService.weeklyStats(username); 
     	
     	aggregations = searchResponse.getAggregations();
     	
-    	int starts = (int)((Filter)aggregations.get("starts")).getDocCount();
+    	int starts = (int)searchResponse.getHits().getTotalHits().value;
+    	
     	Filter attempts = aggregations.get("attempts");
     	int attemptsCount = (int)attempts.getDocCount();
     	
@@ -298,23 +291,12 @@ public class PortalController {
 		
 		// get the last attempt (could be different from highest mission if they went back to an old mission)
 		searchResponse = analyticsService.lastNRunners(username, 1);
-		SearchHit hit = searchResponse.getHits().getHits()[0];
 		
-		String attemptId = (String)hit.getSourceAsMap().get("session_start");
-		String missionId = (String)hit.getSourceAsMap().get("TaskID");
-		int lastMissionNo = Integer.valueOf(MappingService.getKey(missionId));
-		
-		// get the scores for that attempt
-		CognitiveSkillsResponse skills = childMissionCognitiveSkills(username, attemptId, request);
-		
-		// calculate the composite focus
-		double compositeFocus = ImpulseControl
-				.fromSkills(attemptId, skills, lastMissionNo)
-				.getFocus();
+		RunnerSummary runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
 		
 		// calculate thynk score
 		double thynkScore = (1.7 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
-				* (compositeFocus / 100 + 1);
+				* (runner.getScores().getCompositeFocus()/ 100 + 1);
 		
     	progressResponse.setThynkScore((int)Math.ceil(thynkScore));
     	
@@ -324,39 +306,35 @@ public class PortalController {
     @GetMapping("/children/{username}/recent-mission")
     public RecentMissionResponse childRecentMission(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
-    	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
+    	jwtService.decodeJwtFromRequest(request, false, username);
     	
-    	// TODO change to use Spring web request, which includes JWT exchange
-        String bearerToken = jwtService.getAdminJwt();
-        
         SearchResponse searchResponse = analyticsService.lastAttempt(username); 
-    	
-    	Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
-    	
-    	String sessionId = (String) sourceAsMap.get("session_start");
-    	String eventType = (String) sourceAsMap.get("event_type");
-    	String taskId = (String) sourceAsMap.get("TaskID");
-    	
-    	int lastCompleted = Integer.parseInt(MappingService.getKey(taskId));
+        
+        if (searchResponse.getHits().getHits().length == 0)
+        	return new RecentMissionResponse();
+        
+        SessionSummary session = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
     	
     	RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
     	
-    	recentMissionResponse.setMissionNumber(lastCompleted);
-    	recentMissionResponse.setSessionId(sessionId);
+    	recentMissionResponse.setMissionNumber(session.getMissionId());
+    	recentMissionResponse.setSessionId(session.getId());
     	
-    	if ("RunnerEnd".equals(eventType)) {
+    	if (session instanceof RunnerSummary) {
     		
-    		RunnerResponse runner = childMissionRunner(username, sessionId, request);
-    		recentMissionResponse.setMissionStatus(runner.isPass() ? "PASS" : "FAIL");
-    		recentMissionResponse.setMissionRating(runner.getStarReached());
+    		RunnerSummary runner = (RunnerSummary)session;
+    		
+    		recentMissionResponse.setMissionStatus(runner.getStatus());
+    		recentMissionResponse.setMissionRating(runner.getStars().size());
     		recentMissionResponse.setType("runner");
     	}
     	
-    	else if ("TransferenceStatsEnd".equals(eventType)) {
+    	else if (session instanceof TransferenceSummary) {
     		
-    		FogAnalysisResponse xfer = childMissionFogAnalysis(username, sessionId, request);
-    		recentMissionResponse.setMissionStatus(xfer.isPass() ? "PASS" : "FAIL");
-    		recentMissionResponse.setMissionRating(xfer.getDecodedMolecules() * 100 / xfer.getTargetDecodes());
+    		TransferenceSummary xfer = (TransferenceSummary)session;
+    		
+    		recentMissionResponse.setMissionStatus(session.getStatus());
+    		recentMissionResponse.setMissionRating(xfer.getDecoded() * 100 / xfer.getTarget());
     		recentMissionResponse.setType("transference");
     	}
     	
@@ -366,8 +344,6 @@ public class PortalController {
     		recentMissionResponse.setMissionRating(100);
     		recentMissionResponse.setType("vigilock");
     	}
-    	
-    	recentMissionResponse.setMissionStatus(recentMissionResponse.getMissionRating() > 0 ? "PASS" : "FAIL");
     	
     	return recentMissionResponse;
     }

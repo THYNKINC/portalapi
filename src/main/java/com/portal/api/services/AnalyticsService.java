@@ -287,43 +287,26 @@ public class AnalyticsService {
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		Calendar cal = Calendar.getInstance();
-		cal.set(Calendar.HOUR_OF_DAY, 0); // ! clear would not reset the hour of day !
-		cal.clear(Calendar.MINUTE);
-		cal.clear(Calendar.SECOND);
-		cal.clear(Calendar.MILLISECOND);
-
-		// get start and end of this week in milliseconds
-		cal.set(Calendar.DAY_OF_WEEK, cal.getFirstDayOfWeek());
-		String first = df.format(cal.getTime());
-		cal.add(Calendar.WEEK_OF_YEAR, 1);
-		String last = df.format(cal.getTime());
-
-		QueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("timestamp").gte(first).lt(last);
-
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
-				.must(rangeQueryBuilder);
-		
-		FilterAggregationBuilder starts = AggregationBuilders
-				.filter("starts", QueryBuilders.termsQuery("event_type", "RunnerStart", "TransferenceStatsStart", "PVTStart"));
+				.must(QueryBuilders.rangeQuery("start_date")
+						.gte("now/d-1w/d+1d"));
 		
 		FilterAggregationBuilder attempts = AggregationBuilders
-				.filter("attempts", QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
+				.filter("attempts", QueryBuilders.termsQuery("completed", true))
 				.subAggregation(AggregationBuilders
 						.dateHistogram("sessions")
-						.field("timestamp")
+						.field("end_date")
 						.minDocCount(1)
 						.fixedInterval(new DateHistogramInterval("12h")));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
-		searchSourceBuilder.aggregation(starts);
 		searchSourceBuilder.aggregation(attempts);
 		searchSourceBuilder.size(0);
 
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		SearchRequest searchRequest = new SearchRequest("sessions");
 		searchRequest.source(searchSourceBuilder);
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
@@ -414,7 +397,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastNAttempts(String userId, int sessions) throws Exception {
 
-		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd"));
+		return lastNAttemptsOfType(userId, sessions, List.of("runner", "transference", "pvt"));
 	}
 	
 	/**
@@ -427,7 +410,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastNRunners(String userId, int sessions) throws Exception {
 
-		return lastNAttemptsOfType(userId, sessions, List.of("RunnerEnd"));
+		return lastNAttemptsOfType(userId, sessions, List.of("runner"));
 	}
 	
 	/**
@@ -445,21 +428,18 @@ public class AnalyticsService {
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		SearchRequest searchRequest = new SearchRequest("sessions");
 
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", eventTypes))
+				.must(QueryBuilders.termsQuery("type", eventTypes))
 				.must(QueryBuilders.matchQuery("user_id", userId));
 
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
 		searchSourceBuilder.size(sessions);
-		searchSourceBuilder.sort("timestamp", SortOrder.DESC);
-
-		// Add the fields to the request
-		searchSourceBuilder.fetchSource(new String[] { "session_start", "event_type", "TaskID" }, new String[] {});
+		searchSourceBuilder.sort("start_date", SortOrder.DESC);
 
 		// Add the source builder to the request
 		searchRequest.source(searchSourceBuilder);
