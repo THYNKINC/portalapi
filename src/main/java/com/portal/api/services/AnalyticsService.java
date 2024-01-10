@@ -482,50 +482,6 @@ public class AnalyticsService {
 		
 		return response;
 	}
-	
-	public SearchResponse attempts(SearchResponse attempts) throws Exception {
-		
-		SSLContext sslContext = opensearchService.getSSLContext();
-		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
-		QueryBuilder sessionQuery = QueryBuilders
-				.termsQuery("session_start.keyword", parseAttempts(attempts));
-		
-		TermsAggregationBuilder sessions = AggregationBuilders
-			.terms("sessions")
-			.field("session_start.keyword")
-			// we know there's gonna be only as many as the number of attempts passed
-			.size(attempts.getHits().getHits().length)
-			.order(BucketOrder.aggregation("started", false))
-			.subAggregation(AggregationBuilders
-					.min("started")
-					.field("timestamp"))
-			.subAggregation(AggregationBuilders
-				.topHits("first_event")
-				.size(1)
-				.sort("timestamp", SortOrder.ASC)
-				.fetchSource(new String[] {"timestamp", "session_type", "MissionID", "session_start", "user_id"}, null))
-			.subAggregation(AggregationBuilders
-				.max("stars")
-				.field("StarReached"))
-			.subAggregation(AggregationBuilders
-				.filter("decoded", QueryBuilders.termsQuery("event_type", "TransferenceStatsMoleculeDecodeEnd")))
-			.subAggregation(AggregationBuilders
-					.max("decodes_target")
-					.field("TargetDecodes")
-					.missing(0));
-		
-		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-		searchSourceBuilder.query(sessionQuery);
-		searchSourceBuilder.aggregation(sessions);
-		
-		searchSourceBuilder.size(0);
-
-		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
-		searchRequest.source(searchSourceBuilder);
-
-		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
-	}
 
 	public SearchResponse power(String userId, String sessionId) throws Exception {
 		SSLContext sslContext = opensearchService.getSSLContext();
@@ -591,7 +547,7 @@ public class AnalyticsService {
 		
 		return Stream
 			.of(response.getHits().getHits())
-			.map(hit -> (String)hit.getSourceAsMap().get("session_start"))
+			.map(hit -> (String)hit.getSourceAsMap().get("id"))
 			.collect(Collectors.toList());
 	}
 	
