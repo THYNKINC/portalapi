@@ -46,7 +46,7 @@ public class IdlePlayerNotifier {
 	@Autowired
 	private Notifications notifications;
 	
-	@Scheduled(cron = "0 0 11 * * MON-FRI")
+	@Scheduled(cron = "0 0 14 * * MON-FRI")
 	private void notifyIdlePlayers() throws Exception {
         
 		logger.info("notify idle players");
