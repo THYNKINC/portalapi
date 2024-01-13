@@ -1,5 +1,6 @@
 package com.portal.api.model;
 
+import java.util.List;
 import java.util.Map;
 
 import lombok.Builder;
@@ -16,4 +17,5 @@ public class DashboardMetrics {
 	Map<String, Integer> attempts;
 	Map<String, Integer> abandons;
 	Map<String, Integer> power;
+	List<CompositeScores> compositeScores;
 }

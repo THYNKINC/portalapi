@@ -140,7 +140,21 @@ public class AnalyticsService {
 				.field("duration"))
 			.aggregation(AggregationBuilders
 				.cardinality("users")
-				.field("user_id"));
+				.field("user_id"))
+			.aggregation(AggregationBuilders
+					.filter("runner_stats", QueryBuilders.matchQuery("type", "runner"))
+					.subAggregation(AggregationBuilders
+							.terms("missions")
+							.field("mission_id")
+							.size(15)
+							.subAggregation(AggregationBuilders
+								.nested("scores", "scores")
+								.subAggregation(AggregationBuilders
+										.extendedStats("focus")
+										.field("scores.composite_focus"))
+								.subAggregation(AggregationBuilders
+										.extendedStats("impulse")
+										.field("scores.composite_impulse")))));
 		
 		searchSourceBuilder.size(0);
 

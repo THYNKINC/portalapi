@@ -4,11 +4,13 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
@@ -18,8 +20,11 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
+import org.opensearch.search.aggregations.bucket.nested.Nested;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.metrics.Avg;
 import org.opensearch.search.aggregations.metrics.Cardinality;
+import org.opensearch.search.aggregations.metrics.ExtendedStats;
 import org.opensearch.search.aggregations.metrics.Sum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +54,7 @@ import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
 import com.portal.api.model.CognitiveSkillsResponse;
+import com.portal.api.model.CompositeScores;
 import com.portal.api.model.CreateDelegateRequest;
 import com.portal.api.model.CreateHeadsetRequest;
 import com.portal.api.model.CreateParentRequest;
@@ -64,6 +70,7 @@ import com.portal.api.model.Parent;
 import com.portal.api.model.PortalUser;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
+import com.portal.api.model.Stats;
 import com.portal.api.model.SummaryReport;
 import com.portal.api.model.TransferenceSummary;
 import com.portal.api.model.UpdateChildRequest;
@@ -301,6 +308,7 @@ public class AdminController {
     	else
     		range = searchResponse.getAggregations().get("range");
     	
+    	// daily stats
     	Histogram daily = range.getAggregations().get("dates");
     	
     	SortedMap<String, Integer> sessions = new TreeMap<>();
@@ -329,9 +337,29 @@ public class AdminController {
     		powers.put(bucket.getKeyAsString().substring(0, dateLength), power.getValueAsString() != "Infinity" ? (int)Math.round(power.value()) : 0);
     	});
     	
+    	// runner composite scores
+    	Filter runnerStats = searchResponse.getAggregations().get("runner_stats");
+    	Terms runnerMissions = runnerStats.getAggregations().get("missions");
+    	
+    	List<CompositeScores> compositeScores = runnerMissions.getBuckets().stream()
+    			.sorted((b1, b2) -> Integer.valueOf(b1.getKeyAsString()).compareTo(Integer.valueOf(b2.getKeyAsString())))
+    			.map(bucket -> {
+    			
+    			Nested scores = bucket.getAggregations().get("scores");
+    	    	ExtendedStats focus = scores.getAggregations().get("focus");
+    	    	ExtendedStats impulse = scores.getAggregations().get("impulse");
+    			
+    			return CompositeScores.builder()
+    					.focus(Stats.map(focus))
+    					.impulse(Stats.map(impulse))
+    					.build();
+    		})
+    		.collect(Collectors.toList());
+    	
     	return DashboardMetrics.builder()
     			.abandons(abandons)
     			.attempts(attempts)
+    			.compositeScores(compositeScores)
     			.missions(missions)
     			.power(powers)
     			.sessions(sessions)
