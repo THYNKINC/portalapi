@@ -37,7 +37,7 @@ import com.portal.api.util.OpensearchService;
 @Component
 @Profile("prod")
 public class IdlePlayerNotifier {
-	
+		
 	private static final Logger logger = LoggerFactory.getLogger(IdlePlayerNotifier.class);
 
 	@Autowired
@@ -46,7 +46,7 @@ public class IdlePlayerNotifier {
 	@Autowired
 	private Notifications notifications;
 	
-	@Scheduled(cron = "0 0 11 * * ?")
+	@Scheduled(cron = "0 0 11 * * MON-FRI")
 	private void notifyIdlePlayers() throws Exception {
         
 		logger.info("notify idle players");
@@ -93,7 +93,7 @@ public class IdlePlayerNotifier {
 	            }
 	        }
 	        
-	        if (businessDays < 2)
+	        if (businessDays <= 2)
 	        	continue;
 	        	
 			// exclude users who have reached the end
@@ -102,7 +102,10 @@ public class IdlePlayerNotifier {
 		
 			logger.info(String.format("Idle player found: [%s] %s:%s %d days ago", session.getUserId(), session.getType(), session.getMissionId(), businessDays));
 			
-			String template = businessDays <= 5 ? notifications.getTplIdleTwoDaysReminder() : notifications.getTplIdleFiveDaysReminder();
+			boolean weekly = businessDays % 5 == 1;
+			
+			String template = weekly ? notifications.getTplIdleFiveDaysReminder()
+					: notifications.getTplIdleTwoDaysReminder();
 			
 			Map<String, Object> bodyMap = new HashMap<>();
 		    bodyMap.put("key", notifications.getMandrillApiKey());
@@ -131,6 +134,9 @@ public class IdlePlayerNotifier {
 
 		    Map<String, String> parentNameMap = Map.of("name", "PARENT_NAME", "content", session.getParentFirstName());
 		    varsList.add(parentNameMap);
+		    
+		    Map<String, String> durationMap = Map.of("name", "DURATION", "content", String.valueOf(weekly ? businessDays / 5 : businessDays));
+		    varsList.add(durationMap);
 		    
 		    messageMap.put("global_merge_vars", varsList);
 		    

@@ -195,14 +195,15 @@ public class PortalController {
     	
     	cognitoClient.adminAddUserToGroup(addUserToGroupRequest);
     	
-    	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
-    	        .userPoolId(USER_POOL_ID)
-    	        .username(createParentRequest.getEmail())
-    	        .build();
-    	
-    	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
-
-    	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
+    	// Confirm email automatically
+//    	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
+//    	        .userPoolId(USER_POOL_ID)
+//    	        .username(createParentRequest.getEmail())
+//    	        .build();
+//    	
+//    	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
+//
+//    	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
     	
     	Parent parent = new Parent();
     	parent.setCreatedDate(new Date());
