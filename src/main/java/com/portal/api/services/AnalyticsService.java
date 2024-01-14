@@ -930,6 +930,29 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
+	public SearchResponse tierLevels(String userId, String sessionId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("session_start.keyword", sessionId))
+				.must(QueryBuilders.existsQuery("Tier"));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+			.query(boolQuery)
+			.fetchSource(new String[] {"session_start", "Tier", "timestamp"}, new String[] {})
+			.sort("timestamp", SortOrder.ASC);
+		
+		searchSourceBuilder.size(10000);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
 	public SearchResponse transference(String userId, String sessionId) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -61,6 +62,7 @@ import com.portal.api.model.CreateParentRequest;
 import com.portal.api.model.DashboardMetrics;
 import com.portal.api.model.Delegate;
 import com.portal.api.model.GameState;
+import com.portal.api.model.GraphResponse;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
 import com.portal.api.model.HistoricalProgressReport;
@@ -263,7 +265,7 @@ public class AdminController {
     	response.setContent(new ArrayList<>());
     	response.setTotal(searchResponse.getHits().getTotalHits().value);
     	
-    	DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.sss");
+    	DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     	
     	for (SearchHit hit : searchResponse.getHits().getHits()) {
     	
@@ -425,27 +427,34 @@ public class AdminController {
     	return HistoricalProgressReport.parse(response);
     }
     
-    @GetMapping("/children/{username}/runners/{session_id}")
-    public RunnerSummary getRunner(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
+    @GetMapping("/children/{username}/runners/{session_id}/tiers")
+    public List<GraphResponse> getRunnerTierLevels(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
     	
-    	SearchResponse response = analyticsService.pvt(username, sessionId);
+    	SearchResponse response = analyticsService.tierLevels(username, sessionId);
     	
-    	return SearchResultsMapper.getRunner(response, username, sessionId);
-    }
-    
-    @GetMapping("/children/{username}/pvt/{session_id}")
-    public PVTSummary getPvt(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
+    	List<GraphResponse> levels = new ArrayList<>();
     	
-    	SearchResponse response = analyticsService.pvt(username, sessionId);
+    	DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     	
-    	return SearchResultsMapper.getPvt(response, username, sessionId);
-    }
-    
-    @GetMapping("/children/{username}/transferences/{session_id}")
-    public TransferenceSummary getTransference(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
+    	for (SearchHit hit : response.getHits().getHits()) {
+			
+    		Date start = df.parse((String)hit.getSourceAsMap().get("session_start"));
+    		Date at = df.parse((String)hit.getSourceAsMap().get("timestamp"));
+    		int tier = (int)hit.getSourceAsMap().get("Tier");
+    		
+    		long diffInMillies = at.getTime() - start.getTime();
+    		
+    		System.out.println(hit.getId());
+    		System.out.println(start);
+    		System.out.println(at);
+    		System.out.println(tier);
+    		
+    	    long diff = TimeUnit.SECONDS.convert(diffInMillies, TimeUnit.MILLISECONDS);
+    		
+    		levels.add(new GraphResponse(diff, tier));
+		}
     	
-    	SearchResponse response = analyticsService.session(username, sessionId);
-    	return (TransferenceSummary)SearchResultsMapper.getSession(response.getHits().getHits()[0]);
+    	return levels;
     }
     
     @GetMapping("/children/{username}/stats")
