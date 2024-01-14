@@ -5,9 +5,12 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLContext;
 
@@ -76,7 +79,37 @@ public class IdlePlayerNotifier {
 		
 		Terms players = response.getAggregations().get("players");
 		
+		List<String> users = players.getBuckets().stream()
+				.map(b -> b.getKeyAsString())
+				.collect(Collectors.toList());
+		
+		logger.info("Done users: " + users);
+		
+		// fetch users who have completed the game (reached at least mission 15)
+		searchSourceBuilder = new SearchSourceBuilder()
+				.query(QueryBuilders
+						.boolQuery()
+						.must(QueryBuilders.termsQuery("user_id", users))
+						.must(QueryBuilders.termQuery("mission_id", 15))
+						.must(QueryBuilders.termQuery("type", "transference"))
+						.must(QueryBuilders.termQuery("status", "PASS")))
+				.fetchSource("user_id", null)
+				.size(users.size());
+		
+		searchRequest = new SearchRequest("sessions").source(searchSourceBuilder);
+		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
+		
+		Set<String> doneUsers = Arrays.asList(response.getHits().getHits()).stream()
+				.map(hit -> (String)hit.getSourceAsMap().get("user_id"))
+				.collect(Collectors.toSet());
+		
+		logger.info("Done users: " + doneUsers);
+		
 		for (Bucket bucket: players.getBuckets()) {
+			
+			// skip users who are already completed the game
+			if (doneUsers.contains(bucket.getKeyAsString()))
+				continue;
 			
 			TopHits lastSession = bucket.getAggregations().get("last_session");
 			SessionSummary session = SearchResultsMapper.getSession(lastSession.getHits().getHits()[0]);
@@ -96,10 +129,6 @@ public class IdlePlayerNotifier {
 	        if (businessDays <= 2)
 	        	continue;
 	        	
-			// exclude users who have reached the end
-			if (session.getMissionId() == 15 && session.getType().equals("transference") && session.getStatus().equals("PASS"))
-				continue;
-		
 			logger.info(String.format("Idle player found: [%s] %s:%s %d days ago", session.getUserId(), session.getType(), session.getMissionId(), businessDays));
 			
 			boolean weekly = businessDays % 5 == 1;
