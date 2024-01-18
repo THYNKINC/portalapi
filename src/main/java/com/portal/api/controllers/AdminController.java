@@ -347,9 +347,8 @@ public class AdminController {
     			.sorted((b1, b2) -> Integer.valueOf(b1.getKeyAsString()).compareTo(Integer.valueOf(b2.getKeyAsString())))
     			.map(bucket -> {
     			
-    			Nested scores = bucket.getAggregations().get("scores");
-    	    	ExtendedStats focus = scores.getAggregations().get("focus");
-    	    	ExtendedStats impulse = scores.getAggregations().get("impulse");
+    			ExtendedStats focus = bucket.getAggregations().get("focus");
+    	    	ExtendedStats impulse = bucket.getAggregations().get("impulse");
     			
     			return CompositeScores.builder()
     					.focus(Stats.map(focus))

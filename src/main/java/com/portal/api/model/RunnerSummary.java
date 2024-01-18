@@ -2,6 +2,8 @@ package com.portal.api.model;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,13 +19,14 @@ public class RunnerSummary extends SessionSummary {
 	int maxPower;
 	int tierAvg;
 	int tierMode;
+	
 	Accuracy accuracy;
+	
 	CognitiveSkillsResponse scores;
-	String[] ranks;
-	String[] badges;
+	
 	Crystals crystals;
+	
 	Obstacles obstacles;
 	
-	@Builder.Default
 	final String type = "runner";
 }

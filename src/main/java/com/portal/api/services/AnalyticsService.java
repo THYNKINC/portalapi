@@ -148,13 +148,11 @@ public class AnalyticsService {
 							.field("mission_id")
 							.size(15)
 							.subAggregation(AggregationBuilders
-								.nested("scores", "scores")
-								.subAggregation(AggregationBuilders
-										.extendedStats("focus")
-										.field("scores.composite_focus"))
-								.subAggregation(AggregationBuilders
-										.extendedStats("impulse")
-										.field("scores.composite_impulse")))));
+									.extendedStats("focus")
+									.field("scores.composite_focus"))
+							.subAggregation(AggregationBuilders
+									.extendedStats("impulse")
+									.field("scores.composite_impulse"))));
 		
 		searchSourceBuilder.size(0);
 
