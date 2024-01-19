@@ -223,7 +223,7 @@ public class AdminController {
     	
     	PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
     	
-    	Pageable pageRequest = PageRequest.of(page, size, Direction.ASC, "firstName", "lastName");
+    	Pageable pageRequest = PageRequest.of(page, size, Direction.DESC, "createdDate");
     	
     	if (StringUtils.hasText(partialName)) {
     		
