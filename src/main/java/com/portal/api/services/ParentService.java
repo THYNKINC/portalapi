@@ -99,9 +99,13 @@ public class ParentService {
 		
 		if (nameStartingWith != null) {
 			
-			matchCriteria
-				.and("username")
-				.regex("^" + nameStartingWith);
+			matchCriteria.orOperator(
+				Criteria.where("username")
+				.regex("^" + nameStartingWith),
+				Criteria.where("firstName")
+				.regex("^" + nameStartingWith),
+				Criteria.where("lastName")
+				.regex("^" + nameStartingWith));
 		}
 		
 		if (labels != null) {
