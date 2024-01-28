@@ -67,6 +67,7 @@ public class SearchResultsMapper {
     		.id(sessionId)
     		.missionId(1)
     		.status(pass ? "PASS" : "FAIL")
+    		.startDate((long)started.getValue())
     		.userId(username)
     		.build();
 		

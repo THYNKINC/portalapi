@@ -99,7 +99,7 @@ public class HistoricalProgressReport {
     	long today = new Date().getTime();
     	int totalDays = (int)TimeUnit.DAYS.convert(today - startDateTs, TimeUnit.MILLISECONDS);
     	
-    	double weeks = totalDays / 7;
+    	double weeks = Math.max(totalDays / 7, 1);
     	
     	return builder()
 			.abandons((int)startsCount.getValue() - (int)attempts.getDocCount())
