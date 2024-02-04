@@ -24,6 +24,7 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
+import org.opensearch.index.reindex.DeleteByQueryRequest;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -77,6 +78,21 @@ public class OpensearchService {
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
 	
 	        client.index(request, RequestOptions.DEFAULT);
+	    }  
+	    
+	}
+	
+	public void delete(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, DeleteByQueryRequest request) throws IOException {
+		
+		// Build the rest client
+	    try (RestHighLevelClient client = new RestHighLevelClient(
+	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+	                            .setDefaultCredentialsProvider(credentialsProvider)
+	                            .setSSLContext(sslContext)
+	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
+	
+	        client.deleteByQuery(request, RequestOptions.DEFAULT);
 	    }  
 	    
 	}

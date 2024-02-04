@@ -611,19 +611,10 @@ public class AnalyticsService {
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		// Build the match queries
-		QueryBuilder userIdQuery = QueryBuilders
-				.matchQuery("user_id", userId);
-		
-		SearchResponse sessions = lastNRunners(userId, 1000);
-
-		QueryBuilder sessionQuery = QueryBuilders
-				.termsQuery("session_start.keyword", parseAttempts(sessions));
-
-		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders
 				.boolQuery()
-				.must(userIdQuery)
-				.must(sessionQuery);
+				.must(QueryBuilders
+						.matchQuery("user_id", userId));
 		
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()

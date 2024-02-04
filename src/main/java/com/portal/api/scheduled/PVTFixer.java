@@ -60,7 +60,11 @@ public class PVTFixer {
 		SearchRequest searchRequest = new SearchRequest("gamelogs")
 				.source(new SearchSourceBuilder()
 						.query(QueryBuilders
-								.termsQuery("session_type", "pvt"))
+								.boolQuery()
+								.must(QueryBuilders
+										.termsQuery("session_type", "pvt"))
+								.must(QueryBuilders
+										.termsQuery("user_id", "stephchild")))
 						.aggregation(AggregationBuilders
 								.terms("sessions")
 								.field("session_start")
