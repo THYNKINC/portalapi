@@ -106,7 +106,9 @@ public class SessionsComputer {
 		ObjectMapper json = new ObjectMapper()
 				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 		
-		logger.info("Adding " + response.getHits().getTotalHits() + " sessions");
+		long total = response.getHits().getTotalHits().value;
+		
+		logger.info("Adding " + total + " sessions");
 		
 		int i = 0;
 		
@@ -124,8 +126,8 @@ public class SessionsComputer {
 			
 			SessionSummary summary = null;
 			
-			if (sessionType == null) {
-				logger.warn(hit.getSourceAsString());
+			if (total <= 10) {
+				logger.info(hit.getSourceAsString());
 				continue;
 			}
 			
