@@ -128,6 +128,10 @@ public class SessionsComputer {
 			
 			if (total <= 10) {
 				logger.info(hit.getSourceAsString());
+			}
+			
+			if (sessionType == null) {
+				logger.warn(hit.getSourceAsString());
 				continue;
 			}
 			
