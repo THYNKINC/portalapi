@@ -40,7 +40,7 @@ import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.OpensearchService;
 
 @Component
-@Profile("prod")
+//@Profile("prod")
 public class SessionsComputer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(SessionsComputer.class);
@@ -130,7 +130,7 @@ public class SessionsComputer {
 				logger.info(hit.getSourceAsString());
 			}
 			
-			if (sessionType == null) {
+			if (sessionType == null || "null".equals(sessionType)) {
 				logger.warn(hit.getSourceAsString());
 				continue;
 			}
