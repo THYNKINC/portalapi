@@ -21,19 +21,13 @@ import com.portal.api.services.AnalyticsService;
 import com.portal.api.services.ParentService;
 import com.portal.api.util.OpensearchService;
 
-@Component
+//@Component
 public class DupSessionsFixer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DupSessionsFixer.class);
 
 	@Autowired
 	private OpensearchService opensearchService;
-	
-	@Autowired
-	private ParentService parents;
-	
-	@Autowired
-	private AnalyticsService analytics;
 	
 	@Scheduled(fixedDelay = 300000)
     private void computeSessions() throws Exception {
