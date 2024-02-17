@@ -426,6 +426,15 @@ public class AdminController {
     	return HistoricalProgressReport.parse(response);
     }
     
+    @GetMapping("/children/{username}/runner/{id}")
+    public RunnerSummary getRunner(@PathVariable("username") String username, @PathVariable("id") String sessionId, HttpServletRequest request) throws Exception {
+    	
+    	SearchResponse response = analyticsService.runner(username, sessionId);
+    	RunnerSummary summary = SearchResultsMapper.getRunner(response, username, sessionId);
+    	
+    	return summary;
+    }
+    
     @GetMapping("/children/{username}/runners/{session_id}/tiers")
     public List<GraphResponse> getRunnerTierLevels(@PathVariable("username") String username, @PathVariable("session_id") String sessionId, HttpServletRequest request) throws Exception {
     	

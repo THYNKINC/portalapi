@@ -1,1 +1,159 @@
-{"timestamp":"2023-11-24 16:37:36.033","Accuracy":null,"Ach_BotBane":null,"Ach_BotSniperSpree":null,"Ach_BotSwarm":null,"Ach_Brainiac1":null,"Ach_Brainiac2":null,"Ach_Brainiac3":null,"Ach_BurntBackside":null,"Ach_CoolHand":null,"Ach_CrystalAce":null,"Ach_CrystalCatcher":null,"Ach_CrystalCollector":null,"Ach_CrystalMaster":null,"Ach_CrystalScout":null,"Ach_CrystalSpotter":null,"Ach_Defogger":null,"Ach_EagerRanger":null,"Ach_EagleEye":null,"Ach_ExpertSniffer":null,"Ach_FlexMind":null,"Ach_Focused":null,"Ach_FogSmasher":null,"Ach_GStarRecruit":null,"Ach_Healer":null,"Ach_LabRat":null,"Ach_LittleLeague":null,"Ach_LaserFocus":null,"Ach_MadScientist":null,"Ach_OneSmallStep":null,"Ach_RockSolid":null,"Ach_RookieZapper":null,"Ach_SmogbotSlayer":null,"Ach_SpaceDodger":null,"Ach_SpeedRun":null,"Ach_Speedy":null,"Ach_Stage1":null,"Ach_Stage2":null,"Ach_Stage3":null,"Ach_Stage4":null,"Ach_Stage5":null,"Ach_Supersonic":null,"Ach_SwitchBots":null,"Ach_TakeaHit":null,"Ach_TheRightStuff":null,"Ach_TripleJumper":null,"Ach_Unselfish":null,"Ach_Untouchable":null,"Ach_Vigilant":null,"Ach_YogaBrain":null,"AvatarID":null,"AverageBS":null,"AverageCorrect":null,"AvgBS":null,"BS":null,"Bad":null,"Color":null,"ComicID":null,"ComponentID":null,"ComponentStatus":null,"CorrectResponseCount":null,"Corrupted":null,"CurrentRank":null,"DecodeThreshold":null,"Device":null,"DeviceMemory":null,"DeviceName":null,"DeviceOS":null,"DishID":null,"DistanceTraveled":null,"Elapsed":null,"Frame":null,"GMEV":null,"Good":null,"IncorrectResponseCount":null,"Lane":null,"LevelID":null,"MissionID":"2.3","MoleculeID":null,"MoleculeType":null,"ObjectID":null,"ObjectTypeID":null,"PauseReason":null,"PowerMeterMax":null,"PromptID":null,"Reason":null,"Report_Intro":null,"ResultID":null,"Score":null,"Sessions":null,"StarReached":null,"StarValues":null,"Stat_BestTimeWithoutHit":null,"Stat_BestPortBotsStreak":null,"Stat_BotsShot":null,"Stat_BrainiacLength1":null,"Stat_BrainiacLength2":null,"Stat_BrainiacLength3":null,"Stat_ClustersShot":null,"Stat_Crystals":null,"Stat_Decodes":null,"Stat_FakersPassed":null,"Stat_FogWallsCleared":null,"Stat_HighestCrystalsEarned":null,"Stat_Jumps":null,"Stat_Male":null,"Stat_MaxDecodes":null,"Stat_PortGroupBotMax":null,"Stat_Sham":null,"Stat_Slides":null,"Stat_SwitchesRode":null,"Stat_TakeAHitCount":null,"Stat_TransferenceActive":null,"Stat_TransferenceCompleted":null,"Success":null,"Symbol":null,"TargetDecodes":null,"TargetId":null,"TaskID":null,"TasksCompleted":null,"Tier":null,"Upload_All_Files":null,"Username":null,"Version":null,"VoiceoverID":null,"attentionBurstTier":null,"bci":0,"current_brain_score":0,"current_threshold":0,"event_type":"Abandoned","gender":null,"intro_runner_comic_1_1":null,"intro_transference_comic_1_1":null,"lastLevel":null,"lastSaveDate":null,"lastSubLevel":null,"outro_runner_comic_1_1":null,"outro_transference_comic_1_1":null,"prologue_comic":null,"restPeriodStart":null,"runnerComplete":null,"runnerCompleteTime":null,"runnerFails":null,"shamToggle":null,"showSubtitles":null,"starsPerMission":null,"testkey":null,"transferFails":null,"unlocksPerMission":null,"voVolume":null,"parsed_on":null,"user_id":"mattr","session_id":null,"file":null,"session_type":"runner","session_start":"2023-11-24 16:27:36.033"}
+{
+	"size": 0,
+	"query": {
+		"bool": {
+			"must": [
+				{
+					"match": {
+						"user_id": {
+							"query": "mattr1",
+							"operator": "OR",
+							"prefix_length": 0,
+							"max_expansions": 50,
+							"fuzzy_transpositions": true,
+							"lenient": false,
+							"zero_terms_query": "NONE",
+							"auto_generate_synonyms_phrase_query": true,
+							"boost": 1.0
+						}
+					}
+				}
+			],
+			"adjust_pure_negative": true,
+			"boost": 1.0
+		}
+	},
+	"aggregations": {
+		"startDate": {
+			"min": {
+				"field": "timestamp"
+			}
+		},
+		"attempts": {
+			"filter": {
+				"terms": {
+					"event_type": [
+						"RunnerEnd",
+						"TransferenceStatsEnd",
+						"PVTEnd"
+					],
+					"boost": 1.0
+				}
+			},
+			"aggregations": {
+				"lastAttempt": {
+					"max": {
+						"field": "timestamp"
+					}
+				},
+				"sessions": {
+					"date_histogram": {
+						"field": "timestamp",
+						"interval": "12h",
+						"offset": 0,
+						"order": {
+							"_key": "asc"
+						},
+						"keyed": false,
+						"min_doc_count": 1
+					}
+				},
+				"playtime": {
+					"sum": {
+						"script": {
+							"source": "Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())",
+							"lang": "painless"
+						}
+					}
+				}
+			}
+		},
+		"missions": {
+			"filter": {
+				"terms": {
+					"event_type": [
+						"TransferenceStatsEnd",
+						"PVTEnd"
+					],
+					"boost": 1.0
+				}
+			},
+			"aggregations": {
+				"id-count": {
+					"cardinality": {
+						"field": "MissionID"
+					}
+				},
+				"highest-missions": {
+					"top_hits": {
+						"from": 0,
+						"size": 1,
+						"version": false,
+						"seq_no_primary_term": false,
+						"explain": false,
+						"_source": {
+							"includes": [
+								"MissionID"
+							],
+							"excludes": []
+						},
+						"sort": [
+							{
+								"MissionID": {
+									"order": "desc"
+								}
+							}
+						]
+					}
+				}
+			}
+		},
+		"active": {
+			"filter": {
+				"exists": {
+					"field": "MissionID",
+					"boost": 1.0
+				}
+			},
+			"aggregations": {
+				"first_played": {
+					"min": {
+						"field": "timestamp"
+					}
+				},
+				"starts-count": {
+					"cardinality": {
+						"field": "session_start.keyword"
+					}
+				},
+				"sessions": {
+					"terms": {
+						"field": "session_start.keyword",
+						"size": 500,
+						"min_doc_count": 1,
+						"shard_min_doc_count": 0,
+						"show_term_doc_count_error": false,
+						"order": [
+							{
+								"_count": "desc"
+							},
+							{
+								"_key": "asc"
+							}
+						]
+					},
+					"aggregations": {
+						"duration": {
+							"max": {
+								"script": {
+									"source": "Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())",
+									"lang": "painless"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

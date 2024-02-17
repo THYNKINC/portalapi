@@ -128,10 +128,10 @@ public class SessionsComputer {
 			
 			if (total <= 10) {
 				logger.info(hit.getSourceAsString());
-			}
+			}	
 			
 			if (sessionType == null || "null".equals(sessionType)) {
-				logger.warn(hit.getSourceAsString());
+				logger.warn("Unsupported session type: " + hit.getSourceAsString());
 				continue;
 			}
 			

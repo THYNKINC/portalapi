@@ -79,7 +79,6 @@ public class HistoricalProgressReport {
     	
     	long totalPlaytime = 0;
     	Filter active = (Filter)aggs.get("active");
-    	Min firstPlayed = (Min)aggs.get("first-played");
     	
     	if (active.getAggregations().get("sessions") != null) {
 	    	Terms sessionGroup = (Terms)active.getAggregations().get("sessions");
@@ -93,7 +92,7 @@ public class HistoricalProgressReport {
     	Cardinality startsCount = active.getAggregations().get("starts-count");
     	
     	// TODO use value() instead, already a timestamp
-    	long lastAttemptTs = df.parse(lastAttempt.getValueAsString()).getTime();
+    	long lastAttemptTs = attempts.getDocCount() == 0 ? 0 : df.parse(lastAttempt.getValueAsString()).getTime();
     	long startDateTs = df.parse(started.getValueAsString()).getTime();
     	
     	long today = new Date().getTime();
@@ -105,7 +104,7 @@ public class HistoricalProgressReport {
 			.abandons((int)startsCount.getValue() - (int)attempts.getDocCount())
     		.achievements(0)
     		.attemptsPerWeek(attempts.getDocCount() / weeks)
-    		.daysSinceLastAttempt((int)TimeUnit.DAYS.convert(today - lastAttemptTs, TimeUnit.MILLISECONDS))
+    		.daysSinceLastAttempt(attempts.getDocCount() == 0 ? 0 : (int)TimeUnit.DAYS.convert(today - lastAttemptTs, TimeUnit.MILLISECONDS))
     		.daysSinceStart(totalDays)
     		.firstPlayed(LocalDate.ofInstant(Instant.ofEpochMilli(startDateTs), TimeZone
     		        .getDefault().toZoneId()))

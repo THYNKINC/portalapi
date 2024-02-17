@@ -179,7 +179,12 @@ public class ParentService {
         Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, replaceRootOperation, countOperation);
 
         AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
-        long total = countResults.getUniqueMappedResult().getTotal();
+        CountDTO results = countResults.getUniqueMappedResult();
+        
+        if (results == null)
+        	return new PaginatedResponse<>();
+        
+        long total = results.getTotal();
 
         AggregationOperation sortOperation = Aggregation.sort(Sort.by(Direction.DESC, "createdDate"));
         
