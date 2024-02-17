@@ -101,11 +101,11 @@ public class ParentService {
 			
 			matchCriteria.orOperator(
 				Criteria.where("username")
-				.regex("^" + nameStartingWith),
+				.regex("^" + nameStartingWith, "i"),
 				Criteria.where("firstName")
-				.regex("^" + nameStartingWith),
+				.regex("^" + nameStartingWith, "i"),
 				Criteria.where("lastName")
-				.regex("^" + nameStartingWith));
+				.regex("^" + nameStartingWith, "i"));
 		}
 		
 		if (labels != null) {
@@ -127,7 +127,12 @@ public class ParentService {
         Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, replaceRootOperation, matchOperation, countOperation);
 
         AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
-        long total = countResults.getUniqueMappedResult().getTotal();
+        CountDTO results = countResults.getUniqueMappedResult();
+        
+        if (results == null)
+        	return new PaginatedResponse<>();
+        
+        long total = results.getTotal();
 
         // Aggregation for paginated result
         AggregationOperation skipOperation = Aggregation.skip(pageable.getOffset());
