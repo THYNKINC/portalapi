@@ -68,7 +68,8 @@ public class SessionsComputer {
 				.field("end_date");
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-				.aggregation(ended);
+				.aggregation(ended)
+				.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("sessions")
 				.source(searchSourceBuilder);
@@ -84,8 +85,10 @@ public class SessionsComputer {
 				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandoned"));
 		
 		if (lastProcessed.value() > 0)
-			boolQuery.must(QueryBuilders.rangeQuery("timestamp")
-					.gt(df.format(new Date((long)lastProcessed.value()))));
+			boolQuery
+				.must(QueryBuilders.rangeQuery("timestamp")
+					.gt(df.format(new Date((long)lastProcessed.value())))
+					.includeLower(false));
 			
 		// Specify the fields to return
 		String[] includeFields = new String[] { "session_start", "session_type", "user_id", "event_type" };

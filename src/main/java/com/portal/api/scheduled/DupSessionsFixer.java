@@ -21,7 +21,7 @@ import com.portal.api.services.AnalyticsService;
 import com.portal.api.services.ParentService;
 import com.portal.api.util.OpensearchService;
 
-//@Component
+@Component
 public class DupSessionsFixer {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DupSessionsFixer.class);

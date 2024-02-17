@@ -1,19 +1,26 @@
 {
-	"size": 0,
+	"size": 10000,
 	"query": {
 		"bool": {
 			"must": [
 				{
-					"match": {
-						"user_id": {
-							"query": "mattr1",
-							"operator": "OR",
-							"prefix_length": 0,
-							"max_expansions": 50,
-							"fuzzy_transpositions": true,
-							"lenient": false,
-							"zero_terms_query": "NONE",
-							"auto_generate_synonyms_phrase_query": true,
+					"terms": {
+						"event_type": [
+							"TransferenceStatsEnd",
+							"RunnerEnd",
+							"PVTEnd",
+							"Abandoned"
+						],
+						"boost": 1.0
+					}
+				},
+				{
+					"range": {
+						"timestamp": {
+							"from": "2024-02-17 12:32:15.160",
+							"to": null,
+							"include_lower": false,
+							"include_upper": true,
 							"boost": 1.0
 						}
 					}
@@ -23,137 +30,20 @@
 			"boost": 1.0
 		}
 	},
-	"aggregations": {
-		"startDate": {
-			"min": {
-				"field": "timestamp"
-			}
-		},
-		"attempts": {
-			"filter": {
-				"terms": {
-					"event_type": [
-						"RunnerEnd",
-						"TransferenceStatsEnd",
-						"PVTEnd"
-					],
-					"boost": 1.0
-				}
-			},
-			"aggregations": {
-				"lastAttempt": {
-					"max": {
-						"field": "timestamp"
-					}
-				},
-				"sessions": {
-					"date_histogram": {
-						"field": "timestamp",
-						"interval": "12h",
-						"offset": 0,
-						"order": {
-							"_key": "asc"
-						},
-						"keyed": false,
-						"min_doc_count": 1
-					}
-				},
-				"playtime": {
-					"sum": {
-						"script": {
-							"source": "Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())",
-							"lang": "painless"
-						}
-					}
-				}
-			}
-		},
-		"missions": {
-			"filter": {
-				"terms": {
-					"event_type": [
-						"TransferenceStatsEnd",
-						"PVTEnd"
-					],
-					"boost": 1.0
-				}
-			},
-			"aggregations": {
-				"id-count": {
-					"cardinality": {
-						"field": "MissionID"
-					}
-				},
-				"highest-missions": {
-					"top_hits": {
-						"from": 0,
-						"size": 1,
-						"version": false,
-						"seq_no_primary_term": false,
-						"explain": false,
-						"_source": {
-							"includes": [
-								"MissionID"
-							],
-							"excludes": []
-						},
-						"sort": [
-							{
-								"MissionID": {
-									"order": "desc"
-								}
-							}
-						]
-					}
-				}
-			}
-		},
-		"active": {
-			"filter": {
-				"exists": {
-					"field": "MissionID",
-					"boost": 1.0
-				}
-			},
-			"aggregations": {
-				"first_played": {
-					"min": {
-						"field": "timestamp"
-					}
-				},
-				"starts-count": {
-					"cardinality": {
-						"field": "session_start.keyword"
-					}
-				},
-				"sessions": {
-					"terms": {
-						"field": "session_start.keyword",
-						"size": 500,
-						"min_doc_count": 1,
-						"shard_min_doc_count": 0,
-						"show_term_doc_count_error": false,
-						"order": [
-							{
-								"_count": "desc"
-							},
-							{
-								"_key": "asc"
-							}
-						]
-					},
-					"aggregations": {
-						"duration": {
-							"max": {
-								"script": {
-									"source": "Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())",
-									"lang": "painless"
-								}
-							}
-						}
-					}
-				}
+	"_source": {
+		"includes": [
+			"session_start",
+			"session_type",
+			"user_id",
+			"event_type"
+		],
+		"excludes": []
+	},
+	"sort": [
+		{
+			"timestamp": {
+				"order": "asc"
 			}
 		}
-	}
+	]
 }
