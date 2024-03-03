@@ -84,10 +84,14 @@ public class SessionsComputer {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandoned"));
 		
+		String lastProcessedDate = df.format(new Date((long)lastProcessed.value()));
+		
+		logger.info("Last processed session end date: " + lastProcessedDate);
+		
 		if (lastProcessed.value() > 0)
 			boolQuery
 				.must(QueryBuilders.rangeQuery("timestamp")
-					.gt(df.format(new Date((long)lastProcessed.value())))
+					.gt(lastProcessedDate)
 					.includeLower(false));
 			
 		// Specify the fields to return

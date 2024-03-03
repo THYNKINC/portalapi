@@ -3,8 +3,10 @@ package com.portal.api.scheduled;
 import javax.net.ssl.SSLContext;
 
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.lucene.queryparser.flexible.core.builders.QueryBuilder;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.reindex.DeleteByQueryRequest;
 import org.opensearch.search.aggregations.AggregationBuilders;
@@ -64,14 +66,18 @@ public class DupSessionsFixer {
 			
 			try {
 			
-				DeleteByQueryRequest request = new DeleteByQueryRequest("sessions");
-				request.setQuery(QueryBuilders
+				BoolQueryBuilder query = QueryBuilders
 						.boolQuery()
+						.must(QueryBuilders
+								.termQuery("id", bucket.getKeyAsString()))
 						.mustNot(QueryBuilders
 								.idsQuery()
-								.addIds(keepId)));
+								.addIds(keepId));
 				
-				logger.info(request.toString());
+				logger.info(keepId);
+				
+				DeleteByQueryRequest request = new DeleteByQueryRequest("sessions");
+				request.setQuery(query);
 				
 				opensearchService.delete(sslContext, credentialsProvider, request);
 				
