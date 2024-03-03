@@ -539,7 +539,7 @@ public class AdminController {
     	
     	old.setManufacteDate(headset.getManufacteDate());
     	
-    	return headsets.save(headset);
+    	return headsets.save(old);
     }
     
     @GetMapping("/headsets")
