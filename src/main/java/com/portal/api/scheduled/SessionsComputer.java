@@ -200,6 +200,9 @@ public class SessionsComputer {
 		    	break;
 			}
 			
+			if (summary == null)
+				break;
+			
 			summary.setFirstName(child.getFirstName());
 	    	summary.setLastName(child.getLastName());
 	    	summary.setParentFirstName(parent.getFirstName());
