@@ -196,7 +196,8 @@ public class SessionsComputer {
 		    	break;
 		    	
 		    default:
-		    	throw new RuntimeException("session type not supported " + sessionType);
+		    	logger.error("session type not supported " + sessionType);
+		    	break;
 			}
 			
 			summary.setFirstName(child.getFirstName());
