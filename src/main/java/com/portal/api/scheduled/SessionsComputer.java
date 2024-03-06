@@ -197,11 +197,8 @@ public class SessionsComputer {
 		    	
 		    default:
 		    	logger.error("session type not supported " + sessionType);
-		    	break;
+		    	continue;
 			}
-			
-			if (summary == null)
-				break;
 			
 			summary.setFirstName(child.getFirstName());
 	    	summary.setLastName(child.getLastName());
