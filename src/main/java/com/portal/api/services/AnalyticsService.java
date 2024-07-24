@@ -860,7 +860,7 @@ public class AnalyticsService {
 								+ "                      }\r\n"
 								+ "                    }\r\n"
 								+ "                    \r\n"
-								+ "                    return total / count;"))
+								+ "                    return count > 0 ? total / count : 0;"))
 						.reduceScript(new Script("def total = 0;\r\n"
 								+ "          def count = 0;\r\n"
 								+ "          for (agg in states) {\r\n"
