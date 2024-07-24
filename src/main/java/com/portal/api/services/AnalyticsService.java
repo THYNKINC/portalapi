@@ -837,17 +837,30 @@ public class AnalyticsService {
 							.field("event_type")))
 					.subAggregation(AggregationBuilders
 						.scriptedMetric("response_time")
-						.initScript(new Script("state.total = 0; state.start = 0; state.count = 0;"))
-						.mapScript(new Script("if (doc['event_type'].value == 'ObjectStatusInRange') {\r\n"
-								+ "            state.start = doc['timestamp'].value.getMillis();\r\n"
-								+ "          }\r\n"
-								+ "          if (doc['event_type'].value == 'ObjectStatusSelected') {\r\n"
-								+ "          	if (state.start != 0) {\r\n"
-								+ "            		state.total += doc['timestamp'].value.getMillis() - state.start;\r\n"
-								+ "            		state.count++;\r\n"
-								+ "          		state.start = 0\r\n"
-								+ "          }}"))
-						.combineScript(new Script("return state.count > 0 ? state.total / state.count : 0;"))
+						.initScript(new Script("state.records = [];"))
+						.mapScript(new Script("state.records.add(['event': doc['event_type'].value, 'ts': doc['timestamp'].value.getMillis(), 'oid':doc['ObjectID'].value])"))
+						.combineScript(new Script("def start = [:];\r\n"
+								+ "                    def total = 0;\r\n"
+								+ "                    def count = 0;\r\n"
+								+ "                    \r\n"
+								+ "                    def docs = state.records.stream()\r\n"
+								+ "                      .sorted((o1, o2) -> o1.get('ts').compareTo(o2.get('ts')))\r\n"
+								+ "                      .collect(Collectors.toList());\r\n"
+								+ "                    \r\n"
+								+ "                    for(doc in docs) {\r\n"
+								+ "                    \r\n"
+								+ "                      if (doc['event'] == 'ObjectStatusInRange') {\r\n"
+								+ "                        start[doc['oid']] = doc['ts'];\r\n"
+								+ "                      }\r\n"
+								+ "                    \r\n"
+								+ "                      else if (start[doc['oid']] != 0) {\r\n"
+								+ "                        total += doc['ts'] - start[doc['oid']];\r\n"
+								+ "                        count++;\r\n"
+								+ "                        start[doc['oid']] = 0\r\n"
+								+ "                      }\r\n"
+								+ "                    }\r\n"
+								+ "                    \r\n"
+								+ "                    return total / count;"))
 						.reduceScript(new Script("def total = 0;\r\n"
 								+ "          def count = 0;\r\n"
 								+ "          for (agg in states) {\r\n"
