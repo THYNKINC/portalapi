@@ -161,43 +161,48 @@ public class SessionsComputer {
 					.filter(c -> c.getUsername().equals(username))
 					.findFirst()
 					.orElseThrow();
-			
-			switch (sessionType) {
-			
-			case "runner":
+			try {
 				
-				response = analytics.runner(username, sessionId);
-		    	summary = SearchResultsMapper.getRunner(response, username, sessionId);
-		    	
-		    	SearchResponse searchResponse = analytics.attemptCognitiveSkills(username, sessionId); 		    	
-		    	SearchHit[] hits = searchResponse.getHits().getHits();
-		    	
-		    	RunnerSummary runner = (RunnerSummary)summary;
-		    	
-		    	runner.setScores(SearchResultsMapper.getCognitiveSkills(hits));
-		    	
-		    	ImpulseControl composites = 
-	    				ImpulseControl.fromSkills(summary.getId(), runner.getScores(), runner.getMissionId());
-		    	
-	    		runner.getScores().setCompositeFocus((int)Math.round(composites.getFocus()));
-	    		runner.getScores().setCompositeImpulse((int)Math.round(composites.getImpulse()));
-		    	
-		    	break;
-		    
-			case "transference":
-
-				response = analytics.transference(username, sessionId);
-		    	summary = SearchResultsMapper.getTransference(response, username, sessionId);
-		    	break;
-		    	
-			case "pvt":
-				response = analytics.pvt(username, sessionId);
-		    	summary = SearchResultsMapper.getPvt(response, username, sessionId);
-		    	break;
-		    	
-		    default:
-		    	logger.error("session type not supported " + sessionType);
-		    	continue;
+				switch (sessionType) {
+				
+				case "runner":
+					
+					response = analytics.runner(username, sessionId);
+			    	summary = SearchResultsMapper.getRunner(response, username, sessionId);
+			    	
+			    	SearchResponse searchResponse = analytics.attemptCognitiveSkills(username, sessionId); 		    	
+			    	SearchHit[] hits = searchResponse.getHits().getHits();
+			    	
+			    	RunnerSummary runner = (RunnerSummary)summary;
+			    	
+			    	runner.setScores(SearchResultsMapper.getCognitiveSkills(hits));
+			    	
+			    	ImpulseControl composites = 
+		    				ImpulseControl.fromSkills(summary.getId(), runner.getScores(), runner.getMissionId());
+			    	
+		    		runner.getScores().setCompositeFocus((int)Math.round(composites.getFocus()));
+		    		runner.getScores().setCompositeImpulse((int)Math.round(composites.getImpulse()));
+			    	
+			    	break;
+			    
+				case "transference":
+	
+					response = analytics.transference(username, sessionId);
+			    	summary = SearchResultsMapper.getTransference(response, username, sessionId);
+			    	break;
+			    	
+				case "pvt":
+					response = analytics.pvt(username, sessionId);
+			    	summary = SearchResultsMapper.getPvt(response, username, sessionId);
+			    	break;
+			    	
+			    default:
+			    	logger.error("session type not supported " + sessionType);
+			    	continue;
+				}
+			} catch (Exception e) {
+				
+				logger.error("Error computing session " + sessionId, e);
 			}
 			
 			summary.setFirstName(child.getFirstName());
