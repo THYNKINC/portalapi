@@ -842,9 +842,11 @@ public class AnalyticsService {
 								+ "            state.start = doc['timestamp'].value.getMillis();\r\n"
 								+ "          }\r\n"
 								+ "          if (doc['event_type'].value == 'ObjectStatusSelected') {\r\n"
-								+ "            state.total += doc['timestamp'].value.getMillis() - state.start;\r\n"
-								+ "            state.count++;\r\n"
-								+ "          }"))
+								+ "          	if (state.start != 0) {\r\n"
+								+ "            		state.total += doc['timestamp'].value.getMillis() - state.start;\r\n"
+								+ "            		state.count++;\r\n"
+								+ "          		state.start = 0\r\n"
+								+ "          }}"))
 						.combineScript(new Script("return state.count > 0 ? state.total / state.count : 0;"))
 						.reduceScript(new Script("def total = 0;\r\n"
 								+ "          def count = 0;\r\n"
