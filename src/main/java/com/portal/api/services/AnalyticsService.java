@@ -853,7 +853,7 @@ public class AnalyticsService {
 								+ "                        start[doc['oid']] = doc['ts'];\r\n"
 								+ "                      }\r\n"
 								+ "                    \r\n"
-								+ "                      else if (start[doc['oid']] != 0) {\r\n"
+								+ "                      else if (start[doc['oid']] != null && start[doc['oid']] != 0) {\r\n"
 								+ "                        total += doc['ts'] - start[doc['oid']];\r\n"
 								+ "                        count++;\r\n"
 								+ "                        start[doc['oid']] = 0\r\n"
