@@ -4,7 +4,6 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +20,6 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
-import org.opensearch.search.aggregations.bucket.nested.Nested;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.metrics.Avg;
 import org.opensearch.search.aggregations.metrics.Cardinality;
@@ -36,7 +34,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -54,29 +51,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.AttemptSummary;
 import com.portal.api.model.Child;
-import com.portal.api.model.CognitiveSkillsResponse;
 import com.portal.api.model.CompositeScores;
-import com.portal.api.model.CreateDelegateRequest;
-import com.portal.api.model.CreateHeadsetRequest;
-import com.portal.api.model.CreateParentRequest;
+import com.portal.api.dto.request.CreateDelegateRequest;
+import com.portal.api.dto.request.CreateHeadsetRequest;
 import com.portal.api.model.DashboardMetrics;
 import com.portal.api.model.Delegate;
 import com.portal.api.model.GameState;
-import com.portal.api.model.GraphResponse;
+import com.portal.api.dto.response.GraphResponse;
 import com.portal.api.model.Headset;
 import com.portal.api.model.HeadsetAssignment;
 import com.portal.api.model.HistoricalProgressReport;
-import com.portal.api.model.PVTSummary;
-import com.portal.api.model.PaginatedResponse;
+import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.model.PortalUser;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.model.Stats;
 import com.portal.api.model.SummaryReport;
-import com.portal.api.model.TransferenceSummary;
-import com.portal.api.model.UpdateChildRequest;
-import com.portal.api.model.UpdateParentRequest;
+import com.portal.api.dto.request.UpdateChildRequest;
+import com.portal.api.dto.request.UpdateParentRequest;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.HeadsetRepository;
 import com.portal.api.services.AnalyticsService;
@@ -84,7 +77,7 @@ import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
-import com.portal.api.util.TimeUtil;
+import com.portal.api.util.DateTimeUtil;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -364,7 +357,7 @@ public class AdminController {
     			.missions(missions)
     			.power(powers)
     			.sessions(sessions)
-    			.totalPlaytime(TimeUtil.prettyPrint(playtime.getValue() * 1000)) // limit to 30 m
+    			.totalPlaytime(DateTimeUtil.prettyPrint(playtime.getValue() * 1000)) // limit to 30 m
     			.totalUsers((int)users.getValue())
     			.build();
     }

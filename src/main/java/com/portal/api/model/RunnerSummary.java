@@ -3,9 +3,8 @@ package com.portal.api.model;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
-import lombok.Builder;
+import com.portal.api.dto.response.CognitiveSkillsResponse;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;

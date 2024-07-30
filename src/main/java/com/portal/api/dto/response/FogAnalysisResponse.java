@@ -1,7 +1,8 @@
-package com.portal.api.model;
+package com.portal.api.dto.response;
 
 import java.util.List;
 
+import com.portal.api.model.StartEnd;
 import lombok.Data;
 
 @Data

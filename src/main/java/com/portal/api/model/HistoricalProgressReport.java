@@ -22,7 +22,7 @@ import org.opensearch.search.aggregations.metrics.Sum;
 import org.opensearch.search.aggregations.metrics.TopHits;
 
 import com.portal.api.util.MappingService;
-import com.portal.api.util.TimeUtil;
+import com.portal.api.util.DateTimeUtil;
 
 import lombok.Builder;
 import lombok.Data;
@@ -111,8 +111,8 @@ public class HistoricalProgressReport {
     		.highestMission(highestMissionNo)
     		.missionsCompleted((int)completedMissions.value())
     		.missionsPerWeek(completedMissions.value() / weeks)
-    		.playtimeCompletedPerWeek(TimeUtil.prettyPrint(completedPlaytime.value() / weeks))
-    		.playtimePerWeek(TimeUtil.prettyPrint(totalPlaytime / weeks))
+    		.playtimeCompletedPerWeek(DateTimeUtil.prettyPrint(completedPlaytime.value() / weeks))
+    		.playtimePerWeek(DateTimeUtil.prettyPrint(totalPlaytime / weeks))
     		.projectedCompletionDate(null)
     		.sessionsCompleted(sessions.getBuckets().size())
     		.sessionsPerWeek(sessions.getBuckets().size() / weeks)
@@ -120,8 +120,8 @@ public class HistoricalProgressReport {
     		        .getDefault().toZoneId()))
     		.starts((int)startsCount.getValue())
     		.totalAttempts((int)attempts.getDocCount())
-    		.totalPlaytime(TimeUtil.prettyPrint(totalPlaytime))
-    		.totalPlaytimeCompleted(TimeUtil.prettyPrint(completedPlaytime.value()))
+    		.totalPlaytime(DateTimeUtil.prettyPrint(totalPlaytime))
+    		.totalPlaytimeCompleted(DateTimeUtil.prettyPrint(completedPlaytime.value()))
     		.build();
 	}
 }

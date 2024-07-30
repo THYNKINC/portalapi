@@ -26,6 +26,8 @@ public class PortalUser {
 	private String city;
 	private String zipCode;
 	private String country;
+
+	private String salutation;
 	
 	private Date createdDate;
 	private Date updatedDate;

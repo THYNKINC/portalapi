@@ -1,10 +1,15 @@
 package com.portal.api.services;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.portal.api.dto.request.CreateChildRequest;
+import com.portal.api.util.DateTimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,16 +19,12 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
-import org.springframework.data.mongodb.core.aggregation.LimitOperation;
-import org.springframework.data.mongodb.core.aggregation.SkipOperation;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import com.portal.api.model.Child;
-import com.portal.api.model.ChildSearchResult;
-import com.portal.api.model.PaginatedResponse;
+import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.repositories.ParentRepository;
 import com.portal.api.util.CountDTO;
@@ -31,7 +32,9 @@ import com.portal.api.util.CountDTO;
 
 @Service
 public class ParentService {
-	
+
+	static final String CUSTOM_PATTERN = "MM-dd-yyyy";
+
 	private final MongoTemplate mongoTemplate;
 	
 	private final ParentRepository parentRepository;
@@ -76,13 +79,25 @@ public class ParentService {
 	public Parent upsertParent(Parent parent) {
 		return parentRepository.save(parent);
 	}
+
+	public void addChildToParent(CreateChildRequest createChildRequest,  String username) {
+		Child child = new Child();
+		child.setFirstName(createChildRequest.getFirstName());
+		child.setLastName(createChildRequest.getLastName());
+		child.setUsername(createChildRequest.getUsername());
+		LocalDate dob = DateTimeUtil.isValidLocalDate(createChildRequest.getDob(), CUSTOM_PATTERN);
+		child.setDob(dob.format(DateTimeFormatter.ofPattern(CUSTOM_PATTERN)));
+		child.setCreatedDate(new Date());
+
+		updateParent(username, child);
+	}
 	
-	public Parent updateParent(String username, Child child) {
+	public void updateParent(String username, Child child) {
 		Parent parent = getParent(username);
 		List<Child> children = parent.getChildren();
 		children.add(child);
 		parent.setChildren(children);
-		return upsertParent(parent);
+		upsertParent(parent);
 	}
 
 	public Page<Parent> getParentsByNameStartingWith(String partialName, Pageable pageable) {

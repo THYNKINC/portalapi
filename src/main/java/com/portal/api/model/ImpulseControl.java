@@ -3,6 +3,7 @@ package com.portal.api.model;
 import java.util.OptionalDouble;
 import java.util.stream.IntStream;
 
+import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.util.Constants;
 
 import lombok.AllArgsConstructor;

@@ -1,5 +1,6 @@
-package com.portal.api.model;
+package com.portal.api.dto.response;
 
+import com.portal.api.model.SkillItem;
 import lombok.Builder;
 import lombok.Data;
 

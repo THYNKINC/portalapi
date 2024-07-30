@@ -1,8 +1,6 @@
-package com.portal.api.model;
+package com.portal.api.dto.request;
 
 import java.time.LocalDate;
-
-import org.springframework.data.annotation.Id;
 
 import lombok.Data;
 

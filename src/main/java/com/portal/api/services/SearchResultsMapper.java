@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.Accuracy;
-import com.portal.api.model.CognitiveSkillsResponse;
+import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.model.Crystals;
 import com.portal.api.model.Dish;
 import com.portal.api.model.Obstacles;
@@ -34,7 +34,7 @@ import com.portal.api.model.SessionSummary;
 import com.portal.api.model.StarEarned;
 import com.portal.api.model.TransferenceSummary;
 import com.portal.api.util.MappingService;
-import com.portal.api.util.TimeUtil;
+import com.portal.api.util.DateTimeUtil;
 
 public class SearchResultsMapper {
 
@@ -119,15 +119,15 @@ public class SearchResultsMapper {
 			
 			dishList.add(Dish.builder()
 					.decoded((int)decoded.getDocCount())
-					.duration(TimeUtil.msToSec(dishStart, dishEnd))
+					.duration(DateTimeUtil.msToSec(dishStart, dishEnd))
 					// Infinity string indicates an absence of min/max
-					.decodeTime(decodeStart.getValueAsString() != "Infinity" & decodeEnd.getValueAsString() != "Infinity" ? TimeUtil.msToSec(decodeStart, decodeEnd) : 0)
-					.gapTime(decodeStart.getValueAsString() != "Infinity"  ? TimeUtil.msToSec(firstDisplayed, decodeStart) : 0)
+					.decodeTime(decodeStart.getValueAsString() != "Infinity" & decodeEnd.getValueAsString() != "Infinity" ? DateTimeUtil.msToSec(decodeStart, decodeEnd) : 0)
+					.gapTime(decodeStart.getValueAsString() != "Infinity"  ? DateTimeUtil.msToSec(firstDisplayed, decodeStart) : 0)
 					.rejected((int)rejections.getDocCount())
 					// here we assume that if there are no rejections, actions are selections
 					.selected(rejections.getDocCount() > 0 ? 0 : (int)actions.getDocCount())
-					.selectTime(TimeUtil.msToSec(firstDisplayed, lastAction))
-					.tapTime(TimeUtil.msToSec(firstDisplayed, firstAction))
+					.selectTime(DateTimeUtil.msToSec(firstDisplayed, lastAction))
+					.tapTime(DateTimeUtil.msToSec(firstDisplayed, firstAction))
 					.type(rejections.getDocCount() > 0 ? "rejected" : "selected")
 					.build());
 		}

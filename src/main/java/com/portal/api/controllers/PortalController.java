@@ -7,25 +7,22 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
+import com.portal.api.services.GameApiService;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
-import org.opensearch.search.aggregations.Aggregation;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
-import org.opensearch.search.aggregations.bucket.histogram.ParsedDateHistogram;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -33,32 +30,33 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.model.AttentionResponse;
+import com.portal.api.dto.response.AttentionResponse;
 import com.portal.api.model.Badge;
-import com.portal.api.model.BadgesResponse;
+import com.portal.api.dto.response.BadgesResponse;
 import com.portal.api.model.Child;
-import com.portal.api.model.CognitiveSkillsProgressResponse;
-import com.portal.api.model.CognitiveSkillsResponse;
-import com.portal.api.model.CreateChildRequest;
-import com.portal.api.model.CreateParentRequest;
-import com.portal.api.model.CreateUserRequest;
-import com.portal.api.model.CustomSearchResponse;
-import com.portal.api.model.FogAnalysisResponse;
-import com.portal.api.model.GraphResponse;
+import com.portal.api.dto.response.CognitiveSkillsProgressResponse;
+import com.portal.api.dto.response.CognitiveSkillsResponse;
+import com.portal.api.dto.request.CreateChildRequest;
+import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.response.CustomSearchResponse;
+import com.portal.api.dto.response.FogAnalysisResponse;
+import com.portal.api.dto.response.GraphResponse;
 import com.portal.api.model.HistoricalProgressReport;
 import com.portal.api.model.ImpulseControl;
-import com.portal.api.model.LoginRequest;
+import com.portal.api.dto.request.LoginRequest;
 import com.portal.api.model.Parent;
 import com.portal.api.model.PortalUser;
-import com.portal.api.model.PowerResponse;
-import com.portal.api.model.ProgressResponse;
-import com.portal.api.model.RecentMissionResponse;
+import com.portal.api.dto.response.PowerResponse;
+import com.portal.api.dto.response.ProgressResponse;
+import com.portal.api.dto.response.RecentMissionResponse;
 import com.portal.api.model.Role;
-import com.portal.api.model.RunnerResponse;
+import com.portal.api.dto.response.RunnerResponse;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SessionSummary;
@@ -77,8 +75,6 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType;
@@ -94,13 +90,14 @@ public class PortalController {
 	
 	@Value("${app-client-id}")
 	private String APP_CLIENT_ID;
-	
+
 	@Value("${games-port}")
 	private String GAMES_PORT;
-	
+
 	@Value("${games-service}")
 	private String GAMES_SERVICE;
-	
+
+
 	@Value("${group-name-user}")
 	private String GROUP_NAME_USER;
 	
@@ -115,15 +112,17 @@ public class PortalController {
 	private final ParentService parentService;
 	
 	private final AnalyticsService analyticsService;
+    private final GameApiService gameApiService;
 
     @Autowired
     public PortalController(
-    		JwtService jwtService,
-    		ParentService mongoService,
-    		AnalyticsService analyticsService) {
+            JwtService jwtService,
+            ParentService mongoService,
+            AnalyticsService analyticsService, GameApiService gameApiService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
+        this.gameApiService = gameApiService;
     }
     
     @GetMapping("/me")
@@ -212,6 +211,7 @@ public class PortalController {
     	parent.setFirstName(createParentRequest.getFirstName());
     	parent.setLastName(createParentRequest.getLastName());
     	parent.setUsername(signUpResponse.userSub());
+		parent.setSalutation(createParentRequest.getSalutation());
     	
     	parentService.upsertParent(parent);
     }
@@ -230,35 +230,11 @@ public class PortalController {
     	if (user.getRole() != Role.parent) {
     		throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only parents can create children");
     	}
-    	
-    	CreateUserRequest createUserRequest = new CreateUserRequest();
-    	createUserRequest.setEmail(user.getEmail());
-    	createUserRequest.setFirstName(createChildRequest.getFirstName());
-    	createUserRequest.setLastName(createChildRequest.getLastName());
-    	createUserRequest.setParent(user.getUsername());
-    	createUserRequest.setPassword(createChildRequest.getPassword());
-    	createUserRequest.setUsername(createChildRequest.getUsername());
-    	
-    	ObjectMapper mapper = new ObjectMapper();
 
-        // Convert the userRequest object to a JSON string
-        String requestBody = mapper.writeValueAsString(createUserRequest);
-        
-        String bearerToken = jwtService.getAdminJwt();
-        
-        // TODO convert to Spring Rest
-        HttpService.sendHttpPostRequest("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users", requestBody, bearerToken);
-        
-        Child child = new Child();
-        child.setFirstName(createChildRequest.getFirstName());
-        child.setLastName(createChildRequest.getLastName());
-        child.setUsername(createChildRequest.getUsername());
-        child.setCreatedDate(new Date());
-        
-        //TODO get parent from mongo, add child, save
-        parentService.updateParent(user.getUsername(), child);
+		gameApiService.createNewUserFromChild(createChildRequest, user, jwtService.getAdminJwt());
+		parentService.addChildToParent(createChildRequest, user.getUsername());
     }
-    
+
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
@@ -378,9 +354,7 @@ public class PortalController {
     public BadgesResponse childBadges(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
     	
     	PortalUser user = jwtService.decodeJwtFromRequest(request, false, username);
-    	
-    	System.out.println("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users/" + username + "/game-state");
-    	
+
     	String bearerToken = jwtService.getAdminJwt();
         String response = HttpService.sendHttpGetRequest("http://" + GAMES_SERVICE + ":" + GAMES_PORT + "/games/users/" + username + "/game-state", bearerToken);
         

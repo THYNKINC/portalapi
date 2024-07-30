@@ -1,11 +1,14 @@
 package com.portal.api.util;
 
 import java.time.Duration;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.concurrent.TimeUnit;
 
 import org.opensearch.search.aggregations.metrics.NumericMetricsAggregation.SingleValue;
 
-public abstract class TimeUtil {
+public abstract class DateTimeUtil {
 
 	public static int msToSec(int value) {
 		
@@ -43,5 +46,15 @@ public abstract class TimeUtil {
 	public static String prettyPrint(double duration) {
 		
 		return prettyPrint((long)duration);
+	}
+
+	public static LocalDate isValidLocalDate(String dateStr, String pattern) {
+		DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern(pattern);
+		LocalDate date = null;
+		try {
+			return LocalDate.parse(dateStr, dateFormatter);
+		} catch (DateTimeParseException e) {
+			throw new RuntimeException("Date format exception", e);
+		}
 	}
 }

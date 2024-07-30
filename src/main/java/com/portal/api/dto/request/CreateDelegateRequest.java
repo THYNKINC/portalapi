@@ -1,9 +1,10 @@
-package com.portal.api.model;
+package com.portal.api.dto.request;
 
 import javax.validation.constraints.Email;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 
+import com.portal.api.model.ValidPassword;
 import lombok.Data;
 
 @Data

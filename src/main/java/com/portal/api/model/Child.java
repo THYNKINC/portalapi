@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.Map;
 
 import lombok.Data;
+import org.springframework.format.annotation.DateTimeFormat;
 
 @Data
 public class Child {
@@ -12,8 +13,8 @@ public class Child {
 	private String username;
 	private String firstName;
 	private String lastName;
-	
-	private LocalDate dob;
+
+	private String dob;
 	
 	private Date createdDate;
 	private Date updatedDate;

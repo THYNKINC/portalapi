@@ -1,4 +1,4 @@
-package com.portal.api.model;
+package com.portal.api.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
