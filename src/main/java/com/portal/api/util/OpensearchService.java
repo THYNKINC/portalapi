@@ -129,21 +129,21 @@ public class OpensearchService {
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
-//	        client.updateByQueryAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkByScrollResponse>() {
-//				
-//				@Override
-//				public void onResponse(BulkByScrollResponse response) {
-//					log.info("Updated {} records, Failed {}", response.getUpdated(), response.getBulkFailures());
-//				}
-//				
-//				@Override
-//				public void onFailure(Exception e) {
-//					log.error("Unable to update records", e);
-//				}
-//			});
+	    	
+	        client.updateByQueryAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkByScrollResponse>() {
+				
+				@Override
+				public void onResponse(BulkByScrollResponse response) {
+					log.info("Updated {} records, Failed {}", response.getUpdated(), response.getBulkFailures());
+				}
+				
+				@Override
+				public void onFailure(Exception e) {
+					log.error("Unable to update records", e);
+				}
+			});
 	        
-	    	client.updateByQuery(request, RequestOptions.DEFAULT);
+//	    	client.updateByQuery(request, RequestOptions.DEFAULT);
 	    }
 	}
 	
