@@ -1,8 +1,10 @@
 package com.portal.api.scheduled;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
@@ -14,6 +16,8 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.common.xcontent.XContentType;
 import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
+import org.opensearch.index.reindex.UpdateByQueryRequest;
+import org.opensearch.script.Script;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilders;
 import org.opensearch.search.aggregations.metrics.Max;
@@ -119,6 +123,8 @@ public class SessionsComputer {
 		
 		int i = 0;
 		
+		List<SessionSummary> sessions = new ArrayList<>();
+		
 		// compute that session
 		for (SearchHit hit : response.getHits().getHits()) {
 			
@@ -210,17 +216,45 @@ public class SessionsComputer {
 	    	summary.setParentFirstName(parent.getFirstName());
 	    	summary.setParentLastName(parent.getLastName());
 	    	summary.setParentEmail(parent.getEmail());
+	    	
+	    	sessions.add(summary);
 			
-			// store back in elastic
+			// phase 1, insert session
 			IndexRequest document = new IndexRequest("sessions");
 	    	document.source(json.writeValueAsString(summary), XContentType.JSON);
 	    	
 	    	try {
-	    		opensearchService.insert(sslContext, credentialsProvider, document);
+	    		//opensearchService.insert(sslContext, credentialsProvider, document);
 	    	} catch (Exception e) {
 	    		logger.error("Invalid record: " + json.writeValueAsString(summary), e);
 	    	}
 		}
+		
+		// phase 2, update gamelogs with mission status
+		for (SessionSummary session : sessions) {
+			
+			UpdateByQueryRequest updateRequest = buildUpdateQuery(session);
+			
+			try {
+	    		opensearchService.updateByQuery(sslContext, credentialsProvider, updateRequest);
+	    	} catch (Exception e) {
+	    		logger.error("Update failed for session: {}", session, e);
+	    	}
+		}
     }
-}
 
+	public UpdateByQueryRequest buildUpdateQuery(SessionSummary session) {
+		
+		String script = String.format("ctx._source.completed = %s; ctx._source.status = '%s';", session.isCompleted(), session.getStatus());
+		
+		UpdateByQueryRequest updateRequest = new UpdateByQueryRequest("gamelogs");
+		
+		updateRequest.setQuery(QueryBuilders.boolQuery()
+			.must(QueryBuilders.termQuery("session_start", session.getId())));
+		updateRequest.setScript(
+			new Script(script)
+		);
+		
+		return updateRequest;
+	}
+}

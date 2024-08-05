@@ -8,13 +8,13 @@ import java.security.cert.X509Certificate;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import javax.servlet.http.HttpServletRequest;
 
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.opensearch.action.ActionListener;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -24,11 +24,19 @@ import org.opensearch.client.RestClient;
 import org.opensearch.client.RestHighLevelClient;
 import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
+import org.opensearch.index.reindex.BulkByScrollResponse;
 import org.opensearch.index.reindex.DeleteByQueryRequest;
+import org.opensearch.index.reindex.UpdateByQueryRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OpensearchService {
+	
+	
+	private static final Logger log = LoggerFactory.getLogger(OpensearchService.class);
+
 
 	public SSLContext getSSLContext() throws NoSuchAlgorithmException, KeyManagementException {
 		SSLContext sslContext = SSLContext.getInstance("SSL");
@@ -108,6 +116,32 @@ public class OpensearchService {
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
 	
 	        client.update(request, RequestOptions.DEFAULT);
+	    }  
+	    
+	}
+	
+	public void updateByQuery(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, UpdateByQueryRequest request) throws IOException {
+		
+		// Build the rest client
+	    try (RestHighLevelClient client = new RestHighLevelClient(
+	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
+	                            .setDefaultCredentialsProvider(credentialsProvider)
+	                            .setSSLContext(sslContext)
+	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
+	
+	        client.updateByQueryAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkByScrollResponse>() {
+				
+				@Override
+				public void onResponse(BulkByScrollResponse response) {
+					log.info("Updated {} records, Failed {}", response.getUpdated(), response.getBulkFailures());
+				}
+				
+				@Override
+				public void onFailure(Exception e) {
+					log.error("Unable to update records", e);
+				}
+			});
 	    }  
 	    
 	}
