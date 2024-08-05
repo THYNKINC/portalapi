@@ -224,7 +224,7 @@ public class SessionsComputer {
 	    	document.source(json.writeValueAsString(summary), XContentType.JSON);
 	    	
 	    	try {
-	    		//opensearchService.insert(sslContext, credentialsProvider, document);
+	    		opensearchService.insert(sslContext, credentialsProvider, document);
 	    	} catch (Exception e) {
 	    		logger.error("Invalid record: " + json.writeValueAsString(summary), e);
 	    	}
