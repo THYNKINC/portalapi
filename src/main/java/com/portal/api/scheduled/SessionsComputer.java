@@ -233,6 +233,8 @@ public class SessionsComputer {
 		// phase 2, update gamelogs with mission status
 		for (SessionSummary session : sessions) {
 			
+			logger.info("Updating logs for session {}", session.getId());
+			
 			UpdateByQueryRequest updateRequest = buildUpdateQuery(session);
 			
 			try {
