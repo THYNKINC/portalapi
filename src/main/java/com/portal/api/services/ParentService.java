@@ -2,13 +2,11 @@ package com.portal.api.services;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import com.portal.api.dto.request.CreateChildRequest;
+import com.portal.api.dto.request.CreateParentRequest;
 import com.portal.api.util.DateTimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -28,6 +26,7 @@ import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.model.Parent;
 import com.portal.api.repositories.ParentRepository;
 import com.portal.api.util.CountDTO;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
 
 @Service
@@ -39,10 +38,13 @@ public class ParentService {
 	
 	private final ParentRepository parentRepository;
 
+	private final AuthService authService;
+
     @Autowired
-    public ParentService(MongoTemplate mongoTemplate, ParentRepository parentRepository) {
+    public ParentService(MongoTemplate mongoTemplate, ParentRepository parentRepository, AuthService authService) {
         this.mongoTemplate = mongoTemplate;
         this.parentRepository = parentRepository;
+        this.authService = authService;
     }
 
     /*
@@ -67,7 +69,23 @@ public class ParentService {
 	    mongoTemplate.upsert(query, update, GameState.class, "gamestate");
 	}
 	*/
-	
+
+	public void createParent(CreateParentRequest createParentRequest) {
+
+		SignUpResponse signUpResponse = authService.registerUser(createParentRequest);
+
+		Parent parent = new Parent();
+		parent.setCreatedDate(new Date());
+		parent.setChildren(new ArrayList<>());
+		parent.setEmail(createParentRequest.getEmail());
+		parent.setFirstName(createParentRequest.getFirstName());
+		parent.setLastName(createParentRequest.getLastName());
+		parent.setUsername(signUpResponse.userSub());
+		parent.setSalutation(createParentRequest.getSalutation());
+
+		upsertParent(parent);
+	}
+
 	public Parent getParent(String username) {
 		return parentRepository.findById(username).orElse(null);
 	}
@@ -85,8 +103,14 @@ public class ParentService {
 		child.setFirstName(createChildRequest.getFirstName());
 		child.setLastName(createChildRequest.getLastName());
 		child.setUsername(createChildRequest.getUsername());
-		LocalDate dob = DateTimeUtil.isValidLocalDate(createChildRequest.getDob(), CUSTOM_PATTERN);
-		child.setDob(dob.format(DateTimeFormatter.ofPattern(CUSTOM_PATTERN)));
+
+		if (createChildRequest.getDob() != null && !createChildRequest.getDob().isEmpty()) {
+			LocalDate dob = DateTimeUtil.isValidLocalDate(createChildRequest.getDob(), CUSTOM_PATTERN);
+			child.setDob(dob.format(DateTimeFormatter.ofPattern(CUSTOM_PATTERN)));
+		} else {
+			child.setDob("");
+		}
+
 		child.setCreatedDate(new Date());
 
 		updateParent(username, child);

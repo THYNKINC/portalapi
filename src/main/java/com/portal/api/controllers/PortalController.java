@@ -11,7 +11,7 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
-import com.portal.api.services.GameApiService;
+import com.portal.api.services.*;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
@@ -23,6 +23,7 @@ import org.opensearch.search.aggregations.metrics.ParsedAvg;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,9 +64,6 @@ import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.model.TransferenceSummary;
-import com.portal.api.services.AnalyticsService;
-import com.portal.api.services.ParentService;
-import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
@@ -87,22 +85,12 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRespo
 @RequestMapping("/portal")
 @Validated
 public class PortalController {
-	
-	@Value("${app-client-id}")
-	private String APP_CLIENT_ID;
 
 	@Value("${games-port}")
 	private String GAMES_PORT;
 
 	@Value("${games-service}")
 	private String GAMES_SERVICE;
-
-
-	@Value("${group-name-user}")
-	private String GROUP_NAME_USER;
-	
-	@Value("${user-pool-id}")
-	private String USER_POOL_ID;
 	
 	@Value("${assets-baseurl}")
 	private String assetsBaseUrl;
@@ -112,17 +100,21 @@ public class PortalController {
 	private final ParentService parentService;
 	
 	private final AnalyticsService analyticsService;
+
     private final GameApiService gameApiService;
+
+	private final AuthService authService;
 
     @Autowired
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService) {
+            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
         this.gameApiService = gameApiService;
+        this.authService = authService;
     }
     
     @GetMapping("/me")
@@ -132,88 +124,13 @@ public class PortalController {
     }
     
     @PostMapping("/login")
-    public String login(@RequestBody @Valid LoginRequest loginRequest, HttpServletRequest request) throws Exception {
-    	return login(loginRequest);
+    public ResponseEntity<String> login(@RequestBody @Valid LoginRequest loginRequest) {
+    	return ResponseEntity.ok(authService.login(loginRequest));
     }
-    
-    public String login(LoginRequest loginRequest) throws Exception {
-    	
-    	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
-                .region(Region.US_EAST_1)
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
 
-        InitiateAuthRequest authRequest = InitiateAuthRequest.builder()
-                .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
-                .clientId(APP_CLIENT_ID)	//COGNITO_APP_CLIENT_ID            
-                .authParameters(
-                        Map.of(
-                                "USERNAME", loginRequest.getUsername(),
-                                "PASSWORD", loginRequest.getPassword()
-                        )
-                )
-                .build();
-
-        InitiateAuthResponse authResponse = cognitoClient.initiateAuth(authRequest);
-        AuthenticationResultType authResult = authResponse.authenticationResult();    
-        return authResult.idToken();
-    }
-    
     @PostMapping("/signup")
-    public void createParent(@Valid @RequestBody CreateParentRequest createParentRequest, HttpServletRequest request) throws Exception {
-    	
-    	// Create a CognitoIdentityProviderClient
-    	CognitoIdentityProviderClient cognitoClient = CognitoIdentityProviderClient.builder()
-                .region(Region.US_EAST_1)
-                .credentialsProvider(DefaultCredentialsProvider.create())
-                .build();
-
-    	SignUpRequest signUpRequest = SignUpRequest.builder()
-    	        .clientId(APP_CLIENT_ID)
-    	        .username(createParentRequest.getEmail())
-    	        .password(createParentRequest.getPassword())
-    	        .userAttributes(
-    	                AttributeType.builder().name("email").value(createParentRequest.getEmail()).build(),
-    	                AttributeType.builder().name("family_name").value(createParentRequest.getLastName()).build(),
-    	                AttributeType.builder().name("given_name").value(createParentRequest.getFirstName()).build()
-    	        )
-    	        .build();
-    	
-    	// Call the signUp method to create the user
-    	SignUpResponse signUpResponse = cognitoClient.signUp(signUpRequest);
-
-    	// Access the user's username and other details from the signUpResponse
-    	String usern = signUpResponse.userSub();
-    	
-    	// Add user to user group
-    	AdminAddUserToGroupRequest addUserToGroupRequest = AdminAddUserToGroupRequest.builder()
-    	        .userPoolId(USER_POOL_ID)
-    	        .username(createParentRequest.getEmail())
-    	        .groupName(GROUP_NAME_USER)
-    	        .build();
-    	
-    	cognitoClient.adminAddUserToGroup(addUserToGroupRequest);
-    	
-    	// Confirm email automatically
-//    	AdminConfirmSignUpRequest confirmSignUpRequest = AdminConfirmSignUpRequest.builder()
-//    	        .userPoolId(USER_POOL_ID)
-//    	        .username(createParentRequest.getEmail())
-//    	        .build();
-//    	
-//    	AdminConfirmSignUpResponse confirmSignUpResponse = cognitoClient.adminConfirmSignUp(confirmSignUpRequest);
-//
-//    	boolean isConfirmed = confirmSignUpResponse.sdkHttpResponse().isSuccessful();
-    	
-    	Parent parent = new Parent();
-    	parent.setCreatedDate(new Date());
-    	parent.setChildren(new ArrayList<>());
-    	parent.setEmail(createParentRequest.getEmail());
-    	parent.setFirstName(createParentRequest.getFirstName());
-    	parent.setLastName(createParentRequest.getLastName());
-    	parent.setUsername(signUpResponse.userSub());
-		parent.setSalutation(createParentRequest.getSalutation());
-    	
-    	parentService.upsertParent(parent);
+    public void createParent(@Valid @RequestBody CreateParentRequest createParentRequest) {
+		parentService.createParent(createParentRequest);
     }
     
     @GetMapping("/children")

@@ -23,8 +23,8 @@ public class GameApiClient {
     public void createNewUser(CreateUserRequest createUserRequest, String jwt) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(jwt);
-        HttpEntity<CreateUserRequest> entity = new HttpEntity<>(createUserRequest, headers);
 
+        HttpEntity<CreateUserRequest> entity = new HttpEntity<>(createUserRequest, headers);
         try {
             gameApiRestClient.exchange("/games/users", HttpMethod.POST, entity, Void.class);
         } catch (RestClientException exception) {
