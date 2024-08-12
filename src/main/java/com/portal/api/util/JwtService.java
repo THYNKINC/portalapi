@@ -1,18 +1,16 @@
 package com.portal.api.util;
 
+import com.portal.api.model.Child;
+import com.portal.api.model.PortalUser;
+import com.portal.api.model.Role;
+import com.portal.api.repositories.CoachRepository;
+import com.portal.api.repositories.DelegateRepository;
+import com.portal.api.services.ParentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Service;
-
-import com.portal.api.model.Child;
-import com.portal.api.model.Parent;
-import com.portal.api.model.PortalUser;
-import com.portal.api.model.Role;
-import com.portal.api.repositories.DelegateRepository;
-import com.portal.api.services.ParentService;
-
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
@@ -21,14 +19,14 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.Authenticat
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthResponse;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
 
-import javax.servlet.http.HttpServletRequest;
-
 @Service
 public class JwtService {
-	
+
+	private final CoachRepository coachRepository;
 	@Value("${admin-username}")
 	private String ADMIN_USERNAME;
 	
@@ -51,11 +49,12 @@ public class JwtService {
     private final DelegateRepository delegates;
 
     @Autowired
-    public JwtService(JwtDecoder jwtDecoder, ParentService parentService, DelegateRepository delegates) {
+    public JwtService(JwtDecoder jwtDecoder, ParentService parentService, DelegateRepository delegates, CoachRepository coachRepository) {
         this.jwtDecoder = jwtDecoder;
         this.parentService = parentService;
 		this.delegates = delegates;
-    }
+		this.coachRepository = coachRepository;
+	}
     
     public String getAdminJwt() {
 
@@ -94,20 +93,13 @@ public class JwtService {
     	Role role = groups.contains(GROUP_NAME_DELEGATE) ? Role.delegate : 
     		groups.contains(GROUP_NAME_ADMIN) ? Role.admin : Role.parent;
     	
-    	PortalUser user = null;
-    	
-    	switch (role) {
-    	
-    	case parent:
-    	case admin:
-    		user = parentService.getParent(jwt.getClaim("cognito:username"));
-    		break;
-    		
-    	case delegate:
-    		user = delegates.findById(jwt.getClaim("cognito:username")).get();
-    		break;
-    	}
-    		
+    	PortalUser user = switch (role) {
+            case parent, admin -> parentService.getParent(jwt.getClaim("cognito:username"));
+            case delegate -> delegates.findById(jwt.getClaim("cognito:username")).get();
+            case coach -> coachRepository.findById(jwt.getClaim("cognito:username")).get();
+        };
+
+
         if(role != Role.admin) {
         	
         	if(adminRequired) {

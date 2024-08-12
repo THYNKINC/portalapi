@@ -1,20 +1,22 @@
 package com.portal.api.controllers;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.validation.Valid;
-
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.portal.api.dto.request.CreateDelegateRequest;
+import com.portal.api.dto.request.CreateHeadsetRequest;
+import com.portal.api.dto.request.UpdateChildRequest;
+import com.portal.api.dto.request.UpdateParentRequest;
+import com.portal.api.dto.response.GraphResponse;
+import com.portal.api.dto.response.PaginatedResponse;
+import com.portal.api.exception.ResourceNotFoundException;
+import com.portal.api.model.*;
+import com.portal.api.repositories.DelegateRepository;
+import com.portal.api.repositories.HeadsetRepository;
+import com.portal.api.services.*;
+import com.portal.api.util.DateTimeUtil;
+import com.portal.api.util.HttpService;
+import com.portal.api.util.JwtService;
+import io.swagger.v3.oas.annotations.Parameter;
 import org.instancio.Instancio;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
@@ -34,67 +36,31 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.exception.ResourceNotFoundException;
-import com.portal.api.model.AttemptSummary;
-import com.portal.api.model.Child;
-import com.portal.api.model.CompositeScores;
-import com.portal.api.dto.request.CreateDelegateRequest;
-import com.portal.api.dto.request.CreateHeadsetRequest;
-import com.portal.api.model.DashboardMetrics;
-import com.portal.api.model.Delegate;
-import com.portal.api.model.GameState;
-import com.portal.api.dto.response.GraphResponse;
-import com.portal.api.model.Headset;
-import com.portal.api.model.HeadsetAssignment;
-import com.portal.api.model.HistoricalProgressReport;
-import com.portal.api.dto.response.PaginatedResponse;
-import com.portal.api.model.Parent;
-import com.portal.api.model.PortalUser;
-import com.portal.api.model.RunnerSummary;
-import com.portal.api.model.SessionSummary;
-import com.portal.api.model.Stats;
-import com.portal.api.model.SummaryReport;
-import com.portal.api.dto.request.UpdateChildRequest;
-import com.portal.api.dto.request.UpdateParentRequest;
-import com.portal.api.repositories.DelegateRepository;
-import com.portal.api.repositories.HeadsetRepository;
-import com.portal.api.services.AnalyticsService;
-import com.portal.api.services.ParentService;
-import com.portal.api.services.SearchResultsMapper;
-import com.portal.api.util.HttpService;
-import com.portal.api.util.JwtService;
-import com.portal.api.util.DateTimeUtil;
-
-import io.swagger.v3.oas.annotations.Parameter;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminConfirmSignUpResponse;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
 @Validated
 public class AdminController {
-	
+
+	private final ImportJobService importJobService;
 	@Value("${app-client-id}")
 	private String APP_CLIENT_ID;
 	
@@ -122,22 +88,27 @@ public class AdminController {
 	private final AnalyticsService analyticsService;
 	
 	private final HeadsetRepository headsets;
+
+	private final CohortService cohortService;
 	
 	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
     @Autowired
     public AdminController(
-    		JwtService jwtService,
-    		ParentService parentService,
-    		AnalyticsService analyticsService,
-    		HeadsetRepository headsets,
-    		DelegateRepository delegates) {
+			JwtService jwtService,
+			ParentService parentService,
+			AnalyticsService analyticsService,
+			HeadsetRepository headsets,
+			DelegateRepository delegates,
+			CohortService cohortService, ImportJobService importJobService) {
         this.jwtService = jwtService;
         this.parentService = parentService;
         this.analyticsService = analyticsService;
         this.headsets = headsets;
         this.delegates = delegates;
-    }
+        this.cohortService = cohortService;
+		this.importJobService = importJobService;
+	}
     
     @PostMapping("/delegates")
     public void createDelegate(@Valid @RequestBody CreateDelegateRequest createParentRequest, HttpServletRequest request) throws Exception {
@@ -574,4 +545,23 @@ public class AdminController {
     	headset.setPlayer(assignment.getUsername());
     	return headsets.save(headset);
     }
+
+	@PostMapping("/cohort/{id}/upload")
+	public ResponseEntity<String> uploadFile(@PathVariable String id, @RequestParam("file") MultipartFile file, HttpServletRequest request) throws Exception {
+
+		PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+		String bearerToken = jwtService.getAdminJwt();
+
+        cohortService.processUsersCsv(file, id, bearerToken);
+
+        return ResponseEntity.accepted().body("CSV upload received");
+	}
+
+	@GetMapping("/imports")
+	ResponseEntity<List<ImportJob>> getImportJobs(HttpServletRequest request) throws Exception {
+
+		PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+
+		return ResponseEntity.ok(importJobService.getImportJobs());
+	}
 }
