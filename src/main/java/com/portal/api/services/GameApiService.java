@@ -3,8 +3,11 @@ package com.portal.api.services;
 import com.portal.api.clients.GameApiClient;
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.model.PortalUser;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class GameApiService {
@@ -26,5 +29,9 @@ public class GameApiService {
         createUserRequest.setUsername(createChildRequest.getUsername());
 
         gameApiClient.createNewUser(createUserRequest, adminJwt);
+    }
+
+    public List<RegisterUserStatus> registerMultipleUsers(List<CreateUserRequest> createUserRequests, String adminJwt) {
+        return gameApiClient.registerMultipleUsers(createUserRequests, adminJwt);
     }
 }

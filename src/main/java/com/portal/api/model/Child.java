@@ -1,11 +1,10 @@
 package com.portal.api.model;
 
+import lombok.Data;
+
 import java.time.LocalDate;
 import java.util.Date;
 import java.util.Map;
-
-import lombok.Data;
-import org.springframework.format.annotation.DateTimeFormat;
 
 @Data
 public class Child {
@@ -24,4 +23,12 @@ public class Child {
 	private Map<String, String> labels;
 	
 	private boolean locked;
+
+	private String school;
+
+	private String className;
+
+	private String gender;
+
+	private String grade;
 }

@@ -27,7 +27,5 @@ public class CreateParentRequest {
     @Size(min = 1, max = 50, message = "Last name length should be between 1 and 50")
     private String lastName;
 
-    @NotNull(message = "Salutation must not be null")
     private String salutation;
-    
 }
