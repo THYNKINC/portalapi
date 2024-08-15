@@ -89,7 +89,8 @@ public class JwtService {
     	Jwt jwt = jwtDecoder.decode(bearerToken);
     	
     	List<String> groups = jwt.getClaim("cognito:groups");
-        
+
+        // How does the coach fit in here?
     	Role role = groups.contains(GROUP_NAME_DELEGATE) ? Role.delegate : 
     		groups.contains(GROUP_NAME_ADMIN) ? Role.admin : Role.parent;
     	
