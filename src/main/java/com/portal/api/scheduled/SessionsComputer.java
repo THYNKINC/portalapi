@@ -82,7 +82,7 @@ public class SessionsComputer {
 		
 		Max lastCreated = response.getAggregations().get("created");
 		
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS'Z'");
 		
 		// get all new sessions which ended after the last session end date
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
