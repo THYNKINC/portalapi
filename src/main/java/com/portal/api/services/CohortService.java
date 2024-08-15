@@ -21,7 +21,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 public class CohortService {
@@ -38,22 +37,35 @@ public class CohortService {
         this.importJobRepository = importJobRepository;
     }
 
+    public void processUsersCsv(MultipartFile file, String cohortId, String bearerToken) {
+
+        ImportJob job = new ImportJob();
+        job.setCohortId(cohortId);
+        job.setStatus("running");
+
+        importJobRepository.save(job);
+
+        processUsersAsync(file, cohortId, bearerToken, job);
+    }
+
     @Async
-    public CompletableFuture<Boolean> processUsersCsv(MultipartFile file, String cohortId, String bearerToken) {
+    public void processUsersAsync(MultipartFile file, String cohortId, String bearerToken, ImportJob job) {
 
         List<CreateUserRequest> users = parseCsv(file);
         if (users.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
+            return;
         }
 
-        Coach coach = coachRepository.findOneByCohortsId(cohortId);
+        Optional<Coach> coachOptional = coachRepository.findOneByCohortsId(cohortId);
 
-        if (coach == null) {
-            return CompletableFuture.completedFuture(false);
+        if (coachOptional.isEmpty()) {
+            return;
         }
+
+        Coach coach = coachOptional.get();
 
         if (coach.getCohorts() == null) {
-            return CompletableFuture.completedFuture(false);
+            return;
         }
 
         Optional<Cohort> cohortOptional = coach.getCohorts()
@@ -62,19 +74,13 @@ public class CohortService {
                 .findFirst();
 
         if (cohortOptional.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
+            return;
         }
-
-        ImportJob job = new ImportJob();
-        job.setCohortId(cohortId);
-        job.setStatus("running");
-
-        importJobRepository.save(job);
 
         List<RegisterUserStatus> result = gameApiService.registerMultipleUsers(users, bearerToken);
 
         if (result.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
+            return;
         }
 
         List<RegisterUserStatus> registeredUsers = result
@@ -82,10 +88,9 @@ public class CohortService {
                 .filter(user -> user.getStatus().equals("registered"))
                 .toList();
 
-
         Cohort cohort = cohortOptional.get();
         for (RegisterUserStatus user : registeredUsers) {
-            addChild(user, cohort);
+            addToCohort(user, cohort);
         }
 
         coachRepository.save(coach);
@@ -93,8 +98,6 @@ public class CohortService {
         job.setStatus("completed");
         job.setUsers(registeredUsers);
         importJobRepository.save(job);
-
-        return CompletableFuture.completedFuture(true);
     }
 
     public List<Cohort> getCohorts(String coachUsername) {
@@ -172,7 +175,7 @@ public class CohortService {
     }
 
 
-    public void addUserToCohort(CreateUserRequest createUserRequest, String id, String coachUsername) {
+    public Child addUserToCohort(CreateUserRequest createUserRequest, String id, String coachUsername) {
         Coach coach = getCoach(coachUsername);
 
         if (coach.getCohorts() == null) {
@@ -186,12 +189,14 @@ public class CohortService {
 
         Cohort cohort = cohortOptional.get();
 
-        addChild(createUserRequest, cohort);
+        Child child = addToCohort(createUserRequest, cohort);
 
         coachRepository.save(coach);
+
+        return child;
     }
 
-    private static List<CreateUserRequest> parseCsv(MultipartFile file) {
+    private List<CreateUserRequest> parseCsv(MultipartFile file) {
 
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream())) {
 
@@ -207,7 +212,7 @@ public class CohortService {
         }
     }
 
-    private void addChild(RegisterUserStatus user, Cohort cohort) {
+    private void addToCohort(RegisterUserStatus user, Cohort cohort) {
         Child child = new Child();
         child.setFirstName(user.getFirstName());
         child.setLastName(user.getLastName());
@@ -222,7 +227,7 @@ public class CohortService {
         cohort.addChild(child);
     }
 
-    private void addChild(CreateUserRequest user, Cohort cohort) {
+    private Child addToCohort(CreateUserRequest user, Cohort cohort) {
         Child child = new Child();
         child.setFirstName(user.getFirstName());
         child.setLastName(user.getLastName());
@@ -235,5 +240,7 @@ public class CohortService {
         child.setCreatedDate(new Date());
 
         cohort.addChild(child);
+
+        return child;
     }
 }

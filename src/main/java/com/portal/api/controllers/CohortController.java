@@ -1,7 +1,6 @@
 package com.portal.api.controllers;
 
 import com.portal.api.dto.request.CreateCohortRequest;
-import com.portal.api.dto.request.CreateUserRequest;
 import com.portal.api.model.Cohort;
 import com.portal.api.model.PortalUser;
 import com.portal.api.services.CohortService;
@@ -60,15 +59,5 @@ public class CohortController {
         cohortService.delete(id, coach.getUsername());
 
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/{id}/users")
-    ResponseEntity<String> delete(@Valid @RequestBody CreateUserRequest createUserRequest, @PathVariable String id, HttpServletRequest request) throws Exception {
-
-        PortalUser coach = jwtService.decodeJwtFromRequest(request, false, null);
-
-        cohortService.addUserToCohort(createUserRequest, id, coach.getUsername());
-
-        return ResponseEntity.ok().body("User added to cohort");
     }
 }

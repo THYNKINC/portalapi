@@ -61,6 +61,7 @@ import java.util.stream.Collectors;
 public class AdminController {
 
 	private final ImportJobService importJobService;
+
 	@Value("${app-client-id}")
 	private String APP_CLIENT_ID;
 	
@@ -93,7 +94,7 @@ public class AdminController {
 	
 	private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
-    @Autowired
+	@Autowired
     public AdminController(
 			JwtService jwtService,
 			ParentService parentService,
