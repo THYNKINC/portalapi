@@ -62,6 +62,8 @@ public class SessionsComputer {
     private void computeSessions() throws Exception {
         
 		logger.info("computing sessions");
+		
+		long startedAt = new Date().getTime();
         
 		// get the last created session from elastic
 		SSLContext sslContext = opensearchService.getSSLContext();
@@ -217,7 +219,7 @@ public class SessionsComputer {
 	    	summary.setParentLastName(parent.getLastName());
 	    	summary.setParentEmail(parent.getEmail());
 	    	
-	    	summary.setCreatedDate(new Date().getTime());
+	    	summary.setCreatedDate(startedAt);
 	    	
 	    	sessions.add(summary);
 			
