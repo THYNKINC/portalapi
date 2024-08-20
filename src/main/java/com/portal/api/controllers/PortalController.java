@@ -198,6 +198,7 @@ public class PortalController {
     	ProgressResponse progressResponse = new ProgressResponse();
     	
     	progressResponse.setSessionsCompleted(progressReport.getSessionsCompleted());
+    	progressResponse.setPlaytime(progressReport.getTotalPlaytime());
     	
     	searchResponse = analyticsService.weeklyStats(username); 
     	
