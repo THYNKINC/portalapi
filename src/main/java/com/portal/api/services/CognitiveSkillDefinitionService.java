@@ -29,4 +29,15 @@ public class CognitiveSkillDefinitionService {
         container.setId(id);
         return repository.save(container);
     }
+
+    public CognitiveSkillDefinitionContainer createOrUpdate(CognitiveSkillDefinitionContainer container) {
+        List<CognitiveSkillDefinitionContainer> containers = getAll();
+        if (containers.isEmpty()) {
+            return repository.save(container);
+        } else {
+            CognitiveSkillDefinitionContainer dbContainer = containers.get(0);
+            repository.delete(dbContainer);
+            return repository.save(container);
+        }
+    }
 }

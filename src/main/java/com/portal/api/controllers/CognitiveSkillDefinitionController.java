@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/admin/cognitive-skill-definition")
@@ -30,27 +29,24 @@ public class CognitiveSkillDefinitionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CognitiveSkillDefinitionContainer>> index(HttpServletRequest request) throws Exception {
+    public ResponseEntity<CognitiveSkillDefinitionContainer> index(HttpServletRequest request) throws Exception {
         PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
         List<CognitiveSkillDefinitionContainer> containers = service.getAll();
-        return new ResponseEntity<>(containers, HttpStatus.OK);
+
+        if (containers.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+
+        return new ResponseEntity<>(containers.get(0), HttpStatus.OK);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<CognitiveSkillDefinitionContainer> edit(@PathVariable String id, HttpServletRequest request) throws Exception {
-        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
-
-        Optional<CognitiveSkillDefinitionContainer> container = service.getById(id);
-        return container.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<CognitiveSkillDefinitionContainer> update(@PathVariable String id, @Valid @RequestBody CognitiveSkillDefinitionContainer container, HttpServletRequest request) throws Exception {
+    @PostMapping()
+    public ResponseEntity<CognitiveSkillDefinitionContainer> update(@Valid @RequestBody CognitiveSkillDefinitionContainer container, HttpServletRequest request) throws Exception {
         try {
             PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
-            CognitiveSkillDefinitionContainer updatedContainer = service.update(id, container);
+            CognitiveSkillDefinitionContainer updatedContainer = service.createOrUpdate(container);
             return new ResponseEntity<>(updatedContainer, HttpStatus.OK);
         } catch (ResourceNotFoundException e) {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
