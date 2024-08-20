@@ -267,6 +267,55 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	
+	public SearchResponse sessions(String userId, String missionId, String type) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("mission_id", missionId))
+				.must(QueryBuilders.matchQuery("type", type));
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+		
+		searchSourceBuilder.sort("start_date", SortOrder.ASC);
+
+		SearchRequest searchRequest = new SearchRequest("sessions");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
+	public SearchResponse latestSessionsPerMission(String userId, String missionId) throws Exception {
+		
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+		
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder
+			.query(QueryBuilders
+					.boolQuery()
+					.must(QueryBuilders.matchQuery("user_id", userId))
+					.must(QueryBuilders.matchQuery("mission_id", missionId)))
+			.size(0)
+			.aggregation(AggregationBuilders
+				.terms("types")
+				.field("type")
+				.size(3)
+				.subAggregation(AggregationBuilders
+						.topHits("latest")
+						.size(1)
+						.sort("id", SortOrder.DESC)));
+
+		SearchRequest searchRequest = new SearchRequest("sessions");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+	
 	public SearchResponse session(String userId, String sessionId) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();

@@ -2,7 +2,6 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,15 +10,17 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
-import com.portal.api.services.*;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
+import org.opensearch.search.aggregations.bucket.terms.Terms.Bucket;
 import org.opensearch.search.aggregations.metrics.Max;
 import org.opensearch.search.aggregations.metrics.ParsedAvg;
+import org.opensearch.search.aggregations.metrics.TopHits;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -31,55 +32,47 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.dto.response.AttentionResponse;
-import com.portal.api.model.Badge;
-import com.portal.api.dto.response.BadgesResponse;
-import com.portal.api.model.Child;
-import com.portal.api.dto.response.CognitiveSkillsProgressResponse;
-import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateParentRequest;
-import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.request.LoginRequest;
+import com.portal.api.dto.response.AttentionResponse;
+import com.portal.api.dto.response.BadgesResponse;
+import com.portal.api.dto.response.CognitiveSkillsProgressResponse;
+import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.dto.response.CustomSearchResponse;
 import com.portal.api.dto.response.FogAnalysisResponse;
 import com.portal.api.dto.response.GraphResponse;
-import com.portal.api.model.HistoricalProgressReport;
-import com.portal.api.model.ImpulseControl;
-import com.portal.api.dto.request.LoginRequest;
-import com.portal.api.model.Parent;
-import com.portal.api.model.PortalUser;
 import com.portal.api.dto.response.PowerResponse;
 import com.portal.api.dto.response.ProgressResponse;
 import com.portal.api.dto.response.RecentMissionResponse;
-import com.portal.api.model.Role;
 import com.portal.api.dto.response.RunnerResponse;
+import com.portal.api.model.Badge;
+import com.portal.api.model.Child;
+import com.portal.api.model.HistoricalProgressReport;
+import com.portal.api.model.ImpulseControl;
+import com.portal.api.model.PortalUser;
+import com.portal.api.model.Role;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.model.TransferenceSummary;
+import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.AuthService;
+import com.portal.api.services.GameApiService;
+import com.portal.api.services.ParentService;
+import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 
 import io.swagger.v3.oas.annotations.Hidden;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthResponse;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+import software.amazon.awssdk.services.iot.model.TermsAggregation;
 
 @RestController
 @RequestMapping("/portal")
@@ -151,6 +144,45 @@ public class PortalController {
 		gameApiService.createNewUserFromChild(createChildRequest, user, jwtService.getAdminJwt());
 		parentService.addChildToParent(createChildRequest, user.getUsername());
     }
+    
+    @GetMapping("/children/{username}/missions/{missionId}/runners")
+    public List<RunnerSummary> childMissionRunners(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
+    	
+    	jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	// Return latest x 
+    	SearchResponse response = analyticsService.sessions(username, missionId, "runner");
+    	List<RunnerSummary> sessions = new ArrayList<>();
+
+    	for (SearchHit hit: response.getHits().getHits()) {
+    		
+    		sessions.add((RunnerSummary)SearchResultsMapper.getSession(hit));
+		}
+    	
+    	return sessions;
+    }
+    
+    @GetMapping("/children/{username}/missions/{missionId}/progress")
+    public List<SessionSummary> childHighestMission(@PathVariable("username") String username, @PathVariable("missionId") String missionId, HttpServletRequest request) throws Exception {
+    	
+    	jwtService.decodeJwtFromRequest(request, false, username);
+    	
+    	SearchResponse response = analyticsService.latestSessionsPerMission(username, missionId);
+    	
+    	Terms types = response.getAggregations().get("types");
+    	
+    	List<SessionSummary> sessions = new ArrayList<>();
+    	
+    	for (Bucket bucket: types.getBuckets()) {
+    		
+    		TopHits latest = bucket.getAggregations().get("latest");
+    		
+    		if (latest.getHits().getHits().length > 0)
+    			sessions.add(SearchResultsMapper.getSession(latest.getHits().getAt(0)));
+    	}
+    	
+    	return sessions;
+    }
 
     @GetMapping("/children/{username}/progress")
     public ProgressResponse childProgress(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
@@ -189,8 +221,8 @@ public class PortalController {
 		RunnerSummary runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
 		
 		// calculate thynk score
-		double thynkScore = (1.7 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
-				* (runner.getScores().getCompositeFocus()/ 100 + 1);
+		double thynkScore = (2.0 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
+				* (runner.getScores().getCompositeFocus() / 100 + 1);
 		
     	progressResponse.setThynkScore((int)Math.ceil(thynkScore));
     	
