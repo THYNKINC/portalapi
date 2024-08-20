@@ -35,7 +35,7 @@ public class CognitiveSkillDefinitionController {
         List<CognitiveSkillDefinitionContainer> containers = service.getAll();
 
         if (containers.isEmpty()) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return new ResponseEntity<>(new CognitiveSkillDefinitionContainer(), HttpStatus.OK);
         }
 
         return new ResponseEntity<>(containers.get(0), HttpStatus.OK);
