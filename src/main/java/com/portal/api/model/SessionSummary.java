@@ -27,6 +27,7 @@ public abstract class SessionSummary {
 	int missionId;
 	long startDate;
 	long endDate;
+	long createdDate;
 	int duration;
 	String status;
 	int bciAvg;

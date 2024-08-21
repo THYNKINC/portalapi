@@ -10,4 +10,5 @@ public class ProgressResponse {
 	private int abandonedAttempts;
 	private int sessionsCompletedPerWeek;
 	private int thynkScore;
+	private String playtime;
 }

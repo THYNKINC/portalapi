@@ -62,17 +62,19 @@ public class SessionsComputer {
     private void computeSessions() throws Exception {
         
 		logger.info("computing sessions");
+		
+		long startedAt = new Date().getTime();
         
-		// get the last computed session from elastic
+		// get the last created session from elastic
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		MaxAggregationBuilder ended = AggregationBuilders
-				.max("ended")
-				.field("end_date");
+		MaxAggregationBuilder created = AggregationBuilders
+				.max("created")
+				.field("created_date");
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-				.aggregation(ended)
+				.aggregation(created)
 				.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("sessions")
@@ -80,22 +82,22 @@ public class SessionsComputer {
 
 		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
-		Max lastProcessed = response.getAggregations().get("ended");
+		Max lastCreated = response.getAggregations().get("created");
 		
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS'Z'");
 		
 		// get all new sessions which ended after the last session end date
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandoned"));
 		
-		String lastProcessedDate = df.format(new Date((long)lastProcessed.value()));
+		String lastCreatedDate = df.format(new Date((long)lastCreated.value()));
 		
-		logger.info("Last processed session end date: " + lastProcessedDate);
+		logger.info("Last processed session end date: " + lastCreatedDate);
 		
-		if (lastProcessed.value() > 0)
+		if (lastCreated.value() > 0)
 			boolQuery
-				.must(QueryBuilders.rangeQuery("timestamp")
-					.gt(lastProcessedDate)
+				.must(QueryBuilders.rangeQuery("received_on")
+					.gt(lastCreatedDate)
 					.includeLower(false));
 			
 		// Specify the fields to return
@@ -216,6 +218,8 @@ public class SessionsComputer {
 	    	summary.setParentFirstName(parent.getFirstName());
 	    	summary.setParentLastName(parent.getLastName());
 	    	summary.setParentEmail(parent.getEmail());
+	    	
+	    	summary.setCreatedDate(startedAt);
 	    	
 	    	sessions.add(summary);
 			
