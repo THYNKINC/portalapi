@@ -72,7 +72,6 @@ import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 
 import io.swagger.v3.oas.annotations.Hidden;
-import software.amazon.awssdk.services.iot.model.TermsAggregation;
 
 @RestController
 @RequestMapping("/portal")
@@ -217,9 +216,20 @@ public class PortalController {
     	progressResponse.setMissionsCompleted(progressReport.getHighestMission());
 		
 		// get the last attempt (could be different from highest mission if they went back to an old mission)
-		searchResponse = analyticsService.lastNRunners(username, 1);
+		searchResponse = analyticsService.lastAttempt(username);
+		SessionSummary lastSession = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
 		
-		RunnerSummary runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+		progressResponse.setLastPlayed(lastSession.getStartDate());
+		
+		RunnerSummary runner = null;
+		
+		// also get the latest runner for the score calculation, if different from latest session
+		if (lastSession instanceof RunnerSummary)
+			runner = (RunnerSummary)lastSession;
+		else {
+			searchResponse = analyticsService.lastNRunners(username, 1);
+			runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+		}
 		
 		// calculate thynk score
 		double thynkScore = (2.0 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
