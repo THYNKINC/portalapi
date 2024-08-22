@@ -2,7 +2,6 @@ package com.portal.api.controllers;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,7 +10,6 @@ import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
-import com.portal.api.services.*;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
@@ -31,55 +29,46 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.dto.response.AttentionResponse;
-import com.portal.api.model.Badge;
-import com.portal.api.dto.response.BadgesResponse;
-import com.portal.api.model.Child;
-import com.portal.api.dto.response.CognitiveSkillsProgressResponse;
-import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateParentRequest;
-import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.request.LoginRequest;
+import com.portal.api.dto.response.AttentionResponse;
+import com.portal.api.dto.response.BadgesResponse;
+import com.portal.api.dto.response.CognitiveSkillsProgressResponse;
+import com.portal.api.dto.response.CognitiveSkillsResponse;
 import com.portal.api.dto.response.CustomSearchResponse;
 import com.portal.api.dto.response.FogAnalysisResponse;
 import com.portal.api.dto.response.GraphResponse;
-import com.portal.api.model.HistoricalProgressReport;
-import com.portal.api.model.ImpulseControl;
-import com.portal.api.dto.request.LoginRequest;
-import com.portal.api.model.Parent;
-import com.portal.api.model.PortalUser;
 import com.portal.api.dto.response.PowerResponse;
 import com.portal.api.dto.response.ProgressResponse;
 import com.portal.api.dto.response.RecentMissionResponse;
-import com.portal.api.model.Role;
 import com.portal.api.dto.response.RunnerResponse;
+import com.portal.api.model.Badge;
+import com.portal.api.model.Child;
+import com.portal.api.model.HistoricalProgressReport;
+import com.portal.api.model.ImpulseControl;
+import com.portal.api.model.PortalUser;
+import com.portal.api.model.Role;
 import com.portal.api.model.RunnerSummary;
 import com.portal.api.model.SessionData;
 import com.portal.api.model.SessionSummary;
 import com.portal.api.model.SkillItem;
 import com.portal.api.model.StartEnd;
 import com.portal.api.model.TransferenceSummary;
+import com.portal.api.services.AnalyticsService;
+import com.portal.api.services.AuthService;
+import com.portal.api.services.GameApiService;
+import com.portal.api.services.ParentService;
+import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
 import com.portal.api.util.MappingService;
 
 import io.swagger.v3.oas.annotations.Hidden;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthResponse;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
 @RestController
 @RequestMapping("/portal")
@@ -184,9 +173,20 @@ public class PortalController {
     	progressResponse.setMissionsCompleted(progressReport.getHighestMission());
 		
 		// get the last attempt (could be different from highest mission if they went back to an old mission)
-		searchResponse = analyticsService.lastNRunners(username, 1);
+		searchResponse = analyticsService.lastAttempt(username);
+		SessionSummary lastSession = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
 		
-		RunnerSummary runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+		progressResponse.setLastPlayed(lastSession.getStartDate());
+		
+		RunnerSummary runner = null;
+		
+		// also get the latest runner for the score calculation, if different from latest session
+		if (lastSession instanceof RunnerSummary)
+			runner = (RunnerSummary)lastSession;
+		else {
+			searchResponse = analyticsService.lastNRunners(username, 1);
+			runner = (RunnerSummary)SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+		}
 		
 		// calculate thynk score
 		double thynkScore = (1.7 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
