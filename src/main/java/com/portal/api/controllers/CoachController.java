@@ -2,7 +2,7 @@ package com.portal.api.controllers;
 
 import com.portal.api.dto.request.CreateParentRequest;
 import com.portal.api.dto.response.PaginatedResponse;
-import com.portal.api.model.Coach;
+import com.portal.api.model.Delegate;
 import com.portal.api.model.PortalUser;
 import com.portal.api.services.CoachService;
 import com.portal.api.util.JwtService;
@@ -32,23 +32,23 @@ public class CoachController {
     }
 
     @GetMapping()
-    ResponseEntity<PaginatedResponse<Coach>> index(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, HttpServletRequest request) throws Exception {
+    ResponseEntity<PaginatedResponse<Delegate>> index(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size, HttpServletRequest request) throws Exception {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
         Pageable pageRequest = PageRequest.of(page, size);
 
-        Page<Coach> coaches = coachService.getCoaches(pageRequest);
+        Page<Delegate> coaches = coachService.getCoaches(pageRequest);
 
         return ResponseEntity.ok(new PaginatedResponse<>(coaches.getContent(), coaches.getTotalElements()));
     }
 
     @PostMapping()
-    ResponseEntity<Coach> create(@Valid @RequestBody CreateParentRequest createCoachRequest, HttpServletRequest request) throws Exception {
+    ResponseEntity<Delegate> create(@Valid @RequestBody CreateParentRequest createCoachRequest, HttpServletRequest request) throws Exception {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
-        Coach coach = coachService.createCoach(createCoachRequest);
+        Delegate coach = coachService.createCoach(createCoachRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(coach);
     }

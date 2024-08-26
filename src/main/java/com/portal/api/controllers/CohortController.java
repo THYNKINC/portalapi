@@ -32,7 +32,7 @@ public class CohortController {
 
         PortalUser coach = jwtService.decodeJwtFromRequest(request, false, null);
 
-        return ResponseEntity.ok(cohortService.getCohorts(coach.getUsername()));
+        return ResponseEntity.ok(cohortService.getCohorts());
     }
 
     @PostMapping()
@@ -56,7 +56,7 @@ public class CohortController {
 
         PortalUser coach = jwtService.decodeJwtFromRequest(request, false, null);
 
-        cohortService.delete(id, coach.getUsername());
+        cohortService.delete(id);
 
         return ResponseEntity.noContent().build();
     }

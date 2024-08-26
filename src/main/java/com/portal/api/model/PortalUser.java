@@ -1,14 +1,14 @@
 package com.portal.api.model;
 
-import java.util.Date;
-import java.util.List;
-
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 @Data
 @SuperBuilder
@@ -34,4 +34,17 @@ public class PortalUser {
 	
 	@Transient
 	private Role role;
+
+	public void addChild(Child child) {
+		if (children == null) {
+			children = new ArrayList<Child>();
+		}
+		children.add(child);
+	}
+
+	public void removeChild(Child child) {
+		if (children != null) {
+			children.remove(child);
+		}
+	}
 }

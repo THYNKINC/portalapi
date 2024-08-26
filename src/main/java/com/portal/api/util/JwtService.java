@@ -3,7 +3,6 @@ package com.portal.api.util;
 import com.portal.api.model.Child;
 import com.portal.api.model.PortalUser;
 import com.portal.api.model.Role;
-import com.portal.api.repositories.CoachRepository;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.services.ParentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +25,6 @@ import java.util.Map;
 @Service
 public class JwtService {
 
-	private final CoachRepository coachRepository;
 	@Value("${admin-username}")
 	private String ADMIN_USERNAME;
 	
@@ -49,11 +47,10 @@ public class JwtService {
     private final DelegateRepository delegates;
 
     @Autowired
-    public JwtService(JwtDecoder jwtDecoder, ParentService parentService, DelegateRepository delegates, CoachRepository coachRepository) {
+    public JwtService(JwtDecoder jwtDecoder, ParentService parentService, DelegateRepository delegates) {
         this.jwtDecoder = jwtDecoder;
         this.parentService = parentService;
 		this.delegates = delegates;
-		this.coachRepository = coachRepository;
 	}
     
     public String getAdminJwt() {
@@ -90,14 +87,12 @@ public class JwtService {
     	
     	List<String> groups = jwt.getClaim("cognito:groups");
 
-        // How does the coach fit in here?
-    	Role role = groups.contains(GROUP_NAME_DELEGATE) ? Role.delegate : 
+        Role role = groups.contains(GROUP_NAME_DELEGATE) ? Role.delegate :
     		groups.contains(GROUP_NAME_ADMIN) ? Role.admin : Role.parent;
     	
     	PortalUser user = switch (role) {
             case parent, admin -> parentService.getParent(jwt.getClaim("cognito:username"));
             case delegate -> delegates.findById(jwt.getClaim("cognito:username")).get();
-            case coach -> coachRepository.findById(jwt.getClaim("cognito:username")).get();
         };
 
 

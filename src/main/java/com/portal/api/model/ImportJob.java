@@ -18,6 +18,12 @@ public class ImportJob {
 
     private String cohortId;
 
+    private String cohortName;
+
+    private String coachUsername;
+
     private List<RegisterUserStatus> users;
+
+    private String error;
 
 }

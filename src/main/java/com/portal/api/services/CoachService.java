@@ -1,8 +1,8 @@
 package com.portal.api.services;
 
 import com.portal.api.dto.request.CreateParentRequest;
-import com.portal.api.model.Coach;
-import com.portal.api.repositories.CoachRepository;
+import com.portal.api.model.Delegate;
+import com.portal.api.repositories.DelegateRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -15,24 +15,24 @@ import java.util.Date;
 @Service
 public class CoachService {
 
-    private final CoachRepository coachRepository;
+    private final DelegateRepository delegateRepository;
 
     private final AuthService authService;
 
-    public CoachService(CoachRepository coachRepository, AuthService authService) {
-        this.coachRepository = coachRepository;
+    public CoachService(DelegateRepository delegateRepository, AuthService authService) {
+        this.delegateRepository = delegateRepository;
         this.authService = authService;
     }
 
-    public Page<Coach> getCoaches(Pageable pageable) {
-        return coachRepository.findAll(pageable);
+    public Page<Delegate> getCoaches(Pageable pageable) {
+        return delegateRepository.findAll(pageable);
     }
 
-    public Coach createCoach(CreateParentRequest createCoachRequest) {
+    public Delegate createCoach(CreateParentRequest createCoachRequest) {
 
         SignUpResponse signUpResponse = authService.registerUser(createCoachRequest);
 
-        Coach coach = new Coach();
+        Delegate coach = new Delegate();
 
         coach.setCreatedDate(new Date());
         coach.setChildren(new ArrayList<>());
@@ -41,8 +41,9 @@ public class CoachService {
         coach.setLastName(createCoachRequest.getLastName());
         coach.setUsername(signUpResponse.userSub());
         coach.setSalutation(createCoachRequest.getSalutation());
+        coach.setType("coach");
 
-        coachRepository.save(coach);
+        delegateRepository.save(coach);
 
         return coach;
     }

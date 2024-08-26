@@ -14,7 +14,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 
 @RestController
-@RequestMapping("/portal/cohorts/{id}/users")
+@RequestMapping("/portal/cohorts/{cohortId}/users")
 @Validated
 public class CohortUserController {
 
@@ -27,12 +27,12 @@ public class CohortUserController {
         this.cohortService = cohortService;
     }
 
-    @PostMapping("/{id}/users")
-    ResponseEntity<Child> create(@Valid @RequestBody CreateUserRequest createUserRequest, @PathVariable String id, HttpServletRequest request) throws Exception {
+    @PostMapping()
+    ResponseEntity<Child> create(@Valid @RequestBody CreateUserRequest createUserRequest, @PathVariable String cohortId, HttpServletRequest request) throws Exception {
 
         PortalUser coach = jwtService.decodeJwtFromRequest(request, true, null);
 
-        Child child = cohortService.addUserToCohort(createUserRequest, id, coach.getUsername());
+        Child child = cohortService.addUserToCohort(createUserRequest, cohortId, coach.getUsername());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(child);
     }
