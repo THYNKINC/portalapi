@@ -1,24 +1,13 @@
 package com.portal.api.services;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.net.ssl.SSLContext;
-
+import com.portal.api.dto.response.CustomSearchResponse;
+import com.portal.api.util.OpensearchService;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
-import org.opensearch.index.query.BoolQueryBuilder;
-import org.opensearch.index.query.MatchQueryBuilder;
-import org.opensearch.index.query.QueryBuilder;
-import org.opensearch.index.query.QueryBuilders;
-import org.opensearch.index.query.TermQueryBuilder;
+import org.opensearch.index.query.*;
 import org.opensearch.script.Script;
 import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
@@ -40,8 +29,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import com.portal.api.dto.response.CustomSearchResponse;
-import com.portal.api.util.OpensearchService;
+import javax.net.ssl.SSLContext;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Component
 public class AnalyticsService {
@@ -87,7 +81,7 @@ public class AnalyticsService {
 	
 	public SearchResponse dashboardMetrics(String scale, String type) throws Exception {
 		
-		Map<String, String> ranges = Map.of("daily", "now-7d/d", "weekly", "now-12w/w", "monthly", "now-12M/M", "yearly", "now-10y/y");
+		Map<String, String> ranges = Map.of("daily", "now-7d/d", "weekly", "now-12w/w", "monthly", "now-12M/M", "yearly", "now-3y/y");
 		Map<String, DateHistogramInterval> intervals = Map.of("daily", DateHistogramInterval.DAY, "weekly",  DateHistogramInterval.WEEK, "monthly",  DateHistogramInterval.MONTH, "yearly",  DateHistogramInterval.YEAR);
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
