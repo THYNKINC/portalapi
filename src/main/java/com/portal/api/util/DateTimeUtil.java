@@ -30,12 +30,15 @@ public abstract class DateTimeUtil {
 	 * @param duration milliseconds
 	 * @return
 	 */
-	public static String prettyPrint(long duration) {
+	public static String prettyPrint(long durationMs) {
 		
-		return Duration.ofMillis(duration).toString()
-				.substring(2)
-	            .replaceAll("(\\d[HMS])(?!$)", "$1 ")
-	            .toLowerCase();
+		Duration duration = Duration.ofMillis(durationMs);
+		
+		long HH = duration.toHours();
+		long MM = duration.toMinutesPart();
+		long SS = duration.toSecondsPart();
+		
+		return String.format("%02dh %02dm %02ds", HH, MM, SS);
 	}
 	
 	/**
