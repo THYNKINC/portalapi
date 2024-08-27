@@ -25,7 +25,7 @@ public class CoachService {
     }
 
     public Page<Delegate> getCoaches(Pageable pageable) {
-        return delegateRepository.findAll(pageable);
+        return delegateRepository.findByType("coach", pageable);
     }
 
     public Delegate createCoach(CreateParentRequest createCoachRequest) {

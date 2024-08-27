@@ -2,9 +2,9 @@ package com.portal.api.services;
 
 import com.portal.api.model.ImportJob;
 import com.portal.api.repositories.ImportJobRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class ImportJobService {
@@ -15,7 +15,7 @@ public class ImportJobService {
         this.importJobRepository = importJobRepository;
     }
 
-    public List<ImportJob> getImportJobs() {
-        return importJobRepository.findAll();
+    public Page<ImportJob> getImportJobs(Pageable pageRequest) {
+        return importJobRepository.findAll(pageRequest);
     }
 }
