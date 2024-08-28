@@ -35,6 +35,14 @@ public class CohortController {
         return ResponseEntity.ok(cohortService.getCohorts());
     }
 
+    @GetMapping("{cohortId}")
+    ResponseEntity<Cohort> edit(@PathVariable String cohortId, HttpServletRequest request) throws Exception {
+
+        PortalUser coach = jwtService.decodeJwtFromRequest(request, false, null);
+
+        return ResponseEntity.ok(cohortService.getCohort(cohortId));
+    }
+
     @PostMapping()
     ResponseEntity<Cohort> create(@Valid @RequestBody CreateCohortRequest createCohortRequest, HttpServletRequest request) throws Exception {
 

@@ -5,6 +5,7 @@ import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateUserRequest;
 import com.portal.api.dto.response.RegisterUserStatus;
+import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Child;
 import com.portal.api.model.Cohort;
 import com.portal.api.model.Delegate;
@@ -14,7 +15,6 @@ import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStreamReader;
@@ -42,12 +42,12 @@ public class CohortService {
 
         Optional<Delegate> coachOptional = delegateRepository.findById(coachUsername);
         if (coachOptional.isEmpty()) {
-            return;
+            throw new ResourceNotFoundException("Coach not found");
         }
 
         Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
         if (cohortOptional.isEmpty()) {
-            return;
+            throw new ResourceNotFoundException("Cohort not found");
         }
 
         Delegate coach = coachOptional.get();
@@ -120,7 +120,7 @@ public class CohortService {
     private Delegate getCoach(String coachId) {
         Optional<Delegate> coachOptional = delegateRepository.findById(coachId);
         if (coachOptional.isEmpty()) {
-            throw new ResourceAccessException("Coach does not exist");
+            throw new ResourceNotFoundException("Coach does not exist");
         }
         return coachOptional.get();
     }
@@ -128,7 +128,7 @@ public class CohortService {
     public Cohort update(CreateCohortRequest updateCohortRequest, String id, String coachUsername) {
         Optional<Cohort> cohortOptional = cohortsRepository.findById(id);
         if (cohortOptional.isEmpty()) {
-            throw new ResourceAccessException("Cohort does not exist");
+            throw new ResourceNotFoundException("Cohort does not exist");
         }
 
         Cohort cohort = cohortOptional.get();
@@ -143,7 +143,7 @@ public class CohortService {
     public void delete(String cohortId) {
         Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
         if (cohortOptional.isEmpty()) {
-            throw new ResourceAccessException("Cohort does not exist");
+            throw new ResourceNotFoundException("Cohort does not exist");
         }
 
         Cohort cohort = cohortOptional.get();
@@ -156,7 +156,7 @@ public class CohortService {
 
         Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
         if (cohortOptional.isEmpty()) {
-            throw new ResourceAccessException("Cohort does not exist");
+            throw new ResourceNotFoundException("Cohort does not exist");
         }
 
         Cohort cohort = cohortOptional.get();
@@ -215,5 +215,14 @@ public class CohortService {
         child.setLabels(Map.of("cohort", cohort.getId()));
 
         return child;
+    }
+
+    public Cohort getCohort(String cohortId) {
+        Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
+        if(cohortOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Cohort does not exist");
+        }
+
+        return cohortOptional.get();
     }
 }
