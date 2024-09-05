@@ -955,7 +955,7 @@ public class AnalyticsService {
 					.extendedStats("bci")
 					.field("bci"))
 				.subAggregation(AggregationBuilders
-					.filter("completed", QueryBuilders.termsQuery("event_type", "PVTEnd")));
+					.filter("completed", QueryBuilders.termsQuery("event_type", "PVTEnd", "UnlockLevelSuccess")));
 		
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
@@ -1026,7 +1026,7 @@ public class AnalyticsService {
 						.max("target")
 						.field("TargetDecodes"))
 				.subAggregation(AggregationBuilders
-						.filter("end_event", QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd")))
+						.filter("end_event", QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "UnlockLevelSuccess")))
 				.subAggregation(AggregationBuilders
 						.terms("dishes")
 						.field("DishID")
