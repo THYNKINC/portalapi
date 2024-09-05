@@ -19,6 +19,9 @@ import org.opensearch.index.reindex.UpdateByQueryRequest;
 import org.opensearch.script.Script;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilders;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
+import org.opensearch.search.aggregations.bucket.terms.Terms.Bucket;
+import org.opensearch.search.aggregations.metrics.TopHits;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.slf4j.Logger;
@@ -82,11 +85,14 @@ public class SessionsComputer {
 		String[] includeFields = new String[] { "session_start", "session_type", "user_id", "event_type" };
 		String[] excludeFields = new String[] {};
 		searchSourceBuilder = new SearchSourceBuilder()
-				.fetchSource(includeFields, excludeFields)
 				.aggregation(AggregationBuilders
 						.terms("unique_sessions")
 						.field("session_start.keyword")
-						.size(65535))
+						.size(65535)
+						.subAggregation(AggregationBuilders
+								.topHits("single")
+								.size(0)
+								.fetchSource(includeFields, excludeFields)))
 				.size(0)
 				.sort("timestamp", SortOrder.ASC);
 
@@ -108,7 +114,9 @@ public class SessionsComputer {
 		ObjectMapper json = new ObjectMapper()
 				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 		
-		long total = response.getHits().getTotalHits().value;
+		Terms sessionIds = response.getAggregations().get("unique_sessions");
+		
+		long total = sessionIds.getBuckets().size();
 		
 		logger.info("Adding " + total + " sessions");
 		
@@ -117,22 +125,26 @@ public class SessionsComputer {
 		List<SessionSummary> sessions = new ArrayList<>();
 		
 		// compute that session
-		for (SearchHit hit : response.getHits().getHits()) {
+		for (Bucket bucket : sessionIds.getBuckets()) {
+			
+			TopHits topHits = bucket.getAggregations().get("single");
+			
+			SearchHit hit = topHits.getHits().getAt(0);
 			
 			i++;
 			
 			if (i % 100 == 0)
 				logger.info("Added " + i + " sessions");
 			
-			String sessionType = (String)hit.getSourceAsMap().get("session_type");
-			String sessionId = (String)hit.getSourceAsMap().get("session_start");
-			String username = (String)hit.getSourceAsMap().get("user_id");
-			
 			SessionSummary summary = null;
 			
 			if (total <= 10) {
 				logger.info(hit.getSourceAsString());
-			}	
+			}
+			
+			String sessionType = (String)hit.getSourceAsMap().get("session_type");
+			String sessionId = (String)hit.getSourceAsMap().get("session_start");
+			String username = (String)hit.getSourceAsMap().get("user_id");
 			
 			if (sessionType == null || "null".equals(sessionType)) {
 				logger.warn("Unsupported session type: " + hit.getSourceAsString());
