@@ -17,7 +17,7 @@ public class RegisterUserStatus {
 
     private String lastName;
 
-    private String parent;
+    private String dob;
 
     private String school;
 

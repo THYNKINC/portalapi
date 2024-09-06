@@ -547,13 +547,13 @@ public class AdminController {
         return headsets.save(headset);
     }
 
-    @PostMapping("/coach/cohort/{cohortId}/import")
-    public ResponseEntity<String> importUsers(@PathVariable String cohortId, @RequestParam("file") MultipartFile file, HttpServletRequest request) throws Exception {
+    @PostMapping("/coaches/{coachId}/cohort/{cohortId}/import")
+    public ResponseEntity<String> importUsers(@PathVariable String coachId, @PathVariable String cohortId, @RequestParam("file") MultipartFile file, HttpServletRequest request) throws Exception {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
         String bearerToken = jwtService.getAdminJwt();
 
-        cohortService.processUsersCsv(file, user.getUsername(), cohortId, bearerToken);
+        cohortService.processUsersCsv(file, coachId, cohortId, bearerToken);
 
         return ResponseEntity.accepted().body("CSV upload received");
     }

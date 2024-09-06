@@ -20,4 +20,6 @@ public class Cohort {
     private String description;
 
     private String coachUsername;
+
+    private String playerType;
 }
