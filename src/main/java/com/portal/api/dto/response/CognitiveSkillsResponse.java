@@ -20,5 +20,5 @@ public class CognitiveSkillsResponse {
 	int selfRegulation = -1;
 	int compositeFocus;
 	int compositeImpulse;
-	double performanceScore = Math.random() * 100;
+	double performanceScore = -1;
 }

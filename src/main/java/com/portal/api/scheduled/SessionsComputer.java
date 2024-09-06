@@ -192,17 +192,27 @@ public class SessionsComputer {
 		    		runner.getScores().setCompositeFocus((int)Math.round(composites.getFocus()));
 		    		runner.getScores().setCompositeImpulse((int)Math.round(composites.getImpulse()));
 		    		
-		    		double cs = runner.getAccuracy().getCorrectSelected() / runner.getAccuracy().getOpportunities();
-		    		double is = runner.getAccuracy().getIncorrectSelected() / runner.getAccuracy().getOpportunities();
+		    		if (runner.getAccuracy().getOpportunities() >= 0) {
 		    		
-		            double mean = 0;
-		            double standardDev = 1;
-		            
-		            NormalDistribution distribution = new NormalDistribution(mean, standardDev);
-		            double cp1 = distribution.inverseCumulativeProbability(cs);
-		            double cp2 = distribution.inverseCumulativeProbability(is);
-		            
-		    		runner.getScores().setPerformanceScore(cp1  - cp2);
+			    		double cs = 0;
+			    		
+			    		if (runner.getAccuracy().getCorrectSelected()>= 0)
+			    			cs = runner.getAccuracy().getCorrectSelected() / runner.getAccuracy().getOpportunities();
+			    		
+			    		double is = 0;
+			    		
+			    		if (runner.getAccuracy().getIncorrectSelected() >= 0)
+			    			is = runner.getAccuracy().getIncorrectSelected() / runner.getAccuracy().getOpportunities();
+			    		
+			            double mean = 0;
+			            double standardDev = 1;
+			            
+			            NormalDistribution distribution = new NormalDistribution(mean, standardDev);
+			            double cp1 = distribution.inverseCumulativeProbability(cs);
+			            double cp2 = distribution.inverseCumulativeProbability(is);
+			            
+			    		runner.getScores().setPerformanceScore(cp1  - cp2);
+		    		}
 			    	
 			    	break;
 			    
