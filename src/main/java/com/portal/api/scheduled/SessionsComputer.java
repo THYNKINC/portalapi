@@ -91,7 +91,7 @@ public class SessionsComputer {
 						.size(65535)
 						.subAggregation(AggregationBuilders
 								.topHits("single")
-								.size(0)
+								.size(1)
 								.fetchSource(includeFields, excludeFields)))
 				.size(0)
 				.sort("timestamp", SortOrder.ASC);
@@ -106,8 +106,6 @@ public class SessionsComputer {
 		
 		searchRequest = new SearchRequest("gamelogs")
 				.source(searchSourceBuilder);
-		
-		System.out.println("######### " + searchSourceBuilder.toString() + " ##############");
 		
 		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
