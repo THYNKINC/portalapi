@@ -14,6 +14,7 @@ import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.common.xcontent.XContentType;
+import org.opensearch.index.query.BoolQueryBuilder;
 import org.opensearch.index.query.QueryBuilders;
 import org.opensearch.index.reindex.UpdateByQueryRequest;
 import org.opensearch.script.Script;
@@ -93,16 +94,20 @@ public class SessionsComputer {
 								.topHits("single")
 								.size(1)
 								.fetchSource(includeFields, excludeFields)))
-				.size(0)
-				.sort("timestamp", SortOrder.ASC);
+				.size(0);
+		
+		BoolQueryBuilder query = QueryBuilders.boolQuery()
+			.must(QueryBuilders
+					.existsQuery("session_type"));
 
 		// if not first time, only fetch events which happened (timestamp) within the last hour
 		// in-flight sessions always get re-computed until completed or considered abandoned (older than 60 min)
 		if (response.getHits().getTotalHits().value > 0)
-			searchSourceBuilder.query(QueryBuilders.boolQuery()
-					.must(QueryBuilders
-							.rangeQuery("timestamp")
-							.gte("now-60m/m")));
+			query.must(QueryBuilders
+				.rangeQuery("timestamp")
+				.gte("now-60m/m"));
+		
+		searchSourceBuilder.query(query);
 		
 		searchRequest = new SearchRequest("gamelogs")
 				.source(searchSourceBuilder);
@@ -202,12 +207,12 @@ public class SessionsComputer {
 			    		double cs = 0;
 			    		
 			    		if (runner.getAccuracy().getCorrectSelected()> 0)
-			    			cs = runner.getAccuracy().getCorrectSelected() / runner.getAccuracy().getOpportunities();
+			    			cs = (double)runner.getAccuracy().getCorrectSelected() / (double)runner.getAccuracy().getOpportunities();
 			    		
 			    		double is = 0;
 			    		
 			    		if (runner.getAccuracy().getIncorrectSelected() > 0)
-			    			is = runner.getAccuracy().getIncorrectSelected() / runner.getAccuracy().getOpportunities();
+			    			is = (double)runner.getAccuracy().getIncorrectSelected() / (double)runner.getAccuracy().getOpportunities();
 			    		
 			    		if (cs > 0 && is > 0) {
 			    		
