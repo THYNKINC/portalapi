@@ -107,7 +107,7 @@ public class SessionsComputer {
 		searchRequest = new SearchRequest("gamelogs")
 				.source(searchSourceBuilder);
 		
-		System.out.println(searchRequest.toString());
+		System.out.println("######### " + searchSourceBuilder.toString() + " ##############");
 		
 		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
