@@ -107,6 +107,8 @@ public class SessionsComputer {
 		searchRequest = new SearchRequest("gamelogs")
 				.source(searchSourceBuilder);
 		
+		System.out.println(searchRequest.toString());
+		
 		response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
 		Map<String, Parent> parentCache = new HashMap<>();
