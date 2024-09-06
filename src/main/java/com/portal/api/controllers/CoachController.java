@@ -1,6 +1,7 @@
 package com.portal.api.controllers;
 
 import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.model.Delegate;
 import com.portal.api.model.PortalUser;
@@ -43,6 +44,16 @@ public class CoachController {
         return ResponseEntity.ok(new PaginatedResponse<>(coaches.getContent(), coaches.getTotalElements()));
     }
 
+    @GetMapping("{username}")
+    ResponseEntity<Delegate> index(@PathVariable String username, HttpServletRequest request) throws Exception {
+
+        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+
+        Delegate coach = coachService.getCoach(username);
+
+        return ResponseEntity.ok(coach);
+    }
+
     @PostMapping()
     ResponseEntity<Delegate> create(@Valid @RequestBody CreateParentRequest createCoachRequest, HttpServletRequest request) throws Exception {
 
@@ -51,5 +62,15 @@ public class CoachController {
         Delegate coach = coachService.createCoach(createCoachRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(coach);
+    }
+
+    @PutMapping("{username}")
+    ResponseEntity<Delegate> update(@Valid @RequestBody UpdateCoachRequest updateCoachRequest, HttpServletRequest request) throws Exception {
+
+        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+
+        Delegate coach = coachService.update(updateCoachRequest, user.getUsername());
+
+        return ResponseEntity.status(HttpStatus.OK).body(coach);
     }
 }

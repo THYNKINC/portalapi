@@ -2,6 +2,7 @@ package com.portal.api.services;
 
 import com.portal.api.clients.GameApiClient;
 import com.portal.api.dto.request.CreateChildRequest;
+import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.request.CreateUserRequest;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.model.PortalUser;
@@ -31,7 +32,11 @@ public class GameApiService {
         gameApiClient.createNewUser(createUserRequest, adminJwt);
     }
 
-    public List<RegisterUserStatus> registerMultipleUsers(List<CreateUserRequest> createUserRequests, String adminJwt) {
+    public void createNewUserForCohort(CreateCohortUserRequest createUserRequest, String adminJwt) {
+        gameApiClient.createNewCohortUser(createUserRequest, adminJwt);
+    }
+
+    public List<RegisterUserStatus> registerMultipleUsers(List<CreateCohortUserRequest> createUserRequests, String adminJwt) {
         return gameApiClient.registerMultipleUsers(createUserRequests, adminJwt);
     }
 }

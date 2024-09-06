@@ -1,5 +1,6 @@
 package com.portal.api.clients;
 
+import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.request.CreateUserRequest;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.GameApiException;
@@ -37,11 +38,23 @@ public class GameApiClient {
         }
     }
 
-    public List<RegisterUserStatus> registerMultipleUsers(List<CreateUserRequest> createUserRequestList, String jwt) {
+    public void createNewCohortUser(CreateCohortUserRequest createUserRequest, String jwt) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(jwt);
 
-        HttpEntity<List<CreateUserRequest>> entity = new HttpEntity<>(createUserRequestList, headers);
+        HttpEntity<CreateCohortUserRequest> entity = new HttpEntity<>(createUserRequest, headers);
+        try {
+            gameApiRestClient.exchange(BASE_PATH + "/cohort/add", HttpMethod.POST, entity, Void.class);
+        } catch (RestClientException exception) {
+            throw new GameApiException(exception.getMessage());
+        }
+    }
+
+    public List<RegisterUserStatus> registerMultipleUsers(List<CreateCohortUserRequest> createUserRequestList, String jwt) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(jwt);
+
+        HttpEntity<List<CreateCohortUserRequest>> entity = new HttpEntity<>(createUserRequestList, headers);
         try {
             var result = gameApiRestClient.exchange(BASE_PATH + "/import", HttpMethod.POST, entity, new ParameterizedTypeReference<List<RegisterUserStatus>>() {});
 

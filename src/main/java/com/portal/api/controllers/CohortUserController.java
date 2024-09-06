@@ -1,6 +1,6 @@
 package com.portal.api.controllers;
 
-import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.model.Child;
 import com.portal.api.model.PortalUser;
 import com.portal.api.services.CohortService;
@@ -28,11 +28,11 @@ public class CohortUserController {
     }
 
     @PostMapping()
-    ResponseEntity<Child> create(@Valid @RequestBody CreateUserRequest createUserRequest, @PathVariable String cohortId, HttpServletRequest request) throws Exception {
+    ResponseEntity<Child> create(@Valid @RequestBody CreateCohortUserRequest createUserRequest, @PathVariable String cohortId, HttpServletRequest request) throws Exception {
 
-        PortalUser coach = jwtService.decodeJwtFromRequest(request, true, null);
+        PortalUser coach = jwtService.decodeJwtFromRequest(request, false, null);
 
-        Child child = cohortService.addUserToCohort(createUserRequest, cohortId, coach.getUsername());
+        Child child = cohortService.addUserToCohort(createUserRequest, cohortId, coach.getUsername(), jwtService.getAdminJwt());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(child);
     }

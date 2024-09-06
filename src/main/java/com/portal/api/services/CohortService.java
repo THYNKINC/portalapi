@@ -3,7 +3,7 @@ package com.portal.api.services;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
-import com.portal.api.dto.request.CreateUserRequest;
+import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Child;
@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStreamReader;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -55,6 +56,9 @@ public class CohortService {
 
         ImportJob job = new ImportJob();
         job.setCohortId(cohortId);
+        job.setCoachUsername(coachUsername);
+        job.setCohortName(cohort.getName());
+        job.setCreatedDate(LocalDate.now());
         job.setStatus("running");
 
         importJobRepository.save(job);
@@ -65,7 +69,7 @@ public class CohortService {
     @Async
     public void processUsersAsync(MultipartFile file, Cohort cohort, Delegate coach, String bearerToken, ImportJob job) {
 
-        List<CreateUserRequest> users = parseCsv(file);
+        List<CreateCohortUserRequest> users = parseCsv(file);
         if (users.isEmpty()) {
             job.setStatus("failed");
             job.setError("CSV parsing failed");
@@ -101,8 +105,8 @@ public class CohortService {
         importJobRepository.save(job);
     }
 
-    public List<Cohort> getCohorts() {
-        return cohortsRepository.findAll();
+    public List<Cohort> getCohorts(String username) {
+        return cohortsRepository.findAllByCoachUsername(username);
     }
 
     public Cohort createCohort(CreateCohortRequest createCohortRequest, String coachUsername) {
@@ -111,6 +115,7 @@ public class CohortService {
         cohort.setName(createCohortRequest.getName());
         cohort.setDescription(createCohortRequest.getDescription());
         cohort.setCoachUsername(coachUsername);
+        cohort.setPlayerType(createCohortRequest.getPlayerType());
 
         cohortsRepository.save(cohort);
 
@@ -125,7 +130,7 @@ public class CohortService {
         return coachOptional.get();
     }
 
-    public Cohort update(CreateCohortRequest updateCohortRequest, String id, String coachUsername) {
+    public Cohort update(CreateCohortRequest updateCohortRequest, String id) {
         Optional<Cohort> cohortOptional = cohortsRepository.findById(id);
         if (cohortOptional.isEmpty()) {
             throw new ResourceNotFoundException("Cohort does not exist");
@@ -151,7 +156,7 @@ public class CohortService {
     }
 
 
-    public Child addUserToCohort(CreateUserRequest createUserRequest, String cohortId, String coachUsername) {
+    public Child addUserToCohort(CreateCohortUserRequest createUserRequest, String cohortId, String coachUsername, String adminJwt) {
         Delegate coach = getCoach(coachUsername);
 
         Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
@@ -161,7 +166,7 @@ public class CohortService {
 
         Cohort cohort = cohortOptional.get();
 
-        Child child = addToCohort(createUserRequest, cohort);
+        Child child = addToCohort(createUserRequest, cohort, adminJwt);
         coach.addChild(child);
 
         delegateRepository.save(coach);
@@ -169,12 +174,12 @@ public class CohortService {
         return child;
     }
 
-    private List<CreateUserRequest> parseCsv(MultipartFile file) {
+    private List<CreateCohortUserRequest> parseCsv(MultipartFile file) {
 
         try (InputStreamReader reader = new InputStreamReader(file.getInputStream())) {
 
-            CsvToBean<CreateUserRequest> csvToBean = new CsvToBeanBuilder<CreateUserRequest>(reader)
-                    .withType(CreateUserRequest.class)
+            CsvToBean<CreateCohortUserRequest> csvToBean = new CsvToBeanBuilder<CreateCohortUserRequest>(reader)
+                    .withType(CreateCohortUserRequest.class)
                     .withIgnoreLeadingWhiteSpace(true)
                     .build();
 
@@ -190,7 +195,7 @@ public class CohortService {
         child.setFirstName(user.getFirstName());
         child.setLastName(user.getLastName());
         child.setUsername(user.getUsername());
-        child.setDob("");
+        child.setDob(user.getDob());
         child.setSchool(user.getSchool());
         child.setClassName(user.getClassName());
         child.setGender(child.getGender());
@@ -201,12 +206,15 @@ public class CohortService {
         return child;
     }
 
-    private Child addToCohort(CreateUserRequest user, Cohort cohort) {
+    private Child addToCohort(CreateCohortUserRequest user, Cohort cohort, String adminJwt) {
+
+        gameApiService.createNewUserForCohort(user, adminJwt);
+
         Child child = new Child();
         child.setFirstName(user.getFirstName());
         child.setLastName(user.getLastName());
         child.setUsername(user.getUsername());
-        child.setDob("");
+        child.setDob(user.getDob());
         child.setSchool(user.getSchool());
         child.setClassName(user.getClassName());
         child.setGender(child.getGender());
