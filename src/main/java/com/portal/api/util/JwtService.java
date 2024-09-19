@@ -95,6 +95,7 @@ public class JwtService {
             case delegate -> delegates.findById(jwt.getClaim("cognito:username")).get();
         };
 
+        user.setRole(role);
 
         if(role != Role.admin) {
         	
