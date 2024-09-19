@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class RegisterUserStatus {
 
-    private String status;
+    private ImportStatus importStatus;
 
     private String username;
 

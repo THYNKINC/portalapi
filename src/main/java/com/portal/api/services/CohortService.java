@@ -4,6 +4,7 @@ import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
+import com.portal.api.dto.response.ImportStatus;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Child;
@@ -57,17 +58,20 @@ public class CohortService {
         ImportJob job = new ImportJob();
         job.setCohortId(cohortId);
         job.setCoachUsername(coachUsername);
+        job.setCoachFullName(coach.getFirstName().concat(" ").concat(coach.getLastName()));
         job.setCohortName(cohort.getName());
         job.setCreatedDate(LocalDate.now());
-        job.setStatus("running");
+        job.setStatus(ImportStatus.RUNNING);
 
         importJobRepository.save(job);
 
-        processUsersAsync(file, cohort, coach, bearerToken, job);
+        processUsersAsync(file, cohort, coach, bearerToken, job.getJobId());
     }
 
     @Async
-    public void processUsersAsync(MultipartFile file, Cohort cohort, Delegate coach, String bearerToken, ImportJob job) {
+    public void processUsersAsync(MultipartFile file, Cohort cohort, Delegate coach, String bearerToken, String jobId) {
+
+        ImportJob job = importJobRepository.findById(jobId).orElse(new ImportJob());
 
         List<CreateCohortUserRequest> users = parseCsv(file);
         if (users.isEmpty()) {
@@ -81,7 +85,16 @@ public class CohortService {
         List<RegisterUserStatus> result = gameApiService.registerMultipleUsers(users, bearerToken);
 
         if (result.isEmpty()) {
-            job.setStatus("failed");
+            job.setStatus(ImportStatus.FAILED);
+            job.setError("No users where registered");
+            job.setUsers(new ArrayList<>());
+            importJobRepository.save(job);
+            return;
+        }
+
+        boolean allFailed = result.stream().allMatch(user -> user.getImportStatus().getStatus().equals(ImportStatus.FAILED));
+        if (allFailed) {
+            job.setStatus(ImportStatus.FAILED);
             job.setError("No users where registered");
             job.setUsers(new ArrayList<>());
             importJobRepository.save(job);
@@ -90,7 +103,7 @@ public class CohortService {
 
         List<RegisterUserStatus> registeredUsers = result
                 .stream()
-                .filter(user -> user.getStatus().equals("registered"))
+                .filter(user -> user.getImportStatus().getStatus().equals(ImportStatus.REGISTERED))
                 .toList();
 
         for (RegisterUserStatus user : registeredUsers) {
@@ -100,9 +113,20 @@ public class CohortService {
 
         delegateRepository.save(coach);
 
-        job.setStatus("completed");
-        job.setUsers(registeredUsers);
-        importJobRepository.save(job);
+        List<RegisterUserStatus> failedRegistrations = result
+                .stream()
+                .filter(user -> user.getImportStatus().getStatus().equals(ImportStatus.FAILED))
+                .toList();
+
+        if (failedRegistrations.isEmpty()) {
+            job.setStatus(ImportStatus.COMPLETED);
+            job.setUsers(result);
+            importJobRepository.save(job);
+        } else {
+            job.setStatus(ImportStatus.COMPLETED_WITH_ERRORS);
+            job.setUsers(result);
+            importJobRepository.save(job);
+        }
     }
 
     public List<Cohort> getCohorts(String username) {
@@ -139,6 +163,7 @@ public class CohortService {
         Cohort cohort = cohortOptional.get();
         cohort.setName(updateCohortRequest.getName());
         cohort.setDescription(updateCohortRequest.getDescription());
+        cohort.setPlayerType(updateCohortRequest.getPlayerType());
 
         cohortsRepository.save(cohort);
 
