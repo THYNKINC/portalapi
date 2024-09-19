@@ -1,6 +1,5 @@
 package com.portal.api.scheduled;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -9,6 +8,7 @@ import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.index.IndexRequest;
 import org.opensearch.action.search.SearchRequest;
@@ -20,8 +20,9 @@ import org.opensearch.index.reindex.UpdateByQueryRequest;
 import org.opensearch.script.Script;
 import org.opensearch.search.SearchHit;
 import org.opensearch.search.aggregations.AggregationBuilders;
-import org.opensearch.search.aggregations.metrics.Max;
-import org.opensearch.search.aggregations.metrics.MaxAggregationBuilder;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
+import org.opensearch.search.aggregations.bucket.terms.Terms.Bucket;
+import org.opensearch.search.aggregations.metrics.TopHits;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.opensearch.search.sort.SortOrder;
 import org.slf4j.Logger;
@@ -65,50 +66,49 @@ public class SessionsComputer {
 		
 		long startedAt = new Date().getTime();
         
-		// get the last created session from elastic
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
-		MaxAggregationBuilder created = AggregationBuilders
-				.max("created")
-				.field("created_date");
-		
+		// is it a first time run?
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
-				.aggregation(created)
-				.size(0);
+				.size(1);
 
 		SearchRequest searchRequest = new SearchRequest("sessions")
 				.source(searchSourceBuilder);
-
+		
 		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
 		
-		Max lastCreated = response.getAggregations().get("created");
+		// get all unique sessions IDs from all the events in gamelogs
 		
-		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS'Z'");
+		// TODO exlcude sessions which we know have already ended (completed from sessions)
 		
-		// get all new sessions which ended after the last session end date
-		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsEnd", "RunnerEnd", "PVTEnd", "Abandoned"));
-		
-		String lastCreatedDate = df.format(new Date((long)lastCreated.value()));
-		
-		logger.info("Last processed session end date: " + lastCreatedDate);
-		
-		if (lastCreated.value() > 0)
-			boolQuery
-				.must(QueryBuilders.rangeQuery("received_on")
-					.gt(lastCreatedDate)
-					.includeLower(false));
-			
 		// Specify the fields to return
 		String[] includeFields = new String[] { "session_start", "session_type", "user_id", "event_type" };
 		String[] excludeFields = new String[] {};
 		searchSourceBuilder = new SearchSourceBuilder()
-				.query(boolQuery)
-				.fetchSource(includeFields, excludeFields)
-				.size(10000)
-				.sort("timestamp", SortOrder.ASC);
+				.aggregation(AggregationBuilders
+						.terms("unique_sessions")
+						.field("session_start.keyword")
+						.size(65535)
+						.subAggregation(AggregationBuilders
+								.topHits("single")
+								.size(1)
+								.fetchSource(includeFields, excludeFields)))
+				.size(0);
+		
+		BoolQueryBuilder query = QueryBuilders.boolQuery()
+			.must(QueryBuilders
+					.existsQuery("session_type"));
 
+		// if not first time, only fetch events which happened (timestamp) within the last hour
+		// in-flight sessions always get re-computed until completed or considered abandoned (older than 60 min)
+		if (response.getHits().getTotalHits().value > 0)
+			query.must(QueryBuilders
+				.rangeQuery("timestamp")
+				.gte("now-60m/m"));
+		
+		searchSourceBuilder.query(query);
+		
 		searchRequest = new SearchRequest("gamelogs")
 				.source(searchSourceBuilder);
 		
@@ -119,7 +119,9 @@ public class SessionsComputer {
 		ObjectMapper json = new ObjectMapper()
 				  .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 		
-		long total = response.getHits().getTotalHits().value;
+		Terms sessionIds = response.getAggregations().get("unique_sessions");
+		
+		long total = sessionIds.getBuckets().size();
 		
 		logger.info("Adding " + total + " sessions");
 		
@@ -128,22 +130,26 @@ public class SessionsComputer {
 		List<SessionSummary> sessions = new ArrayList<>();
 		
 		// compute that session
-		for (SearchHit hit : response.getHits().getHits()) {
+		for (Bucket bucket : sessionIds.getBuckets()) {
+			
+			TopHits topHits = bucket.getAggregations().get("single");
+			
+			SearchHit hit = topHits.getHits().getAt(0);
 			
 			i++;
 			
 			if (i % 100 == 0)
 				logger.info("Added " + i + " sessions");
 			
-			String sessionType = (String)hit.getSourceAsMap().get("session_type");
-			String sessionId = (String)hit.getSourceAsMap().get("session_start");
-			String username = (String)hit.getSourceAsMap().get("user_id");
-			
 			SessionSummary summary = null;
 			
 			if (total <= 10) {
 				logger.info(hit.getSourceAsString());
-			}	
+			}
+			
+			String sessionType = (String)hit.getSourceAsMap().get("session_type");
+			String sessionId = (String)hit.getSourceAsMap().get("session_start");
+			String username = (String)hit.getSourceAsMap().get("user_id");
 			
 			if (sessionType == null || "null".equals(sessionType)) {
 				logger.warn("Unsupported session type: " + hit.getSourceAsString());
@@ -190,6 +196,32 @@ public class SessionsComputer {
 			    	
 		    		runner.getScores().setCompositeFocus((int)Math.round(composites.getFocus()));
 		    		runner.getScores().setCompositeImpulse((int)Math.round(composites.getImpulse()));
+		    		
+		    		double mean = 0;
+		            double standardDev = 1;
+		            
+		    		NormalDistribution distribution = new NormalDistribution(mean, standardDev);
+		            
+		    		if (runner.getAccuracy().getOpportunities() > 0) {
+		    		
+			    		double cs = 0;
+			    		
+			    		if (runner.getAccuracy().getCorrectSelected()> 0)
+			    			cs = (double)runner.getAccuracy().getCorrectSelected() / (double)runner.getAccuracy().getOpportunities();
+			    		
+			    		double is = 0;
+			    		
+			    		if (runner.getAccuracy().getIncorrectSelected() > 0)
+			    			is = (double)runner.getAccuracy().getIncorrectSelected() / (double)runner.getAccuracy().getOpportunities();
+			    		
+			    		if (cs > 0 && is > 0) {
+			    		
+				            double cp1 = distribution.inverseCumulativeProbability(cs);
+				            double cp2 = distribution.inverseCumulativeProbability(is);
+				            
+				    		runner.getScores().setPerformanceScore(cp1  - cp2);
+			    		}
+		    		}
 			    	
 			    	break;
 			    
@@ -225,6 +257,7 @@ public class SessionsComputer {
 			
 			// phase 1, insert session
 			IndexRequest document = new IndexRequest("sessions");
+			document.id(username + "_" + sessionId);
 	    	document.source(json.writeValueAsString(summary), XContentType.JSON);
 	    	
 	    	try {

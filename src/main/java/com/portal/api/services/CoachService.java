@@ -3,6 +3,9 @@ package com.portal.api.services;
 import com.portal.api.dto.request.CreateCoachRequest;
 import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.exception.ResourceNotFoundException;
+import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.request.UpdateCoachRequest;
+import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Delegate;
 import com.portal.api.repositories.DelegateRepository;
 import org.springframework.data.domain.Page;
@@ -47,6 +50,26 @@ public class CoachService {
         coach.setUsername(signUpResponse.userSub());
         coach.setSalutation(createCoachRequest.getSalutation());
         coach.setType(COACH);
+
+        delegateRepository.save(coach);
+
+        return coach;
+    }
+
+    public Delegate getCoach(String username) {
+        Optional<Delegate> coachOptional = delegateRepository.findById(username);
+        if (coachOptional.isEmpty()) {
+            throw new ResourceNotFoundException("Coach not found");
+        }
+
+        return coachOptional.get();
+    }
+
+    public Delegate update(UpdateCoachRequest updateCoachRequest, String username) {
+        Delegate coach = getCoach(username);
+        coach.setFirstName(updateCoachRequest.getFirstName());
+        coach.setLastName(updateCoachRequest.getLastName());
+        coach.setSalutation(updateCoachRequest.getSalutation());
 
         delegateRepository.save(coach);
 
