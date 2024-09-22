@@ -21,6 +21,12 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${games-service}")
     private String GAMES_SERVICE;
 
+    @Value("${shopify.access.token}")
+    private String shopifyAccessToken;
+
+    @Value("${shopify.base.url}")
+    private String baseUrl;
+
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry
@@ -33,6 +39,16 @@ public class WebConfig implements WebMvcConfigurer {
         UriTemplateHandler uriTemplateHandler = new RootUriTemplateHandler("http://" + GAMES_SERVICE + ":" + GAMES_PORT);
 
         return  builder
+                .uriTemplateHandler(uriTemplateHandler)
+                .build();
+    }
+
+    @Bean(name = "shopifyRestClient")
+    public RestTemplate shopifyRestClient(RestTemplateBuilder builder) {
+        UriTemplateHandler uriTemplateHandler = new RootUriTemplateHandler(baseUrl);
+
+        return  builder
+                .defaultHeader("X-Shopify-Access-Token", shopifyAccessToken)
                 .uriTemplateHandler(uriTemplateHandler)
                 .build();
     }
