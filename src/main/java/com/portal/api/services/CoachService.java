@@ -1,6 +1,6 @@
 package com.portal.api.services;
 
-import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.request.CreateCoachRequest;
 import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Delegate;
@@ -18,6 +18,8 @@ import java.util.Optional;
 @Service
 public class CoachService {
 
+    public static final String COACH = "coach";
+
     private final DelegateRepository delegateRepository;
 
     private final AuthService authService;
@@ -28,12 +30,12 @@ public class CoachService {
     }
 
     public Page<Delegate> getCoaches(Pageable pageable) {
-        return delegateRepository.findByType("coach", pageable);
+        return delegateRepository.findByType(COACH, pageable);
     }
 
-    public Delegate createCoach(CreateParentRequest createCoachRequest) {
+    public Delegate createCoach(CreateCoachRequest createCoachRequest) {
 
-        SignUpResponse signUpResponse = authService.registerUser(createCoachRequest);
+        SignUpResponse signUpResponse = authService.registerCoach(createCoachRequest);
 
         Delegate coach = new Delegate();
 
@@ -44,7 +46,7 @@ public class CoachService {
         coach.setLastName(createCoachRequest.getLastName());
         coach.setUsername(signUpResponse.userSub());
         coach.setSalutation(createCoachRequest.getSalutation());
-        coach.setType("coach");
+        coach.setType(COACH);
 
         delegateRepository.save(coach);
 

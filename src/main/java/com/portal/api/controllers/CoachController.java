@@ -1,6 +1,6 @@
 package com.portal.api.controllers;
 
-import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.request.CreateCoachRequest;
 import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.model.Delegate;
@@ -55,7 +55,7 @@ public class CoachController {
     }
 
     @PostMapping()
-    ResponseEntity<Delegate> create(@Valid @RequestBody CreateParentRequest createCoachRequest, HttpServletRequest request) throws Exception {
+    ResponseEntity<Delegate> create(@Valid @RequestBody CreateCoachRequest createCoachRequest, HttpServletRequest request) throws Exception {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 

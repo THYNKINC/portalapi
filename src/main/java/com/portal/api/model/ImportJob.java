@@ -23,6 +23,8 @@ public class ImportJob {
 
     private String coachUsername;
 
+    private String coachFullName;
+
     private List<RegisterUserStatus> users;
 
     private String error;
