@@ -19,7 +19,7 @@ public class ShopifyService {
             String path = "/orders.json?fields=created_at,id,name,total-price";
             return shopifyRestClient.getForEntity(path, ShopifyOrdersResponse.class).getBody();
         } catch (RestClientException e) {
-            //throw new RuntimeException(e); log somewhere
+            // log somewhere
             return new ShopifyOrdersResponse();
         }
     }
