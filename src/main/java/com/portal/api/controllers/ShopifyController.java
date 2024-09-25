@@ -1,8 +1,6 @@
 package com.portal.api.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.portal.api.dto.response.ShopifyOrder;
 import com.portal.api.model.Order;
 import com.portal.api.repositories.OrderRepository;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +21,9 @@ public class ShopifyController {
     }
 
     @PostMapping("/orders")
-    public ResponseEntity<Void> createOrder(@RequestBody ShopifyOrder orderAsJson) throws JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        String ordersDataAsJson = objectMapper.writeValueAsString(orderAsJson);
-
+    public ResponseEntity<Void> createOrder(@RequestBody String orderAsJson) throws JsonProcessingException {
         Order order = new Order();
-        order.setOrder(ordersDataAsJson);
+        order.setOrder(orderAsJson);
         orderRepository.save(order);
 
         return null;
