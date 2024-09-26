@@ -16,7 +16,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/portal/actuator/health").permitAll()
                 .antMatchers(HttpMethod.POST, "/portal/login").permitAll()
                 .antMatchers(HttpMethod.POST, "/portal/signup").permitAll()
-                .antMatchers(HttpMethod.POST, "/shopify/orders").permitAll()
+                .antMatchers(HttpMethod.POST, "/portal/shopify/orders").permitAll()
                 .antMatchers("/portal/test").permitAll()
                 .antMatchers("/portal/swagger-ui/**", "/portal/v3/api-docs/**", "/portal/swagger-ui.html", "/portal/swagger-resources/**", "/webjars/**").permitAll()
                 .anyRequest().authenticated().and()
