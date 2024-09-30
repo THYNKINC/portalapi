@@ -7,7 +7,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface DelegateRepository extends MongoRepository<Delegate, String> {
 
-	Page<Delegate> findByFirstNameIgnoreCaseStartingWithOrLastNameIgnoreCaseStartingWith(String partialFirstName, String partialLastName, Pageable pageable);
+    Page<Delegate> findByFirstNameIgnoreCaseStartingWithOrLastNameIgnoreCaseStartingWith(String partialFirstName, String partialLastName, Pageable pageable);
 
-	Page<Delegate> findByType(String type, Pageable pageable);
+    Page<Delegate> findByType(String type, Pageable pageable);
+
+    Delegate findOneByChildrenUsername(String username);
 }
