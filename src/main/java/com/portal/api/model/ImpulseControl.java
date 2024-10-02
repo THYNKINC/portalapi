@@ -31,7 +31,8 @@ public class ImpulseControl {
 		
 		OptionalDouble impulse = IntStream
 				.of(
-						skills.getCognitiveInhibition(),
+						skills.getSelectiveAttention(),
+						skills.getAlternatingAttention(),
 						skills.getBehavioralInhibition(),
 						skills.getNoveltyInhibition(),
 						skills.getMotivationalInhibition(),
