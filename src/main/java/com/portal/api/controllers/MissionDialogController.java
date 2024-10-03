@@ -38,7 +38,7 @@ public class MissionDialogController {
 
     @GetMapping("/{id}")
     public ResponseEntity<MissionDialog> edit(@PathVariable String id, HttpServletRequest request) throws Exception {
-        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         Optional<MissionDialog> mission = missionService.getMissionById(id);
         return mission.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());

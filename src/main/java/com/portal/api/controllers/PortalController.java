@@ -33,6 +33,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZonedDateTime;
 import java.util.*;
 
@@ -196,8 +198,11 @@ public class PortalController {
 		// calculate thynk score
 		double thynkScore = (2.0 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
 				* (runner.getScores().getCompositeFocus() / 100 + 1);
+
+		BigDecimal bd = new BigDecimal(thynkScore).setScale(3, RoundingMode.HALF_UP);
+		double roundedThynkScore = bd.doubleValue();
 		
-    	progressResponse.setThynkScore((int)Math.ceil(thynkScore));
+    	progressResponse.setThynkScore(roundedThynkScore);
     	
     	return progressResponse;
     }
