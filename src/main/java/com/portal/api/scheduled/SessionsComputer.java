@@ -32,6 +32,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.net.ssl.SSLContext;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 @Component
@@ -218,7 +220,8 @@ public class SessionsComputer {
                                 double cp1 = distribution.inverseCumulativeProbability(cs);
                                 double cp2 = distribution.inverseCumulativeProbability(is);
 
-                                runner.getScores().setPerformanceScore(cp1 - cp2);
+                                BigDecimal thynkPerformanceScore = new BigDecimal(cp1 - cp2).setScale(3, RoundingMode.HALF_UP);
+                                runner.getScores().setPerformanceScore(thynkPerformanceScore.doubleValue());
                             }
                         }
 
