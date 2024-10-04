@@ -335,9 +335,13 @@ public class AdminController {
     }
 
     @GetMapping("/children/{username}")
-    public Child getChild(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+    public Child getChild(@PathVariable("username") String username, HttpServletRequest request) {
 
         List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
+
+        if (children.isEmpty()) {
+            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
+        }
 
         if (children.size() != 1)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);

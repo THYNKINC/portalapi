@@ -14,6 +14,11 @@ import com.portal.api.model.ImportJob;
 import com.portal.api.repositories.CohortsRepository;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,11 +38,15 @@ public class CohortService {
 
     private final CohortsRepository cohortsRepository;
 
-    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository) {
+    private final MongoTemplate mongoTemplate;
+
+
+    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository, MongoTemplate mongoTemplate) {
         this.gameApiService = gameApiService;
         this.delegateRepository = delegateRepository;
         this.importJobRepository = importJobRepository;
         this.cohortsRepository = cohortsRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     public void processUsersCsv(MultipartFile file, String coachUsername, String cohortId, String bearerToken) {
@@ -257,5 +266,20 @@ public class CohortService {
         }
 
         return cohortOptional.get();
+    }
+
+    public List<Child> getChildrenByUsername(List<String> usernames) {
+        Criteria usernameCriteria = Criteria.where("username").in(usernames);
+
+        TypedAggregation<Delegate> aggregation = Aggregation.newAggregation(Delegate.class,
+                Aggregation.unwind("children"),
+                Aggregation.replaceRoot("children"),
+                Aggregation.match(usernameCriteria)
+        );
+
+        AggregationResults<Child> result = mongoTemplate
+                .aggregate(aggregation, Child.class);
+
+        return result.getMappedResults();
     }
 }
