@@ -261,7 +261,7 @@ public class CohortService {
 
     public Cohort getCohort(String cohortId) {
         Optional<Cohort> cohortOptional = cohortsRepository.findById(cohortId);
-        if(cohortOptional.isEmpty()) {
+        if (cohortOptional.isEmpty()) {
             throw new ResourceNotFoundException("Cohort does not exist");
         }
 
@@ -275,6 +275,21 @@ public class CohortService {
                 Aggregation.unwind("children"),
                 Aggregation.replaceRoot("children"),
                 Aggregation.match(usernameCriteria)
+        );
+
+        AggregationResults<Child> result = mongoTemplate
+                .aggregate(aggregation, Child.class);
+
+        return result.getMappedResults();
+    }
+
+    public List<Child> getChildrenFromCohort(String cohortId) {
+        Criteria cohortCriteria = Criteria.where("labels.cohort").is(cohortId);
+
+        TypedAggregation<Delegate> aggregation = Aggregation.newAggregation(Delegate.class,
+                Aggregation.unwind("children"),
+                Aggregation.replaceRoot("children"),
+                Aggregation.match(cohortCriteria)
         );
 
         AggregationResults<Child> result = mongoTemplate

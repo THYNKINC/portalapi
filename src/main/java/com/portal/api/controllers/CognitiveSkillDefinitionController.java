@@ -30,7 +30,7 @@ public class CognitiveSkillDefinitionController {
 
     @GetMapping
     public ResponseEntity<CognitiveSkillDefinitionContainer> index(HttpServletRequest request) throws Exception {
-        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         List<CognitiveSkillDefinitionContainer> containers = service.getAll();
 
