@@ -16,7 +16,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 
 @RestController
-@RequestMapping("/cohort/{cohortId}/details")
+@RequestMapping("/portal/cohort/{cohortId}/details")
 public class CohortDetailsController {
 
     private final CohortService cohortService;
