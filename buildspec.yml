@@ -6,7 +6,7 @@ env:
      AWS_REGION: "us-east-1" # replace with your region
      ROLE_NAME: "AllowDevAccountAccessToECR"
      CLUSTER_NAME: test
-     APP_NAME: portal-api
+     APP_NAME: portal-api-staging
 
 phases:
   install:
