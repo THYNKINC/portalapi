@@ -40,7 +40,8 @@ public class CohortDetailsController {
 
         List<Child> children = cohortService.getChildrenFromCohort(cohort.getId());
 
-        return ResponseEntity.ok(new CohortDetailsResponse(children.size()));
-    }
+        CohortDetailsResponse cohortDetailsResponse = cohortService.getCohortDetails(children);
 
+        return ResponseEntity.ok(cohortDetailsResponse);
+    }
 }
