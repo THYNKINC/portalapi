@@ -1,9 +1,6 @@
 package com.portal.api.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDate;
 
@@ -11,6 +8,7 @@ import java.time.LocalDate;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class CohortDetailsResponse {
 
     public CohortDetailsResponse(int size) {
@@ -19,11 +17,11 @@ public class CohortDetailsResponse {
 
     private int totalUsers;
 
-    private int avgNoOfWeeks;
+    private double avgNoOfWeeks;
 
     private LocalDate gameplayStartDate;
 
     private int lastGameplaySession;
 
-    private int avgNoOfMissionsCompleted;
+    private double avgNoOfMissionsCompleted;
 }

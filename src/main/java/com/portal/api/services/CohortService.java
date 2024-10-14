@@ -4,16 +4,15 @@ import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
+import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.dto.response.ImportStatus;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.ResourceNotFoundException;
-import com.portal.api.model.Child;
-import com.portal.api.model.Cohort;
-import com.portal.api.model.Delegate;
-import com.portal.api.model.ImportJob;
+import com.portal.api.model.*;
 import com.portal.api.repositories.CohortsRepository;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
+import org.opensearch.action.search.SearchResponse;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
@@ -40,13 +39,15 @@ public class CohortService {
 
     private final MongoTemplate mongoTemplate;
 
+    private final AnalyticsService analyticsService;
 
-    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository, MongoTemplate mongoTemplate) {
+    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository, MongoTemplate mongoTemplate, AnalyticsService analyticsService) {
         this.gameApiService = gameApiService;
         this.delegateRepository = delegateRepository;
         this.importJobRepository = importJobRepository;
         this.cohortsRepository = cohortsRepository;
         this.mongoTemplate = mongoTemplate;
+        this.analyticsService = analyticsService;
     }
 
     public void processUsersCsv(MultipartFile file, String coachUsername, String cohortId, String bearerToken) {
@@ -296,5 +297,48 @@ public class CohortService {
                 .aggregate(aggregation, Child.class);
 
         return result.getMappedResults();
+    }
+
+    public CohortDetailsResponse getCohortDetails(List<Child> children) throws Exception {
+
+        int avgNoOfMissionsCompleted = 0;
+        double avgWeeksInTraining = 0.0;
+        int totalMissionsCompleted = 0;
+        double totalWeeksInTraining = 0.0;
+        int childrenCount = children.size();
+        LocalDate earliestPlayDate = null;
+        int mostRecentTrainingSessionDaysAgo = 0;
+
+        for (Child child : children) {
+            SearchResponse response = analyticsService.historicalProgress(child.getUsername());
+            HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
+
+            totalMissionsCompleted += progressReport.getMissionsCompleted();
+
+            double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
+            totalWeeksInTraining += weeksInTraining;
+
+            LocalDate firstPlayDate = progressReport.getFirstPlayed();
+            if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
+                earliestPlayDate = firstPlayDate;
+            }
+            int daysSinceLastAttempt = progressReport.getDaysSinceLastAttempt();
+            if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
+                mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
+            }
+        }
+
+        if (childrenCount > 0) {
+            avgNoOfMissionsCompleted = totalMissionsCompleted / childrenCount;
+            avgWeeksInTraining = totalWeeksInTraining / childrenCount;
+        }
+
+        return CohortDetailsResponse.builder()
+                .avgNoOfMissionsCompleted(avgNoOfMissionsCompleted)
+                .gameplayStartDate(earliestPlayDate)
+                .totalUsers(childrenCount)
+                .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
+                .avgNoOfWeeks(avgWeeksInTraining)
+                .build();
     }
 }
