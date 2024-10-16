@@ -6,7 +6,6 @@ import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.response.CohortChildSummary;
 import com.portal.api.dto.response.CohortDetailsResponse;
-import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.dto.response.ImportStatus;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.ResourceNotFoundException;
@@ -34,7 +33,6 @@ import java.util.*;
 public class CohortService {
 
     private static final int SCALE = 2;
-    private static final RoundingMode ROUNDING_MODE = RoundingMode.HALF_UP;
 
     private final GameApiService gameApiService;
 
@@ -343,10 +341,10 @@ public class CohortService {
         }
 
         if (childrenCount > 0) {
-            BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / childrenCount).setScale(2, RoundingMode.HALF_UP);
+            BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / childrenCount).setScale(SCALE, RoundingMode.HALF_UP);
             avgNoOfMissionsCompleted = averageMissionsCompleted.doubleValue();
             BigDecimal averageWeeksInTraining = BigDecimal.valueOf(totalWeeksInTraining / childrenCount)
-                    .setScale(2, RoundingMode.HALF_UP);
+                    .setScale(SCALE, RoundingMode.HALF_UP);
             avgWeeksInTraining = averageWeeksInTraining.doubleValue();
         }
 
