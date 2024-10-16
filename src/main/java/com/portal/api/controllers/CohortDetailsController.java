@@ -3,7 +3,6 @@ package com.portal.api.controllers;
 import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.model.Child;
 import com.portal.api.model.Cohort;
-import com.portal.api.model.PortalUser;
 import com.portal.api.services.CohortService;
 import com.portal.api.util.JwtService;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +30,7 @@ public class CohortDetailsController {
     @GetMapping()
     public ResponseEntity<CohortDetailsResponse> index(@PathVariable String cohortId, HttpServletRequest request) throws Exception {
 
-        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+       // PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort == null) {
@@ -39,6 +38,9 @@ public class CohortDetailsController {
         }
 
         List<Child> children = cohortService.getChildrenFromCohort(cohort.getId());
+        if (children == null) {
+            return ResponseEntity.notFound().build();
+        }
 
         CohortDetailsResponse cohortDetailsResponse = cohortService.getCohortDetails(children);
 

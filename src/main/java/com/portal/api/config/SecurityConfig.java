@@ -18,6 +18,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.POST, "/portal/signup").permitAll()
                 .antMatchers(HttpMethod.POST, "/shopify/orders").permitAll()
                 .antMatchers("/portal/test").permitAll()
+                .antMatchers("/portal/cohort/**").permitAll()
                 .antMatchers("/portal/swagger-ui/**", "/portal/v3/api-docs/**", "/portal/swagger-ui.html", "/portal/swagger-resources/**", "/webjars/**").permitAll()
                 .anyRequest().authenticated().and()
                 .oauth2ResourceServer().jwt();

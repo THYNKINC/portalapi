@@ -3,6 +3,8 @@ package com.portal.api.dto.response;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -24,4 +26,6 @@ public class CohortDetailsResponse {
     private int lastGameplaySession;
 
     private double avgNoOfMissionsCompleted;
+
+    private List<CohortChildSummary> children = new ArrayList<>();
 }

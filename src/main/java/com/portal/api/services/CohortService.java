@@ -4,6 +4,7 @@ import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
+import com.portal.api.dto.response.CohortChildSummary;
 import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.dto.response.ImportStatus;
 import com.portal.api.dto.response.RegisterUserStatus;
@@ -23,11 +24,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
 
 @Service
 public class CohortService {
+
+    private static final int SCALE = 2;
+    private static final RoundingMode ROUNDING_MODE = RoundingMode.HALF_UP;
 
     private final GameApiService gameApiService;
 
@@ -301,36 +307,46 @@ public class CohortService {
 
     public CohortDetailsResponse getCohortDetails(List<Child> children) throws Exception {
 
-        int avgNoOfMissionsCompleted = 0;
+        double avgNoOfMissionsCompleted = 0;
         double avgWeeksInTraining = 0.0;
         int totalMissionsCompleted = 0;
         double totalWeeksInTraining = 0.0;
         int childrenCount = children.size();
         LocalDate earliestPlayDate = null;
         int mostRecentTrainingSessionDaysAgo = 0;
-
+        List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
         for (Child child : children) {
-            SearchResponse response = analyticsService.historicalProgress(child.getUsername());
-            HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
 
-            totalMissionsCompleted += progressReport.getMissionsCompleted();
+            try {
+                SearchResponse response = analyticsService.historicalProgress(child.getUsername());
+                HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
 
-            double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
-            totalWeeksInTraining += weeksInTraining;
+                setSummary(child, progressReport, cohortChildSummaries);
 
-            LocalDate firstPlayDate = progressReport.getFirstPlayed();
-            if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
-                earliestPlayDate = firstPlayDate;
-            }
-            int daysSinceLastAttempt = progressReport.getDaysSinceLastAttempt();
-            if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
-                mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
+                totalMissionsCompleted += progressReport.getMissionsCompleted();
+
+                double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
+                totalWeeksInTraining += weeksInTraining;
+
+                LocalDate firstPlayDate = progressReport.getFirstPlayed();
+                if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
+                    earliestPlayDate = firstPlayDate;
+                }
+                int daysSinceLastAttempt = progressReport.getDaysSinceLastAttempt();
+                if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
+                    mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
+                }
+            } catch (Exception e) {
+
             }
         }
 
         if (childrenCount > 0) {
-            avgNoOfMissionsCompleted = totalMissionsCompleted / childrenCount;
-            avgWeeksInTraining = totalWeeksInTraining / childrenCount;
+            BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / childrenCount).setScale(2, RoundingMode.HALF_UP);
+            avgNoOfMissionsCompleted = averageMissionsCompleted.doubleValue();
+            BigDecimal averageWeeksInTraining = BigDecimal.valueOf(totalWeeksInTraining / childrenCount)
+                    .setScale(2, RoundingMode.HALF_UP);
+            avgWeeksInTraining = averageWeeksInTraining.doubleValue();
         }
 
         return CohortDetailsResponse.builder()
@@ -339,6 +355,15 @@ public class CohortService {
                 .totalUsers(childrenCount)
                 .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
                 .avgNoOfWeeks(avgWeeksInTraining)
+                .children(cohortChildSummaries)
                 .build();
     }
+
+    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries) {
+        CohortChildSummary cohortChildSummary = new CohortChildSummary();
+        cohortChildSummary.setName(child.getFirstName().concat(" ").concat(child.getLastName()));
+        cohortChildSummary.setNextMission(progressReport.getMissionsCompleted() != 15 ? progressReport.getMissionsCompleted() + 1 : progressReport.getMissionsCompleted());
+        cohortChildSummaries.add(cohortChildSummary);
+    }
+
 }
