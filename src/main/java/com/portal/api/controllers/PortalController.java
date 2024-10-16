@@ -682,7 +682,7 @@ public class PortalController {
     @Hidden
     @GetMapping("/opensearch/completed-missions")
     public SearchResponse completedMissions(HttpServletRequest request) throws Exception {
-    	return analyticsService.completedMissions("susku");
+    	return analyticsService.completedMissions("388357544");
     }
 
     @Hidden
