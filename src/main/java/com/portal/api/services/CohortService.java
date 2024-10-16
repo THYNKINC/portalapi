@@ -6,6 +6,7 @@ import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.response.CohortChildSummary;
 import com.portal.api.dto.response.CohortDetailsResponse;
+import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.dto.response.ImportStatus;
 import com.portal.api.dto.response.RegisterUserStatus;
 import com.portal.api.exception.ResourceNotFoundException;
