@@ -370,6 +370,7 @@ public class CohortService {
 
     private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary();
+        cohortChildSummary.setUsername(child.getUsername());
         cohortChildSummary.setName(child.getFirstName().concat(" ").concat(child.getLastName()));
         cohortChildSummary.setNextMission(progressReport.getMissionsCompleted() != 15 ? progressReport.getMissionsCompleted() + 1 : progressReport.getMissionsCompleted());
         cohortChildSummaries.add(cohortChildSummary);

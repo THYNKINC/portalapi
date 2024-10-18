@@ -9,6 +9,7 @@ import java.time.LocalDate;
 @Setter
 public class CohortChildSummary {
     private String name;
+    private String username;
     private LocalDate lastCompletedMission;
     private int nextMission;
 }
