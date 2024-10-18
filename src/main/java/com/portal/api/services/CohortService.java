@@ -4,10 +4,7 @@ import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
-import com.portal.api.dto.response.CohortChildSummary;
-import com.portal.api.dto.response.CohortDetailsResponse;
-import com.portal.api.dto.response.ImportStatus;
-import com.portal.api.dto.response.RegisterUserStatus;
+import com.portal.api.dto.response.*;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.*;
 import com.portal.api.repositories.CohortsRepository;
@@ -28,6 +25,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CohortService {
@@ -305,28 +303,34 @@ public class CohortService {
     }
 
     public CohortDetailsResponse getCohortDetails(List<Child> children) throws Exception {
-
         double avgNoOfMissionsCompleted = 0;
         double avgWeeksInTraining = 0.0;
         int totalMissionsCompleted = 0;
         double totalWeeksInTraining = 0.0;
         int childrenCount = children.size();
         LocalDate earliestPlayDate = null;
-        int mostRecentTrainingSessionDaysAgo = 0;
+        int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
-        for (Child child : children) {
 
+        Map<Integer, Integer> missionCompletionCount = new HashMap<>();
+        for (int i = 1; i <= 15; i++) {
+            missionCompletionCount.put(i, 0);
+        }
+
+        for (Child child : children) {
             try {
                 SearchResponse response = analyticsService.historicalProgress(child.getUsername());
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
-
                 setSummary(child, progressReport, cohortChildSummaries);
-
-                totalMissionsCompleted += progressReport.getMissionsCompleted();
-
+                
+                int missionsCompleted = progressReport.getMissionsCompleted();
+                for (int i = 1; i <= missionsCompleted; i++) {
+                    missionCompletionCount.put(i, missionCompletionCount.get(i) + 1);
+                }
+                
+                totalMissionsCompleted += missionsCompleted;
                 double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
                 totalWeeksInTraining += weeksInTraining;
-
                 LocalDate firstPlayDate = progressReport.getFirstPlayed();
                 if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
                     earliestPlayDate = firstPlayDate;
@@ -335,18 +339,23 @@ public class CohortService {
                 if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
                     mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
                 }
-            } catch (Exception e) {
+                
 
+            } catch (Exception e) {
+                // Handle the exception or log it
             }
         }
 
         if (childrenCount > 0) {
-            BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / childrenCount).setScale(SCALE, RoundingMode.HALF_UP);
+            BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / (double) childrenCount).setScale(SCALE, RoundingMode.HALF_UP);
             avgNoOfMissionsCompleted = averageMissionsCompleted.doubleValue();
-            BigDecimal averageWeeksInTraining = BigDecimal.valueOf(totalWeeksInTraining / childrenCount)
-                    .setScale(SCALE, RoundingMode.HALF_UP);
+            BigDecimal averageWeeksInTraining = BigDecimal.valueOf(totalWeeksInTraining / (double) childrenCount).setScale(SCALE, RoundingMode.HALF_UP);
             avgWeeksInTraining = averageWeeksInTraining.doubleValue();
         }
+
+        List<MissionCompletedPerUser> missionCompletions = missionCompletionCount.entrySet().stream()
+                .map(entry -> new MissionCompletedPerUser(entry.getKey().toString(), entry.getValue().toString()))
+                .collect(Collectors.toList());
 
         return CohortDetailsResponse.builder()
                 .avgNoOfMissionsCompleted(avgNoOfMissionsCompleted)
@@ -355,6 +364,7 @@ public class CohortService {
                 .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
                 .avgNoOfWeeks(avgWeeksInTraining)
                 .children(cohortChildSummaries)
+                .missionsCompletedPerUser(missionCompletions)
                 .build();
     }
 

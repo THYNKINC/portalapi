@@ -28,4 +28,6 @@ public class CohortDetailsResponse {
     private double avgNoOfMissionsCompleted;
 
     private List<CohortChildSummary> children = new ArrayList<>();
+
+    private List<MissionCompletedPerUser> missionsCompletedPerUser = new ArrayList<>();
 }
