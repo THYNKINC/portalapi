@@ -1,12 +1,12 @@
 package com.portal.api.services;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
-
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateParentRequest;
+import com.portal.api.dto.response.PaginatedResponse;
+import com.portal.api.model.Child;
+import com.portal.api.model.Parent;
+import com.portal.api.repositories.ParentRepository;
+import com.portal.api.util.CountDTO;
 import com.portal.api.util.DateTimeUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -20,13 +20,13 @@ import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
-
-import com.portal.api.model.Child;
-import com.portal.api.dto.response.PaginatedResponse;
-import com.portal.api.model.Parent;
-import com.portal.api.repositories.ParentRepository;
-import com.portal.api.util.CountDTO;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 @Service
@@ -189,8 +189,14 @@ public class ParentService {
         );
 
         List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
+        List<Child> paginatedChildrenFromCoaches = mongoTemplate.aggregate(aggregation, "delegate", Child.class).getMappedResults();
 
-		return new PaginatedResponse<Child>(paginatedChildren, total);
+		List<Child> mergedList = Stream.concat(
+                paginatedChildren.stream(),
+                paginatedChildrenFromCoaches.stream()
+		).toList();
+
+		return new PaginatedResponse<Child>(mergedList, total);
     }
 	
 	public List<Child> getChildrenByUsername(Collection<String> usernames) {
