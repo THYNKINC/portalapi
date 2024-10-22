@@ -322,12 +322,12 @@ public class CohortService {
                 SearchResponse response = analyticsService.historicalProgress(child.getUsername());
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
                 setSummary(child, progressReport, cohortChildSummaries);
-                
+
                 int missionsCompleted = progressReport.getMissionsCompleted();
-                for (int i = 1; i <= missionsCompleted; i++) {
-                    missionCompletionCount.put(i, missionCompletionCount.get(i) + 1);
+                if (missionsCompleted > 0 && missionCompletionCount.containsKey(missionsCompleted)) {
+                    missionCompletionCount.put(missionsCompleted, missionCompletionCount.get(missionsCompleted) + 1);
                 }
-                
+
                 totalMissionsCompleted += missionsCompleted;
                 double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
                 totalWeeksInTraining += weeksInTraining;
@@ -339,7 +339,7 @@ public class CohortService {
                 if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
                     mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
                 }
-                
+
 
             } catch (Exception e) {
                 // Handle the exception or log it

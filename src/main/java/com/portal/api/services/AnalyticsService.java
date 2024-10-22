@@ -32,6 +32,7 @@ import org.springframework.stereotype.Component;
 import javax.net.ssl.SSLContext;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -152,6 +153,39 @@ public class AnalyticsService {
     	
     	return historicalProgress(userId, true);
     }
+
+	public SearchResponse avgCompletedMissionsPerWeek(List<String> usernames, LocalDate startDate) throws Exception {
+
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.termsQuery("user_id", usernames))
+				.must(QueryBuilders.rangeQuery("timestamp").gte(startDate.atStartOfDay()));
+
+		FilterAggregationBuilder missions = AggregationBuilders
+				.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))
+				.subAggregation(AggregationBuilders
+						.cardinality("id-count")
+						.field("MissionID"))
+				.subAggregation(AggregationBuilders
+						.topHits("highest-missions")
+						.size(1)
+						.sort("MissionID", SortOrder.DESC)
+						.fetchSource(new String[] {"MissionID"}, null));
+
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+		searchSourceBuilder.aggregation(missions);
+		searchSourceBuilder.size(0);
+
+		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+
+	}
     
 	public SearchResponse historicalProgress(String userId, boolean includePlayTime) throws Exception {
 		
