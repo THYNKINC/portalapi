@@ -165,7 +165,7 @@ public class ParentService {
         AggregationOperation countOperation = Aggregation.count().as("total");
         Aggregation countAggregation = Aggregation.newAggregation(unwindOperation, replaceRootOperation, matchOperation, countOperation);
 
-        AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "parent", CountDTO.class);
+        AggregationResults<CountDTO> countResults = mongoTemplate.aggregate(countAggregation, "delegate", CountDTO.class);
         CountDTO results = countResults.getUniqueMappedResult();
         
         if (results == null)
@@ -188,15 +188,10 @@ public class ParentService {
                 limitOperation
         );
 
-        List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
+        //List<Child> paginatedChildren = mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
         List<Child> paginatedChildrenFromCoaches = mongoTemplate.aggregate(aggregation, "delegate", Child.class).getMappedResults();
 
-		List<Child> mergedList = Stream.concat(
-                paginatedChildren.stream(),
-                paginatedChildrenFromCoaches.stream()
-		).toList();
-
-		return new PaginatedResponse<Child>(mergedList, total);
+		return new PaginatedResponse<Child>(paginatedChildrenFromCoaches, total);
     }
 	
 	public List<Child> getChildrenByUsername(Collection<String> usernames) {
