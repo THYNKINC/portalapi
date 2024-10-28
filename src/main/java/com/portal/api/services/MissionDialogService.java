@@ -43,51 +43,51 @@ public class MissionDialogService {
         fillPlaceholder(missionDialog, powerPlaceholder2, String.valueOf(percentage).concat("%"));
     }
 
-    private void fillPlaceholder(MissionDialog missionDialog, String namePlaceholder, String firstName) {
-        if (missionDialog.getGameGoals() != null && missionDialog.getGameGoals().contains(namePlaceholder)) {
-            missionDialog.setGameGoals(missionDialog.getGameGoals().replace(namePlaceholder, firstName));
+    private void fillPlaceholder(MissionDialog missionDialog, String placeholder, String actualValue) {
+        if (missionDialog.getGameGoals() != null && missionDialog.getGameGoals().contains(placeholder)) {
+            missionDialog.setGameGoals(missionDialog.getGameGoals().replace(placeholder, actualValue));
         }
-        if (missionDialog.getCognitiveSkillsGoals() != null && missionDialog.getCognitiveSkillsGoals().contains(namePlaceholder)) {
-            missionDialog.setCognitiveSkillsGoals(missionDialog.getCognitiveSkillsGoals().replace(namePlaceholder, firstName));
+        if (missionDialog.getCognitiveSkillsGoals() != null && missionDialog.getCognitiveSkillsGoals().contains(placeholder)) {
+            missionDialog.setCognitiveSkillsGoals(missionDialog.getCognitiveSkillsGoals().replace(placeholder, actualValue));
         }
-        if (missionDialog.getBehavioralChangesChild() != null && missionDialog.getBehavioralChangesChild().contains(namePlaceholder)) {
-            missionDialog.setBehavioralChangesChild(missionDialog.getBehavioralChangesChild().replace(namePlaceholder, firstName));
+        if (missionDialog.getBehavioralChangesChild() != null && missionDialog.getBehavioralChangesChild().contains(placeholder)) {
+            missionDialog.setBehavioralChangesChild(missionDialog.getBehavioralChangesChild().replace(placeholder, actualValue));
         }
-        if (missionDialog.getBehavioralChangesAdult() != null && missionDialog.getBehavioralChangesAdult().contains(namePlaceholder)) {
-            missionDialog.setBehavioralChangesAdult(missionDialog.getBehavioralChangesAdult().replace(namePlaceholder, firstName));
+        if (missionDialog.getBehavioralChangesAdult() != null && missionDialog.getBehavioralChangesAdult().contains(placeholder)) {
+            missionDialog.setBehavioralChangesAdult(missionDialog.getBehavioralChangesAdult().replace(placeholder, actualValue));
         }
-        if (missionDialog.getFailedRunner() != null && missionDialog.getFailedRunner().contains(namePlaceholder)) {
-            missionDialog.setFailedRunner(missionDialog.getFailedRunner().replace(namePlaceholder, firstName));
+        if (missionDialog.getFailedRunner() != null && missionDialog.getFailedRunner().contains(placeholder)) {
+            missionDialog.setFailedRunner(missionDialog.getFailedRunner().replace(placeholder, actualValue));
         }
-        if (missionDialog.getPassedRunner1Star() != null && missionDialog.getPassedRunner1Star().contains(namePlaceholder)) {
-            missionDialog.setPassedRunner1Star(missionDialog.getPassedRunner1Star().replace(namePlaceholder, firstName));
+        if (missionDialog.getPassedRunner1Star() != null && missionDialog.getPassedRunner1Star().contains(placeholder)) {
+            missionDialog.setPassedRunner1Star(missionDialog.getPassedRunner1Star().replace(placeholder, actualValue));
         }
-        if (missionDialog.getPassedRunner2Star() != null && missionDialog.getPassedRunner2Star().contains(namePlaceholder)) {
-            missionDialog.setPassedRunner2Star(missionDialog.getPassedRunner2Star().replace(namePlaceholder, firstName));
+        if (missionDialog.getPassedRunner2Star() != null && missionDialog.getPassedRunner2Star().contains(placeholder)) {
+            missionDialog.setPassedRunner2Star(missionDialog.getPassedRunner2Star().replace(placeholder, actualValue));
         }
-        if (missionDialog.getPassedRunner3Star() != null && missionDialog.getPassedRunner3Star().contains(namePlaceholder)) {
-            missionDialog.setPassedRunner3Star(missionDialog.getPassedRunner3Star().replace(namePlaceholder, firstName));
+        if (missionDialog.getPassedRunner3Star() != null && missionDialog.getPassedRunner3Star().contains(placeholder)) {
+            missionDialog.setPassedRunner3Star(missionDialog.getPassedRunner3Star().replace(placeholder, actualValue));
         }
-        if (missionDialog.getWhatsNextFailedRunner() != null && missionDialog.getWhatsNextFailedRunner().contains(namePlaceholder)) {
-            missionDialog.setWhatsNextFailedRunner(missionDialog.getWhatsNextFailedRunner().replace(namePlaceholder, firstName));
+        if (missionDialog.getWhatsNextFailedRunner() != null && missionDialog.getWhatsNextFailedRunner().contains(placeholder)) {
+            missionDialog.setWhatsNextFailedRunner(missionDialog.getWhatsNextFailedRunner().replace(placeholder, actualValue));
         }
-        if (missionDialog.getFailedRunnerNoAttempt() != null && missionDialog.getFailedRunnerNoAttempt().contains(namePlaceholder)) {
-            missionDialog.setFailedRunnerNoAttempt(missionDialog.getFailedRunnerNoAttempt().replace(namePlaceholder, firstName));
+        if (missionDialog.getFailedRunnerNoAttempt() != null && missionDialog.getFailedRunnerNoAttempt().contains(placeholder)) {
+            missionDialog.setFailedRunnerNoAttempt(missionDialog.getFailedRunnerNoAttempt().replace(placeholder, actualValue));
         }
-        if (missionDialog.getFailedAttempt() != null && missionDialog.getFailedAttempt().contains(namePlaceholder)) {
-            missionDialog.setFailedAttempt(missionDialog.getFailedAttempt().replace(namePlaceholder, firstName));
+        if (missionDialog.getFailedAttempt() != null && missionDialog.getFailedAttempt().contains(placeholder)) {
+            missionDialog.setFailedAttempt(missionDialog.getFailedAttempt().replace(placeholder, actualValue));
         }
-        if (missionDialog.getPassedAttempt() != null && missionDialog.getPassedAttempt().contains(namePlaceholder)) {
-            missionDialog.setPassedAttempt(missionDialog.getPassedAttempt().replace(namePlaceholder, firstName));
+        if (missionDialog.getPassedAttempt() != null && missionDialog.getPassedAttempt().contains(placeholder)) {
+            missionDialog.setPassedAttempt(missionDialog.getPassedAttempt().replace(placeholder, actualValue));
         }
-        if (missionDialog.getMissionNumberFocus() != null && missionDialog.getMissionNumberFocus().contains(namePlaceholder)) {
-            missionDialog.setMissionNumberFocus(missionDialog.getMissionNumberFocus().replace(namePlaceholder, firstName));
+        if (missionDialog.getMissionNumberFocus() != null && missionDialog.getMissionNumberFocus().contains(placeholder)) {
+            missionDialog.setMissionNumberFocus(missionDialog.getMissionNumberFocus().replace(placeholder, actualValue));
         }
-        if (missionDialog.getFocusDefinitionPopup() != null && missionDialog.getFocusDefinitionPopup().contains(namePlaceholder)) {
-            missionDialog.setFocusDefinitionPopup(missionDialog.getFocusDefinitionPopup().replace(namePlaceholder, firstName));
+        if (missionDialog.getFocusDefinitionPopup() != null && missionDialog.getFocusDefinitionPopup().contains(placeholder)) {
+            missionDialog.setFocusDefinitionPopup(missionDialog.getFocusDefinitionPopup().replace(placeholder, actualValue));
         }
-        if (missionDialog.getImpulsControlDefinition() != null && missionDialog.getImpulsControlDefinition().contains(namePlaceholder)) {
-            missionDialog.setImpulsControlDefinition(missionDialog.getImpulsControlDefinition().replace(namePlaceholder, firstName));
+        if (missionDialog.getImpulsControlDefinition() != null && missionDialog.getImpulsControlDefinition().contains(placeholder)) {
+            missionDialog.setImpulsControlDefinition(missionDialog.getImpulsControlDefinition().replace(placeholder, actualValue));
         }
     }
 }
