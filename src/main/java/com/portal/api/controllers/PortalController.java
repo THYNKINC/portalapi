@@ -123,10 +123,12 @@ public class PortalController {
         String namePlaceholder = "[NAME]";
         String powerPlaceholder1 = "[POWER PERCENTAGE NEEDED TO GET 1 STAR]";
         String powerPlaceholder2 = "[POWER PERCENTAGE NEEDED TO GET 2 STARS]";
+        String powerPlaceholder3 = "[POWER PERCENTAGE NEEDED TO GET 3 STARS]";
 
         missionDialogService.setNamePlaceholder(missionDialog, namePlaceholder, firstName);
         missionDialogService.setPowerOnePlaceholder(missionDialog, powerPlaceholder1, percentages[0]);
         missionDialogService.setPowerTwoPlaceholder(missionDialog, powerPlaceholder2, percentages[1]);
+        missionDialogService.setPowerThreePlaceholder(missionDialog, powerPlaceholder3, percentages[2]);
 
         return ResponseEntity.ok(missionDialog);
     }

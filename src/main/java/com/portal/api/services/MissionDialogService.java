@@ -90,4 +90,8 @@ public class MissionDialogService {
             missionDialog.setImpulsControlDefinition(missionDialog.getImpulsControlDefinition().replace(placeholder, actualValue));
         }
     }
+
+    public void setPowerThreePlaceholder(MissionDialog missionDialog, String powerPlaceholder3, int percentage) {
+        fillPlaceholder(missionDialog, powerPlaceholder3, String.valueOf(percentage).concat("%"));
+    }
 }
