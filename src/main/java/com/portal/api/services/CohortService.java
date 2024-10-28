@@ -376,4 +376,7 @@ public class CohortService {
         cohortChildSummaries.add(cohortChildSummary);
     }
 
+    public List<Cohort> getAllCohorts() {
+        return cohortsRepository.findAll();
+    }
 }

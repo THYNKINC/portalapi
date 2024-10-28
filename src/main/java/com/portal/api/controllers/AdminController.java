@@ -218,6 +218,14 @@ public class AdminController {
         return parentService.getChildrenByFilter(partialName, labels, pageRequest);
     }
 
+    @GetMapping("/cohorts/all")
+    ResponseEntity<List<Cohort>> all(HttpServletRequest request) throws Exception {
+
+        PortalUser coach = jwtService.decodeJwtFromRequest(request, true, null);
+
+        return ResponseEntity.ok(cohortService.getAllCohorts());
+    }
+
     @GetMapping("/attempts")
     public PaginatedResponse<AttemptSummary> getAttempts(HttpServletRequest request, @RequestParam(defaultValue = "1") int page,
                                                          @RequestParam(defaultValue = "20") int size) throws Exception {
