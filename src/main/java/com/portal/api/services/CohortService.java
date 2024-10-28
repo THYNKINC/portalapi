@@ -309,7 +309,7 @@ public class CohortService {
         double totalWeeksInTraining = 0.0;
         int childrenCount = children.size();
         LocalDate earliestPlayDate = null;
-        int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
+        int mostRecentTrainingSessionDaysAgo = 0;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
 
         Map<Integer, Integer> missionCompletionCount = new HashMap<>();
