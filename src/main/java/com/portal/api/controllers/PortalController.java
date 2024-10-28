@@ -42,6 +42,7 @@ import java.util.*;
 public class PortalController {
 
     private final CoachService coachService;
+    private final MissionDialogService missionDialogService;
     @Value("${games-port}")
     private String GAMES_PORT;
 
@@ -67,7 +68,7 @@ public class PortalController {
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, CoachService coachService) {
+            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, CoachService coachService, MissionDialogService missionDialogService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
@@ -75,10 +76,11 @@ public class PortalController {
         this.authService = authService;
         this.missionService = missionService;
         this.coachService = coachService;
+        this.missionDialogService = missionDialogService;
     }
 
-    @GetMapping("/mission-dialog/{id}/{username}")
-    public ResponseEntity<MissionDialog> getMissionDialog(@PathVariable String id, @PathVariable String username, HttpServletRequest request) throws Exception {
+    @GetMapping("/mission-dialog/{id}/{username}/{sessionId}")
+    public ResponseEntity<MissionDialog> getMissionDialog(@PathVariable String id, @PathVariable String username, @PathVariable String sessionId, HttpServletRequest request) throws Exception {
         PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         Optional<Child> optionalChild = user.getChildren().stream().filter(userChild -> userChild.getUsername().equals(username)).findFirst();
@@ -94,58 +96,40 @@ public class PortalController {
         Child child = optionalChild.get();
         MissionDialog missionDialog = optionalMissionDialog.get();
 
-        String firstName = child.getFirstName();
-        String placeholder = "[NAME]";
+        SearchResponse searchResponse = analyticsService.starValues(username, sessionId);
+        // this indicates a problem with the session_start for RunnerStart not matching the RunnerEnd
+        if (searchResponse.getHits().getHits().length == 0) {
+            throw new RuntimeException("Cannot determine start thresholds for " + username + ", attempt " + sessionId);
+        }
 
-        if (missionDialog.getGameGoals() != null && missionDialog.getGameGoals().contains(placeholder)) {
-            missionDialog.setGameGoals(missionDialog.getGameGoals().replace(placeholder, firstName));
+        Map<String, Object> sourceAsMap = searchResponse.getHits().getHits()[0].getSourceAsMap();
+        String starValues = (String) sourceAsMap.get("StarValues");
+        String[] thresholds = starValues.split("&");
+
+        // special case for legacy data having only one star threshold
+        if (thresholds.length == 1) {
+            thresholds = new String[]{thresholds[0], thresholds[0], thresholds[0]};
         }
-        if (missionDialog.getCognitiveSkillsGoals() != null && missionDialog.getCognitiveSkillsGoals().contains(placeholder)) {
-            missionDialog.setCognitiveSkillsGoals(missionDialog.getCognitiveSkillsGoals().replace(placeholder, firstName));
+
+        int values[] = new int[3];
+        int percentages[] = new int[3];
+
+        for (int i = 0; i < 3; i++) {
+            values[i] = Math.round(Float.parseFloat(thresholds[i]) * 19808);
+            percentages[i] = Math.round(Float.parseFloat(thresholds[i]) * 100);
         }
-        if (missionDialog.getBehavioralChangesChild() != null && missionDialog.getBehavioralChangesChild().contains(placeholder)) {
-            missionDialog.setBehavioralChangesChild(missionDialog.getBehavioralChangesChild().replace(placeholder, firstName));
-        }
-        if (missionDialog.getBehavioralChangesAdult() != null && missionDialog.getBehavioralChangesAdult().contains(placeholder)) {
-            missionDialog.setBehavioralChangesAdult(missionDialog.getBehavioralChangesAdult().replace(placeholder, firstName));
-        }
-        if (missionDialog.getFailedRunner() != null && missionDialog.getFailedRunner().contains(placeholder)) {
-            missionDialog.setFailedRunner(missionDialog.getFailedRunner().replace(placeholder, firstName));
-        }
-        if (missionDialog.getPassedRunner1Star() != null && missionDialog.getPassedRunner1Star().contains(placeholder)) {
-            missionDialog.setPassedRunner1Star(missionDialog.getPassedRunner1Star().replace(placeholder, firstName));
-        }
-        if (missionDialog.getPassedRunner2Star() != null && missionDialog.getPassedRunner2Star().contains(placeholder)) {
-            missionDialog.setPassedRunner2Star(missionDialog.getPassedRunner2Star().replace(placeholder, firstName));
-        }
-        if (missionDialog.getPassedRunner3Star() != null && missionDialog.getPassedRunner3Star().contains(placeholder)) {
-            missionDialog.setPassedRunner3Star(missionDialog.getPassedRunner3Star().replace(placeholder, firstName));
-        }
-        if (missionDialog.getWhatsNextFailedRunner() != null && missionDialog.getWhatsNextFailedRunner().contains(placeholder)) {
-            missionDialog.setWhatsNextFailedRunner(missionDialog.getWhatsNextFailedRunner().replace(placeholder, firstName));
-        }
-        if (missionDialog.getFailedRunnerNoAttempt() != null && missionDialog.getFailedRunnerNoAttempt().contains(placeholder)) {
-            missionDialog.setFailedRunnerNoAttempt(missionDialog.getFailedRunnerNoAttempt().replace(placeholder, firstName));
-        }
-        if (missionDialog.getFailedAttempt() != null && missionDialog.getFailedAttempt().contains(placeholder)) {
-            missionDialog.setFailedAttempt(missionDialog.getFailedAttempt().replace(placeholder, firstName));
-        }
-        if (missionDialog.getPassedAttempt() != null && missionDialog.getPassedAttempt().contains(placeholder)) {
-            missionDialog.setPassedAttempt(missionDialog.getPassedAttempt().replace(placeholder, firstName));
-        }
-        if (missionDialog.getMissionNumberFocus() != null && missionDialog.getMissionNumberFocus().contains(placeholder)) {
-            missionDialog.setMissionNumberFocus(missionDialog.getMissionNumberFocus().replace(placeholder, firstName));
-        }
-        if (missionDialog.getFocusDefinitionPopup() != null && missionDialog.getFocusDefinitionPopup().contains(placeholder)) {
-            missionDialog.setFocusDefinitionPopup(missionDialog.getFocusDefinitionPopup().replace(placeholder, firstName));
-        }
-        if (missionDialog.getImpulsControlDefinition() != null && missionDialog.getImpulsControlDefinition().contains(placeholder)) {
-            missionDialog.setImpulsControlDefinition(missionDialog.getImpulsControlDefinition().replace(placeholder, firstName));
-        }
+
+        String firstName = child.getFirstName();
+        String namePlaceholder = "[NAME]";
+        String powerPlaceholder1 = "[POWER PERCENTAGE NEEDED TO GET 1 STAR]";
+        String powerPlaceholder2 = "[POWER PERCENTAGE NEEDED TO GET 2 STARS]";
+
+        missionDialogService.setNamePlaceholder(missionDialog, namePlaceholder, firstName);
+        missionDialogService.setPowerOnePlaceholder(missionDialog, powerPlaceholder1, percentages[0]);
+        missionDialogService.setPowerTwoPlaceholder(missionDialog, powerPlaceholder2, percentages[1]);
 
         return ResponseEntity.ok(missionDialog);
     }
-
     @GetMapping("/me")
     public PortalUser getMe(HttpServletRequest request) throws Exception {
         return jwtService.decodeJwtFromRequest(request, false, null);
