@@ -29,7 +29,7 @@ public class ImportJob {
 
     private String error;
 
-    private LocalDate createdDate;
+    private String createdDate;
 
-    private LocalDate updatedDate;
+    private String updatedDate;
 }

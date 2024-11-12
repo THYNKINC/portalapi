@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -73,7 +74,7 @@ public class CohortService {
         job.setCoachUsername(coachUsername);
         job.setCoachFullName(coach.getFirstName().concat(" ").concat(coach.getLastName()));
         job.setCohortName(cohort.getName());
-        job.setCreatedDate(LocalDate.now());
+        job.setCreatedDate(LocalDate.now().format(DateTimeFormatter.ofPattern("MM/dd/yyyy")));
         job.setStatus(ImportStatus.RUNNING);
 
         importJobRepository.save(job);
