@@ -27,4 +27,8 @@ public class RegisterUserStatus {
 
     private String grade;
 
+    private String diagnosis;
+    private String provider;
+    private String group;
+
 }

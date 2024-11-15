@@ -49,5 +49,13 @@ public class CreateCohortUserRequest {
 
     @CsvBindByName(column = "grade")
     private String grade;
-    
+
+    @CsvBindByName(column = "diagnosis")
+    private String diagnosis;
+
+    @CsvBindByName(column = "provider")
+    private String provider;
+
+    @CsvBindByName(column = "group")
+    private String group;
 }

@@ -31,4 +31,10 @@ public class Child {
 	private String gender;
 
 	private String grade;
+
+	private String diagnosis;
+
+	private String provider;
+
+	private String group;
 }

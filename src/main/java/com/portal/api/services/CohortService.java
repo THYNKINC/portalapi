@@ -2,6 +2,7 @@ package com.portal.api.services;
 
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
+import com.portal.api.dto.WhatsNextMission;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.response.*;
@@ -11,6 +12,8 @@ import com.portal.api.repositories.CohortsRepository;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
 import org.opensearch.action.search.SearchResponse;
+import org.opensearch.search.SearchHit;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
@@ -27,6 +30,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static org.apache.lucene.queryparser.surround.parser.QueryParserConstants.W;
 
 @Service
 public class CohortService {
@@ -240,6 +245,9 @@ public class CohortService {
         child.setGender(child.getGender());
         child.setGrade(user.getGrade());
         child.setCreatedDate(new Date());
+        child.setDiagnosis(user.getDiagnosis());
+        child.setProvider(user.getProvider());
+        child.setGroup(user.getGroup());
         child.setLabels(Map.of("cohort", cohort.getId()));
 
         return child;
@@ -259,6 +267,9 @@ public class CohortService {
         child.setGender(child.getGender());
         child.setGrade(user.getGrade());
         child.setCreatedDate(new Date());
+        child.setDiagnosis(user.getDiagnosis());
+        child.setProvider(user.getProvider());
+        child.setGroup(user.getGroup());
         child.setLabels(Map.of("cohort", cohort.getId()));
 
         return child;
@@ -303,19 +314,19 @@ public class CohortService {
         return result.getMappedResults();
     }
 
-    public CohortDetailsResponse getCohortDetails(List<Child> children) throws Exception {
+    public CohortDetailsResponse getCohortDetails(List<Child> children) {
         double avgNoOfMissionsCompleted = 0;
         double avgWeeksInTraining = 0.0;
         int totalMissionsCompleted = 0;
         double totalWeeksInTraining = 0.0;
         int childrenCount = children.size();
         LocalDate earliestPlayDate = null;
-        int mostRecentTrainingSessionDaysAgo = 0;
+        int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
 
-        Map<Integer, Integer> missionCompletionCount = new HashMap<>();
+        Map<Integer, MissionCompletedPerUser> missionCompletionCount = new HashMap<>();
         for (int i = 1; i <= 15; i++) {
-            missionCompletionCount.put(i, 0);
+            missionCompletionCount.put(i, new MissionCompletedPerUser(i));
         }
 
         for (Child child : children) {
@@ -324,11 +335,20 @@ public class CohortService {
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
                 setSummary(child, progressReport, cohortChildSummaries);
 
-                int missionsCompleted = progressReport.getMissionsCompleted();
-                if (missionsCompleted > 0 && missionCompletionCount.containsKey(missionsCompleted)) {
-                    missionCompletionCount.put(missionsCompleted, missionCompletionCount.get(missionsCompleted) + 1);
+                WhatsNextMission whatsNextMission = getWhatsNext(child);
+
+                MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
+
+                if (whatsNextMission.getType().equals("completed")) {
+                    // what here?
+                }
+                else if (whatsNextMission.getType().equals("runner")) {
+                    missionCompletedPerUser.setRunner(missionCompletedPerUser.getRunner() + 1);
+                } else {
+                    missionCompletedPerUser.setTransference(missionCompletedPerUser.getTransference() + 1);
                 }
 
+                int missionsCompleted = progressReport.getMissionsCompleted();
                 totalMissionsCompleted += missionsCompleted;
                 double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
                 totalWeeksInTraining += weeksInTraining;
@@ -336,11 +356,10 @@ public class CohortService {
                 if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
                     earliestPlayDate = firstPlayDate;
                 }
-                int daysSinceLastAttempt = progressReport.getDaysSinceLastAttempt();
-                if (daysSinceLastAttempt < mostRecentTrainingSessionDaysAgo) {
-                    mostRecentTrainingSessionDaysAgo = daysSinceLastAttempt;
-                }
 
+                if (progressReport.getDaysSinceLastAttempt() < mostRecentTrainingSessionDaysAgo) {
+                    mostRecentTrainingSessionDaysAgo = progressReport.getDaysSinceLastAttempt();
+                }
 
             } catch (Exception e) {
                 // Handle the exception or log it
@@ -354,9 +373,6 @@ public class CohortService {
             avgWeeksInTraining = averageWeeksInTraining.doubleValue();
         }
 
-        List<MissionCompletedPerUser> missionCompletions = missionCompletionCount.entrySet().stream()
-                .map(entry -> new MissionCompletedPerUser(entry.getKey().toString(), entry.getValue().toString()))
-                .collect(Collectors.toList());
 
         return CohortDetailsResponse.builder()
                 .avgNoOfMissionsCompleted(avgNoOfMissionsCompleted)
@@ -365,8 +381,48 @@ public class CohortService {
                 .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
                 .avgNoOfWeeks(avgWeeksInTraining)
                 .children(cohortChildSummaries)
-                .missionsCompletedPerUser(missionCompletions)
+                .missionsCompletedPerUser(missionCompletionCount.values().stream().toList())
                 .build();
+    }
+
+    private WhatsNextMission getWhatsNext(Child child) throws Exception {
+
+        SearchResponse perfReport = analyticsService.sessions(child.getUsername(), PageRequest.of(0, 20));
+        List<SessionSummary> perfReportSessions = new ArrayList<>();
+
+        for (SearchHit hit : perfReport.getHits().getHits()) {
+
+            perfReportSessions.add(SearchResultsMapper.getSession(hit));
+        }
+
+        WhatsNextMission whatsNextMission = new WhatsNextMission();
+        List<SessionSummary> mostRecentRunnerMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "runner");
+        List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "transference");
+
+        if (mostRecentRunnerMission.size() >= 3 || mostRecentRunnerMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
+            if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
+                if (mostRecentRunnerMission.get(0).getMissionId() == 15) {
+                    whatsNextMission.setMission(15);
+                    whatsNextMission.setType("completed");
+                } else {
+                    whatsNextMission.setMission(mostRecentRunnerMission.get(0).getMissionId() + 1);
+                    whatsNextMission.setType("runner");
+                }
+            } else {
+                whatsNextMission.setMission(mostRecentRunnerMission.get(0).getMissionId());
+                whatsNextMission.setType("transference");
+            }
+        } else {
+            if (mostRecentRunnerMission.stream().anyMatch(mission -> "FAIL".equals(mission.getStatus()))) {
+                whatsNextMission.setMission(mostRecentRunnerMission.get(0).getMissionId());
+                whatsNextMission.setType("runner");
+            } else if (mostRecentRunnerMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus())) && mostRecentTransferenceMission == null) {
+                whatsNextMission.setMission(mostRecentRunnerMission.get(0).getMissionId());
+                whatsNextMission.setType("runner");
+            }
+        }
+
+        return whatsNextMission;
     }
 
     private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries) {
@@ -379,5 +435,53 @@ public class CohortService {
 
     public List<Cohort> getAllCohorts() {
         return cohortsRepository.findAll();
+    }
+
+
+    private List<SessionSummary> mostRecentMissionsByType(List<SessionSummary> perfReport, String username, String type) throws Exception {
+        RecentMissionResponse recentMissionResponse = recentMission(username);
+
+        int missionsCompleted = recentMissionResponse.getMissionNumber();
+
+        return perfReport.stream()
+                .filter(session -> session.getMissionId() == missionsCompleted && session.getType().equals(type))
+                .collect(Collectors.toList());
+    }
+
+    private RecentMissionResponse recentMission(String username) throws Exception {
+        SearchResponse searchResponse = analyticsService.lastAttempt(username);
+
+        if (searchResponse.getHits().getHits().length == 0)
+            return new RecentMissionResponse();
+
+        SessionSummary session = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+
+        RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
+
+        recentMissionResponse.setMissionNumber(session.getMissionId());
+        recentMissionResponse.setSessionId(session.getId());
+
+        if (session instanceof RunnerSummary) {
+
+            RunnerSummary runner = (RunnerSummary) session;
+
+            recentMissionResponse.setMissionStatus(runner.getStatus());
+            recentMissionResponse.setMissionRating(runner.getStars().size());
+            recentMissionResponse.setType("runner");
+        } else if (session instanceof TransferenceSummary) {
+
+            TransferenceSummary xfer = (TransferenceSummary) session;
+
+            recentMissionResponse.setMissionStatus(session.getStatus());
+            recentMissionResponse.setMissionRating(xfer.getDecoded() * 100 / xfer.getTarget());
+            recentMissionResponse.setType("transference");
+        } else {
+
+            recentMissionResponse.setMissionStatus("PASS");
+            recentMissionResponse.setMissionRating(100);
+            recentMissionResponse.setType("vigilock");
+        }
+
+        return recentMissionResponse;
     }
 }

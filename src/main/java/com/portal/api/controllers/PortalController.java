@@ -41,7 +41,6 @@ import java.util.*;
 @Validated
 public class PortalController {
 
-    private final CoachService coachService;
     private final MissionDialogService missionDialogService;
     @Value("${games-port}")
     private String GAMES_PORT;
@@ -68,14 +67,13 @@ public class PortalController {
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, CoachService coachService, MissionDialogService missionDialogService) {
+            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
         this.gameApiService = gameApiService;
         this.authService = authService;
         this.missionService = missionService;
-        this.coachService = coachService;
         this.missionDialogService = missionDialogService;
     }
 

@@ -8,6 +8,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MissionCompletedPerUser {
-    private String mission;
-    private String userCount;
+    private int missionNo;
+    private int transference;
+    private int runner;
+
+
+    public MissionCompletedPerUser(int missionNo) {
+        this.missionNo = missionNo;
+    }
 }
