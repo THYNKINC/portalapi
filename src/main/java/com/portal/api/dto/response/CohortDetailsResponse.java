@@ -30,4 +30,6 @@ public class CohortDetailsResponse {
     private List<CohortChildSummary> children = new ArrayList<>();
 
     private List<MissionCompletedPerUser> missionsCompletedPerUser = new ArrayList<>();
+
+    private String cohortType;
 }

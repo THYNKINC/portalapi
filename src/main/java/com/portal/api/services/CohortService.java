@@ -325,7 +325,7 @@ public class CohortService {
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
 
         Map<Integer, MissionCompletedPerUser> missionCompletionCount = new HashMap<>();
-        for (int i = 1; i <= 15; i++) {
+        for (int i = 1; i <= 16; i++) {
             missionCompletionCount.put(i, new MissionCompletedPerUser(i));
         }
 
@@ -402,7 +402,7 @@ public class CohortService {
         if (mostRecentRunnerMission.size() >= 3 || mostRecentRunnerMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
             if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
                 if (mostRecentRunnerMission.get(0).getMissionId() == 15) {
-                    whatsNextMission.setMission(15);
+                    whatsNextMission.setMission(16);
                     whatsNextMission.setType("completed");
                 } else {
                     whatsNextMission.setMission(mostRecentRunnerMission.get(0).getMissionId() + 1);

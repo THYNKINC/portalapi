@@ -44,6 +44,7 @@ public class CohortDetailsController {
         }
 
         CohortDetailsResponse cohortDetailsResponse = cohortService.getCohortDetails(children);
+        cohortDetailsResponse.setCohortType(cohort.getPlayerType());
 
         return ResponseEntity.ok(cohortDetailsResponse);
     }
