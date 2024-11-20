@@ -11,6 +11,7 @@ public class MissionCompletedPerUser {
     private int missionNo;
     private int transference;
     private int runner;
+    private int completed;
 
 
     public MissionCompletedPerUser(int missionNo) {

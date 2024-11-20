@@ -340,7 +340,7 @@ public class CohortService {
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
 
                 if (whatsNextMission.getType().equals("completed")) {
-                    // what here?
+                    missionCompletedPerUser.setCompleted(missionCompletedPerUser.getCompleted() + 1);
                 }
                 else if (whatsNextMission.getType().equals("runner")) {
                     missionCompletedPerUser.setRunner(missionCompletedPerUser.getRunner() + 1);
@@ -426,9 +426,7 @@ public class CohortService {
     }
 
     private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries) {
-        CohortChildSummary cohortChildSummary = new CohortChildSummary();
-        cohortChildSummary.setUsername(child.getUsername());
-        cohortChildSummary.setName(child.getFirstName().concat(" ").concat(child.getLastName()));
+        CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
         cohortChildSummary.setNextMission(progressReport.getMissionsCompleted() != 15 ? progressReport.getMissionsCompleted() + 1 : progressReport.getMissionsCompleted());
         cohortChildSummaries.add(cohortChildSummary);
     }
