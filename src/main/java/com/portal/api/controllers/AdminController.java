@@ -6,6 +6,7 @@ import com.portal.api.dto.request.CreateDelegateRequest;
 import com.portal.api.dto.request.CreateHeadsetRequest;
 import com.portal.api.dto.request.UpdateChildRequest;
 import com.portal.api.dto.request.UpdateParentRequest;
+import com.portal.api.dto.response.ChildWithCohortType;
 import com.portal.api.dto.response.GraphResponse;
 import com.portal.api.dto.response.PaginatedResponse;
 import com.portal.api.exception.ResourceNotFoundException;
@@ -61,6 +62,7 @@ import java.util.stream.Collectors;
 public class AdminController {
 
     private final ImportJobService importJobService;
+    private final CoachService coachService;
 
     @Value("${app-client-id}")
     private String APP_CLIENT_ID;
@@ -101,7 +103,7 @@ public class AdminController {
             AnalyticsService analyticsService,
             HeadsetRepository headsets,
             DelegateRepository delegates,
-            CohortService cohortService, ImportJobService importJobService) {
+            CohortService cohortService, ImportJobService importJobService, CoachService coachService) {
         this.jwtService = jwtService;
         this.parentService = parentService;
         this.analyticsService = analyticsService;
@@ -109,6 +111,7 @@ public class AdminController {
         this.delegates = delegates;
         this.cohortService = cohortService;
         this.importJobService = importJobService;
+        this.coachService = coachService;
     }
 
     @PostMapping("/delegates")
@@ -343,7 +346,7 @@ public class AdminController {
     }
 
     @GetMapping("/children/{username}")
-    public Child getChild(@PathVariable("username") String username, HttpServletRequest request) {
+    public ChildWithCohortType getChild(@PathVariable("username") String username, HttpServletRequest request) {
 
         List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
 
@@ -354,11 +357,29 @@ public class AdminController {
         if (children.size() != 1)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
 
-        return children.get(0);
+        ChildWithCohortType childWithCohortType = new ChildWithCohortType();
+
+        Child child = children.get(0);
+
+        String cohortId = child.getLabels().get("cohort");
+        if (cohortId != null) {
+            try {
+                Cohort cohort = cohortService.getCohort(cohortId);
+                childWithCohortType.setCohortType(cohort.getPlayerType());
+            } catch (Exception e) {
+                childWithCohortType.setCohortType("None");
+            }
+        }
+
+        childWithCohortType.setChild(child);
+
+        return childWithCohortType;
     }
 
     @PutMapping("/parents/{username}")
     public Parent updateParentDetails(@PathVariable("username") String username, @RequestBody UpdateParentRequest update, HttpServletRequest request) throws Exception {
+
+        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
         Parent parent = parentService.getParent(username);
 
@@ -378,19 +399,40 @@ public class AdminController {
     @PutMapping("/children/{username}")
     public Child updateChild(@PathVariable("username") String username, @RequestBody UpdateChildRequest update, HttpServletRequest request) throws Exception {
 
-        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
+        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
 
-        if (children.size() != 1)
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+        boolean isInCohort = false;
+
+        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
+        if (children.size() != 1) {
+            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
+            if (children.size() != 1) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+            } else {
+                isInCohort = true;
+            }
+        }
 
         Child child = children.get(0);
-
         child.setDob(update.getDob());
         child.setFirstName(update.getFirstName());
         child.setLastName(update.getLastName());
         child.setLabels(update.getLabels());
         child.setUpdatedDate(new Date());
-        parentService.updateChild(child);
+        child.setSchool(update.getSchool());
+        child.setClassName(update.getClassName());
+        child.setGender(update.getGender());
+        child.setGrade(update.getGrade());
+        child.setDiagnosis(update.getDiagnosis());
+        child.setProvider(update.getProvider());
+        child.setGroup(update.getGroup());
+        child.setDropped(update.isDropped());
+
+        if (isInCohort) {
+            coachService.updateChild(children.get(0));
+        } else {
+            parentService.updateChild(child);
+        }
 
         return child;
     }

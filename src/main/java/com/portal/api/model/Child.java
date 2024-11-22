@@ -37,4 +37,6 @@ public class Child {
 	private String provider;
 
 	private String group;
+
+	private boolean dropped;
 }

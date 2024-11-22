@@ -3,7 +3,9 @@ package com.portal.api.services;
 import com.portal.api.dto.request.CreateCoachRequest;
 import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.exception.ResourceNotFoundException;
+import com.portal.api.model.Child;
 import com.portal.api.model.Delegate;
+import com.portal.api.model.Parent;
 import com.portal.api.model.PortalUser;
 import com.portal.api.repositories.DelegateRepository;
 import org.springframework.data.domain.Page;
@@ -13,7 +15,9 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRespo
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -74,7 +78,18 @@ public class CoachService {
         return coach;
     }
 
-    public PortalUser getCoachByChildName(String username) {
+    public Delegate getCoachByChildName(String username) {
         return delegateRepository.findOneByChildrenUsername(username);
+    }
+
+    public void updateChild(Child child) {
+        Delegate coach = getCoachByChildName(child.getUsername());
+
+        List<Child> children = coach.getChildren().stream()
+                .map(e -> e.getUsername().equals(child.getUsername()) ? child : e)
+                .collect(Collectors.toList());
+
+        coach.setChildren(children);
+        delegateRepository.save(coach);
     }
 }
