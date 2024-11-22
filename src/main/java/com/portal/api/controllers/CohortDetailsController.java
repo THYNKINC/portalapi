@@ -31,7 +31,7 @@ public class CohortDetailsController {
     @GetMapping()
     public ResponseEntity<CohortDetailsResponse> index(@PathVariable String cohortId, HttpServletRequest request) throws Exception {
 
-        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+        //PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort == null) {

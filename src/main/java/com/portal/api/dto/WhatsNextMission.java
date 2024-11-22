@@ -6,6 +6,6 @@ import lombok.Setter;
 @Getter
 @Setter
 public class WhatsNextMission {
-    private int mission;
+    private Integer mission;
     private String type;
 }

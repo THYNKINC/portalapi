@@ -11,7 +11,9 @@ import java.time.LocalDate;
 public class CohortChildSummary extends Child {
     private String name;
     private LocalDate lastCompletedMission;
-    private int nextMission;
+    private String nextMission;
+    private Long daysSinceLastPlayed;
+    private boolean active;
 
     public CohortChildSummary(Child child) {
         this.name = child.getFirstName() + " " + child.getLastName();

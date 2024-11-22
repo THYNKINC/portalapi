@@ -31,8 +31,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.apache.lucene.queryparser.surround.parser.QueryParserConstants.W;
-
 @Service
 public class CohortService {
 
@@ -332,10 +330,12 @@ public class CohortService {
         for (Child child : children) {
             try {
                 SearchResponse response = analyticsService.historicalProgress(child.getUsername());
+                SearchResponse lastAttemptResponse = analyticsService.lastAttempt(child.getUsername());
+                SessionSummary lastSession = SearchResultsMapper.getSession(lastAttemptResponse.getHits().getHits()[0]);
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
-                setSummary(child, progressReport, cohortChildSummaries);
-
                 WhatsNextMission whatsNextMission = getWhatsNext(child);
+
+                setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate());
 
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
 
@@ -425,9 +425,11 @@ public class CohortService {
         return whatsNextMission;
     }
 
-    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries) {
+    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
-        cohortChildSummary.setNextMission(progressReport.getMissionsCompleted() != 15 ? progressReport.getMissionsCompleted() + 1 : progressReport.getMissionsCompleted());
+        cohortChildSummary.setDaysSinceLastPlayed(daysSinceLastPlayed);
+        cohortChildSummary.setActive(!child.isDropped());
+        cohortChildSummary.setNextMission(whatsNextMission.getMission() == 16 ? "Completed" : whatsNextMission.getMission().toString());
         cohortChildSummaries.add(cohortChildSummary);
     }
 
