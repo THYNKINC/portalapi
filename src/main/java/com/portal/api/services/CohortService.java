@@ -427,9 +427,14 @@ public class CohortService {
 
     private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
+
+        String nexMission = whatsNextMission.getMission() == 16
+                ? "Completed"
+                : whatsNextMission.getMission().toString().concat(" ").concat(whatsNextMission.getType().equals("runner") ? "Runner" : "Fog Analysis");
+
         cohortChildSummary.setDaysSinceLastPlayed(daysSinceLastPlayed);
         cohortChildSummary.setActive(!child.isDropped());
-        cohortChildSummary.setNextMission(whatsNextMission.getMission() == 16 ? "Completed" : whatsNextMission.getMission().toString());
+        cohortChildSummary.setNextMission(nexMission);
         cohortChildSummaries.add(cohortChildSummary);
     }
 
