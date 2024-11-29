@@ -13,11 +13,11 @@ import java.util.List;
 @Builder
 public class CohortDetailsResponse {
 
-    public CohortDetailsResponse(int size) {
-        this.totalUsers = size;
+    public CohortDetailsResponse(TotalUsers totalUsers) {
+        this.totalUsers = totalUsers;
     }
 
-    private int totalUsers;
+    private TotalUsers totalUsers;
 
     private double avgNoOfWeeks;
 

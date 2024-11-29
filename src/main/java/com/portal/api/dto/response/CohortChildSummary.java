@@ -10,7 +10,7 @@ import java.time.LocalDate;
 @Setter
 public class CohortChildSummary extends Child {
     private String name;
-    private LocalDate lastCompletedMission;
+    private long lastCompletedMission;
     private String nextMission;
     private Long daysSinceLastPlayed;
     private boolean active;

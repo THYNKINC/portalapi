@@ -322,6 +322,8 @@ public class CohortService {
         int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
 
+        TotalUsers totalUsers = new TotalUsers(0, 0, 0, 0);
+
         Map<Integer, MissionCompletedPerUser> missionCompletionCount = new HashMap<>();
         for (int i = 1; i <= 16; i++) {
             missionCompletionCount.put(i, new MissionCompletedPerUser(i));
@@ -329,22 +331,31 @@ public class CohortService {
 
         for (Child child : children) {
             try {
+
+                if (child.isDropped()) {
+                    totalUsers.setDropped(totalUsers.getDropped() + 1);
+                    continue;
+                }
+
                 SearchResponse response = analyticsService.historicalProgress(child.getUsername());
                 SearchResponse lastAttemptResponse = analyticsService.lastAttempt(child.getUsername());
                 SessionSummary lastSession = SearchResultsMapper.getSession(lastAttemptResponse.getHits().getHits()[0]);
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
                 WhatsNextMission whatsNextMission = getWhatsNext(child);
 
-                setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate());
+                setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate(), whatsNextMission.getLastCompletedMissionDate());
 
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
 
                 if (whatsNextMission.getType().equals("completed")) {
+                    totalUsers.setCompleted(totalUsers.getCompleted() + 1);
                     missionCompletedPerUser.setCompleted(missionCompletedPerUser.getCompleted() + 1);
                 }
                 else if (whatsNextMission.getType().equals("runner")) {
+                    totalUsers.setActivelyPlaying(totalUsers.getActivelyPlaying() + 1);
                     missionCompletedPerUser.setRunner(missionCompletedPerUser.getRunner() + 1);
                 } else {
+                    totalUsers.setActivelyPlaying(totalUsers.getActivelyPlaying() + 1);
                     missionCompletedPerUser.setTransference(missionCompletedPerUser.getTransference() + 1);
                 }
 
@@ -377,7 +388,7 @@ public class CohortService {
         return CohortDetailsResponse.builder()
                 .avgNoOfMissionsCompleted(avgNoOfMissionsCompleted)
                 .gameplayStartDate(earliestPlayDate)
-                .totalUsers(childrenCount)
+                .totalUsers(totalUsers)
                 .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
                 .avgNoOfWeeks(avgWeeksInTraining)
                 .children(cohortChildSummaries)
@@ -396,6 +407,7 @@ public class CohortService {
         }
 
         WhatsNextMission whatsNextMission = new WhatsNextMission();
+        whatsNextMission.setLastCompletedMissionDate(perfReportSessions.get(0).getStartDate());
         List<SessionSummary> mostRecentRunnerMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "runner");
         List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "transference");
 
@@ -425,7 +437,7 @@ public class CohortService {
         return whatsNextMission;
     }
 
-    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed) {
+    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed, long lastCompletedMissionDate) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
 
         String nexMission = whatsNextMission.getMission() == 16
@@ -435,6 +447,7 @@ public class CohortService {
         cohortChildSummary.setDaysSinceLastPlayed(daysSinceLastPlayed);
         cohortChildSummary.setActive(!child.isDropped());
         cohortChildSummary.setNextMission(nexMission);
+        cohortChildSummary.setLastCompletedMission(lastCompletedMissionDate);
         cohortChildSummaries.add(cohortChildSummary);
     }
 
