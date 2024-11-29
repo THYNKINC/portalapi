@@ -322,7 +322,7 @@ public class CohortService {
         int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
         List<DaysSinceLastPlayedPerUser> daysSinceLastPlayedPerUser = new ArrayList<>();
-        TotalUsers totalUsers = new TotalUsers(0, 0, 0, 0);
+        TotalUsers totalUsers = new TotalUsers(0, 0, 0, 0, childrenCount);
 
         Map<Integer, MissionCompletedPerUser> missionCompletionCount = new HashMap<>();
         for (int i = 1; i <= 16; i++) {

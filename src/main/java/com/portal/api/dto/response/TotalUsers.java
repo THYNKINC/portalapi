@@ -11,6 +11,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class TotalUsers {
 
+    private int totalUsers;
     private int dropped;
     private int activelyPlaying;
     private int completed;
