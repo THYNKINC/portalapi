@@ -333,6 +333,12 @@ public class CohortService {
             try {
 
                 if (child.isDropped()) {
+                    CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
+                    cohortChildSummary.setDaysSinceLastPlayed(0L);
+                    cohortChildSummary.setActive(!child.isDropped());
+                    cohortChildSummary.setNextMission(null);
+                    cohortChildSummary.setLastCompletedMission(0L);
+                    cohortChildSummaries.add(cohortChildSummary);
                     totalUsers.setDropped(totalUsers.getDropped() + 1);
                     continue;
                 }
@@ -374,6 +380,12 @@ public class CohortService {
                 }
 
             } catch (Exception e) {
+                CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
+                cohortChildSummary.setDaysSinceLastPlayed(0L);
+                cohortChildSummary.setActive(!child.isDropped());
+                cohortChildSummary.setNextMission(null);
+                cohortChildSummary.setLastCompletedMission(0L);
+                cohortChildSummaries.add(cohortChildSummary);
                 totalUsers.setNotStarted(totalUsers.getNotStarted() + 1);
             }
         }
