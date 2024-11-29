@@ -321,7 +321,7 @@ public class CohortService {
         LocalDate earliestPlayDate = null;
         int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
         List<CohortChildSummary> cohortChildSummaries = new ArrayList<>();
-
+        List<DaysSinceLastPlayedPerUser> daysSinceLastPlayedPerUser = new ArrayList<>();
         TotalUsers totalUsers = new TotalUsers(0, 0, 0, 0);
 
         Map<Integer, MissionCompletedPerUser> missionCompletionCount = new HashMap<>();
@@ -343,6 +343,7 @@ public class CohortService {
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
                 WhatsNextMission whatsNextMission = getWhatsNext(child);
 
+                daysSinceLastPlayedPerUser.add(new DaysSinceLastPlayedPerUser(child.getUsername(), lastSession.getStartDate()));
                 setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate(), whatsNextMission.getLastCompletedMissionDate());
 
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
@@ -390,6 +391,7 @@ public class CohortService {
                 .gameplayStartDate(earliestPlayDate)
                 .totalUsers(totalUsers)
                 .lastGameplaySession(mostRecentTrainingSessionDaysAgo)
+                .daysSinceLastPlayedPerUser(daysSinceLastPlayedPerUser)
                 .avgNoOfWeeks(avgWeeksInTraining)
                 .children(cohortChildSummaries)
                 .missionsCompletedPerUser(missionCompletionCount.values().stream().toList())
