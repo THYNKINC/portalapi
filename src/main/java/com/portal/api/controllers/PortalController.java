@@ -209,7 +209,7 @@ public class PortalController {
     @GetMapping("/profile/{username}")
     public Profile profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
 
-        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         boolean isInCohort = false;
 
