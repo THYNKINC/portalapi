@@ -28,6 +28,7 @@ public class Profile extends Child {
         this.setDiagnosis(child.getDiagnosis());
         this.setProvider(child.getProvider());
         this.setGroup(child.getGroup());
+        this.setDropped(child.isDropped());
     }
 
     private String cohortType;
