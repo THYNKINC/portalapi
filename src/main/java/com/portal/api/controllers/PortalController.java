@@ -230,6 +230,7 @@ public class PortalController {
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort != null) {
             profile.setCohortType(cohort.getPlayerType());
+            profile.setCohortName(cohort.getName());
         }
 
         return profile;

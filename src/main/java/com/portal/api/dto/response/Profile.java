@@ -32,4 +32,5 @@ public class Profile extends Child {
     }
 
     private String cohortType;
+    private String cohortName;
 }
