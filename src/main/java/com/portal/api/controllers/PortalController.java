@@ -63,11 +63,13 @@ public class PortalController {
 
     private final MissionDialogService missionService;
 
+    private final CohortService cohortService;
+
     @Autowired
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService) {
+            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService, CohortService cohortService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
@@ -75,6 +77,7 @@ public class PortalController {
         this.authService = authService;
         this.missionService = missionService;
         this.missionDialogService = missionDialogService;
+        this.cohortService = cohortService;
     }
 
     @GetMapping("/mission-dialog/{id}/{username}/{sessionId}")
@@ -201,6 +204,35 @@ public class PortalController {
         }
 
         return sessions;
+    }
+
+    @GetMapping("/profile/{username}")
+    public Profile profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+
+        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
+
+        boolean isInCohort = false;
+
+        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
+        if (children.size() != 1) {
+            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
+            if (children.size() != 1) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+            } else {
+                isInCohort = true;
+            }
+        }
+
+        Child child = children.get(0);
+        Profile profile = new Profile(child);
+
+        String cohortId = child.getLabels().get("cohort");
+        Cohort cohort = cohortService.getCohort(cohortId);
+        if (cohort != null) {
+            profile.setCohortType(cohort.getPlayerType());
+        }
+
+        return profile;
     }
 
     @GetMapping("/children/{username}/progress")
