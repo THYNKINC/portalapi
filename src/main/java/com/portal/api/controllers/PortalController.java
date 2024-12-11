@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateParentRequest;
 import com.portal.api.dto.request.LoginRequest;
+import com.portal.api.dto.request.SetDroppedChild;
 import com.portal.api.dto.response.*;
 import com.portal.api.model.*;
 import com.portal.api.services.*;
@@ -65,11 +66,13 @@ public class PortalController {
 
     private final CohortService cohortService;
 
+    private final CoachService coachService;
+
     @Autowired
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService, CohortService cohortService) {
+            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService, CohortService cohortService, CoachService coachService) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
@@ -78,6 +81,7 @@ public class PortalController {
         this.missionService = missionService;
         this.missionDialogService = missionDialogService;
         this.cohortService = cohortService;
+        this.coachService = coachService;
     }
 
     @GetMapping("/mission-dialog/{id}/{username}/{sessionId}")
@@ -234,6 +238,35 @@ public class PortalController {
         }
 
         return profile;
+    }
+
+    @PutMapping("/profile/{username}")
+    public ResponseEntity<Boolean> setDropped(@PathVariable("username") String username, @RequestBody SetDroppedChild setDroppedChild, HttpServletRequest request) throws Exception {
+
+        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+
+        boolean isInCohort = false;
+
+        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
+        if (children.size() != 1) {
+            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
+            if (children.size() != 1) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
+            } else {
+                isInCohort = true;
+            }
+        }
+
+        Child child = children.get(0);
+        child.setDropped(setDroppedChild.isDropped());
+
+        if (isInCohort) {
+            coachService.updateChild(children.get(0));
+        } else {
+            parentService.updateChild(child);
+        }
+
+        return ResponseEntity.ok(true);
     }
 
     @GetMapping("/children/{username}/progress")
