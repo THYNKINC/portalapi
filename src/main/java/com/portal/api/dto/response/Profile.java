@@ -10,7 +10,10 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Profile extends Child {
 
-    public Profile(Child child) {
+    private PlayerStatus playerStatus;
+
+    public Profile(Child child, PlayerStatus playerStatus) {
+        this.playerStatus = playerStatus;
         this.setUsername(child.getUsername());
         this.setFirstName(child.getFirstName());
         this.setLastName(child.getLastName());

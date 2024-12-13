@@ -396,6 +396,17 @@ public class AdminController {
         return parentService.upsertParent(parent);
     }
 
+    @DeleteMapping("/sessions")
+    public ResponseEntity<String> deleteAllSessions(HttpServletRequest request) {
+        try {
+            analyticsService.deleteAllSessions();
+            return ResponseEntity.ok("All session data deleted successfully");
+        } catch (Exception e) {
+            logger.error("Error deleting session data", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to delete session data");
+        }
+    }
+
     @PutMapping("/children/{username}")
     public Child updateChild(@PathVariable("username") String username, @RequestBody UpdateChildRequest update, HttpServletRequest request) throws Exception {
 

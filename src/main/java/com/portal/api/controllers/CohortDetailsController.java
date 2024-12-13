@@ -4,6 +4,7 @@ import com.portal.api.dto.response.CohortDetailsResponse;
 import com.portal.api.model.Child;
 import com.portal.api.model.Cohort;
 import com.portal.api.model.PortalUser;
+import com.portal.api.services.CohortDetailsService;
 import com.portal.api.services.CohortService;
 import com.portal.api.util.JwtService;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +20,14 @@ import java.util.List;
 @RequestMapping("/portal/cohort/{cohortId}/details")
 public class CohortDetailsController {
 
+    private final CohortDetailsService cohortDetailsService;
+
     private final CohortService cohortService;
 
     private final JwtService jwtService;
 
-    public CohortDetailsController(CohortService cohortService, JwtService jwtService) {
+    public CohortDetailsController(CohortDetailsService cohortDetailsService, CohortService cohortService, JwtService jwtService) {
+        this.cohortDetailsService = cohortDetailsService;
         this.cohortService = cohortService;
         this.jwtService = jwtService;
     }
@@ -43,7 +47,7 @@ public class CohortDetailsController {
             return ResponseEntity.notFound().build();
         }
 
-        CohortDetailsResponse cohortDetailsResponse = cohortService.getCohortDetails(children);
+        CohortDetailsResponse cohortDetailsResponse = cohortDetailsService.getCohortDetails(children);
         cohortDetailsResponse.setCohortType(cohort.getPlayerType());
 
         return ResponseEntity.ok(cohortDetailsResponse);

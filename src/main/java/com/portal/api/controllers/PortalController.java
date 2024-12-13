@@ -34,6 +34,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.*;
 
@@ -137,6 +140,7 @@ public class PortalController {
 
         return ResponseEntity.ok(missionDialog);
     }
+
     @GetMapping("/me")
     public PortalUser getMe(HttpServletRequest request) throws Exception {
         return jwtService.decodeJwtFromRequest(request, false, null);
@@ -213,22 +217,56 @@ public class PortalController {
     @GetMapping("/profile/{username}")
     public Profile profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
 
-        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
-
-        boolean isInCohort = false;
+        //PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
         if (children.size() != 1) {
             children = cohortService.getChildrenByUsername(Collections.singletonList(username));
             if (children.size() != 1) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
-            } else {
-                isInCohort = true;
             }
         }
 
         Child child = children.get(0);
-        Profile profile = new Profile(child);
+
+        boolean skipPlayerStatus = false;
+        SearchResponse response = analyticsService.historicalProgress(child.getUsername());
+        HistoricalProgressReport progressReport = null;
+        PlayerStatus playerStatus = new PlayerStatus();
+        try {
+            progressReport = HistoricalProgressReport.parse(response);
+        } catch (ParseException e) {
+            playerStatus.setStarted("Not yet started");
+            playerStatus.setCompleted("N/A");
+            playerStatus.setDropped(child.isDropped() ? "Yes" : "No");
+            playerStatus.setGeneralStatus(GeneralStatus.ACTIVE);
+            skipPlayerStatus = true;
+        }
+
+        if (!skipPlayerStatus) {
+            playerStatus.setStarted(progressReport.getStartDate().toString());
+            playerStatus.setDropped(child.isDropped() ? "Yes" : "No");
+            playerStatus.setCompleted("N/A");
+            playerStatus.setGeneralStatus(GeneralStatus.ACTIVE);
+
+            List<TransferenceSummary> mappedSessions = new ArrayList<>();
+            if (progressReport.getHighestMission() == 15) {
+                SearchResponse sessions = analyticsService.sessions(child.getUsername(), String.valueOf(progressReport.getHighestMission()), "transference");
+                for (SearchHit hit : sessions.getHits().getHits()) {
+                    mappedSessions.add((TransferenceSummary) SearchResultsMapper.getSession(hit));
+                }
+
+                Optional<TransferenceSummary> passTransference = mappedSessions.stream().filter(session -> session.isCompleted() && session.getStatus().equals("PASS")).findFirst();
+                passTransference.ifPresent(transferenceSummary -> {
+                    if (transferenceSummary.getEndDate() > 0) {
+                        playerStatus.setCompleted(LocalDate.ofEpochDay(transferenceSummary.getEndDate() / 86_400_000L).toString());
+                        playerStatus.setGeneralStatus(GeneralStatus.COMPLETED);
+                    }
+                });
+            }
+        }
+
+        Profile profile = new Profile(child, playerStatus);
 
         String cohortId = child.getLabels().get("cohort");
         Cohort cohort = cohortService.getCohort(cohortId);

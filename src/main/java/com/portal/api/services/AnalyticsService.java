@@ -8,6 +8,7 @@ import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountRequest;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.index.query.*;
+import org.opensearch.index.reindex.DeleteByQueryRequest;
 import org.opensearch.script.Script;
 import org.opensearch.search.aggregations.AggregationBuilder;
 import org.opensearch.search.aggregations.AggregationBuilders;
@@ -1157,4 +1158,19 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
+
+    public void deleteAllSessions() {
+		try {
+			SSLContext sslContext = opensearchService.getSSLContext();
+			BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+			DeleteByQueryRequest deleteRequest = new DeleteByQueryRequest("sessions");
+			deleteRequest.setQuery(QueryBuilders.matchAllQuery());
+			deleteRequest.setConflicts("proceed");
+
+			opensearchService.delete(sslContext, credentialsProvider, deleteRequest);
+		} catch (Exception e) {
+			logger.error("Failed to delete all sessions", e);
+		}
+    }
 }
