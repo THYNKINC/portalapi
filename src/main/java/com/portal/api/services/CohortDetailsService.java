@@ -56,10 +56,14 @@ public class CohortDetailsService {
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
                 WhatsNextMission whatsNextMission = getWhatsNext(child);
 
-                daysSinceLastPlayedPerUser.add(new DaysSinceLastPlayedPerUser(child.getUsername(), lastSession.getStartDate()));
+
                 setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate(), whatsNextMission.getLastCompletedMissionDate());
 
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
+
+                if (!whatsNextMission.getType().equals("completed")) {
+                    daysSinceLastPlayedPerUser.add(new DaysSinceLastPlayedPerUser(child.getUsername(), lastSession.getStartDate()));
+                }
 
                 if (whatsNextMission.getType().equals("completed")) {
                     totalUsers.setCompleted(totalUsers.getCompleted() + 1);
@@ -138,7 +142,7 @@ public class CohortDetailsService {
     }
 
     private int getTotalMissionsCompleted(int totalMissionsCompleted, HistoricalProgressReport progressReport) {
-        totalMissionsCompleted += progressReport.getMissionsCompleted();
+        totalMissionsCompleted += progressReport.getHighestMission();
         return totalMissionsCompleted;
     }
 
