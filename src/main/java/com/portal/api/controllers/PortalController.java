@@ -266,8 +266,9 @@ public class PortalController {
             }
         }
 
+        Delegate coach = coachService.getCoachByChildName(username);
         Profile profile = new Profile(child, playerStatus);
-
+        profile.setEmail(coach.getEmail());
         String cohortId = child.getLabels().get("cohort");
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort != null) {

@@ -10,6 +10,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class Profile extends Child {
 
+    private String email;
     private PlayerStatus playerStatus;
 
     public Profile(Child child, PlayerStatus playerStatus) {
