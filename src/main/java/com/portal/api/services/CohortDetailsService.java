@@ -5,6 +5,8 @@ import com.portal.api.dto.response.*;
 import com.portal.api.model.*;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.search.SearchHit;
+import org.opensearch.search.aggregations.bucket.terms.Terms;
+import org.opensearch.search.aggregations.metrics.TopHits;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -54,10 +56,9 @@ public class CohortDetailsService {
                 SearchResponse lastAttemptResponse = analyticsService.lastAttempt(child.getUsername());
                 SessionSummary lastSession = SearchResultsMapper.getSession(lastAttemptResponse.getHits().getHits()[0]);
                 HistoricalProgressReport progressReport = HistoricalProgressReport.parse(response);
-                WhatsNextMission whatsNextMission = getWhatsNext(child);
+                WhatsNextMission whatsNextMission = getWhatsNext(child, progressReport.getHighestMission());
 
-
-                setSummary(child, progressReport, cohortChildSummaries, whatsNextMission, lastSession.getStartDate(), whatsNextMission.getLastCompletedMissionDate());
+                setSummary(child, cohortChildSummaries, whatsNextMission, lastSession.getStartDate(), whatsNextMission.getLastCompletedMissionDate());
 
                 MissionCompletedPerUser missionCompletedPerUser = missionCompletionCount.get(whatsNextMission.getMission());
 
@@ -152,20 +153,37 @@ public class CohortDetailsService {
         return totalWeeksInTraining;
     }
 
-    private WhatsNextMission getWhatsNext(Child child) throws Exception {
+    private WhatsNextMission getWhatsNext(Child child, int highestMission) throws Exception {
 
-        SearchResponse perfReport = analyticsService.sessions(child.getUsername(), PageRequest.of(0, 20));
         List<SessionSummary> perfReportSessions = new ArrayList<>();
+        if (highestMission == 15) {
+            SearchResponse response = analyticsService.latestSessionsPerMission(child.getUsername(), String.valueOf(highestMission));
+            Terms types = response.getAggregations().get("types");
+            List<SessionSummary> sessionSummaries = new ArrayList<>();
 
-        for (SearchHit hit : perfReport.getHits().getHits()) {
+            for (Terms.Bucket bucket : types.getBuckets()) {
 
-            perfReportSessions.add(SearchResultsMapper.getSession(hit));
+                TopHits latest = bucket.getAggregations().get("latest");
+
+                if (latest.getHits().getHits().length > 0)
+                    sessionSummaries.add(SearchResultsMapper.getSession(latest.getHits().getAt(0)));
+            }
+
+            perfReportSessions = sessionSummaries;
+        } else {
+            SearchResponse perfReport = analyticsService.sessions(child.getUsername(), PageRequest.of(0, 20));
+
+            for (SearchHit hit : perfReport.getHits().getHits()) {
+
+                perfReportSessions.add(SearchResultsMapper.getSession(hit));
+            }
         }
 
         WhatsNextMission whatsNextMission = new WhatsNextMission();
         whatsNextMission.setLastCompletedMissionDate(perfReportSessions.get(0).getStartDate());
-        List<SessionSummary> mostRecentRunnerMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "runner");
-        List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, child.getUsername(), "transference");
+
+        List<SessionSummary> mostRecentRunnerMission = mostRecentMissionsByType(perfReportSessions, "runner", highestMission);
+        List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, "transference", highestMission);
 
         if (mostRecentRunnerMission.size() >= 3 || mostRecentRunnerMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
             if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
@@ -193,7 +211,7 @@ public class CohortDetailsService {
         return whatsNextMission;
     }
 
-    private void setSummary(Child child, HistoricalProgressReport progressReport, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed, long lastCompletedMissionDate) {
+    private void setSummary(Child child, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed, long lastCompletedMissionDate) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
 
         String nexMission = whatsNextMission.getMission() == 16
@@ -207,48 +225,9 @@ public class CohortDetailsService {
         cohortChildSummaries.add(cohortChildSummary);
     }
 
-    private List<SessionSummary> mostRecentMissionsByType(List<SessionSummary> perfReport, String username, String type) throws Exception {
-        RecentMissionResponse recentMissionResponse = recentMission(username);
-        int missionsCompleted = recentMissionResponse.getMissionNumber();
+    private List<SessionSummary> mostRecentMissionsByType(List<SessionSummary> perfReport, String type, int highestMission) throws Exception {
         return perfReport.stream()
-                .filter(session -> session.getMissionId() == missionsCompleted && session.getType().equals(type))
+                .filter(session -> session.getMissionId() == highestMission && session.getType().equals(type))
                 .collect(Collectors.toList());
-    }
-
-    private RecentMissionResponse recentMission(String username) throws Exception {
-        SearchResponse searchResponse = analyticsService.lastAttempt(username);
-
-        if (searchResponse.getHits().getHits().length == 0)
-            return new RecentMissionResponse();
-
-        SessionSummary session = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
-
-        RecentMissionResponse recentMissionResponse = new RecentMissionResponse();
-
-        recentMissionResponse.setMissionNumber(session.getMissionId());
-        recentMissionResponse.setSessionId(session.getId());
-
-        if (session instanceof RunnerSummary) {
-
-            RunnerSummary runner = (RunnerSummary) session;
-
-            recentMissionResponse.setMissionStatus(runner.getStatus());
-            recentMissionResponse.setMissionRating(runner.getStars().size());
-            recentMissionResponse.setType("runner");
-        } else if (session instanceof TransferenceSummary) {
-
-            TransferenceSummary xfer = (TransferenceSummary) session;
-
-            recentMissionResponse.setMissionStatus(session.getStatus());
-            recentMissionResponse.setMissionRating(xfer.getDecoded() * 100 / xfer.getTarget());
-            recentMissionResponse.setType("transference");
-        } else {
-
-            recentMissionResponse.setMissionStatus("PASS");
-            recentMissionResponse.setMissionRating(100);
-            recentMissionResponse.setType("vigilock");
-        }
-
-        return recentMissionResponse;
     }
 }
