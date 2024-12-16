@@ -185,6 +185,14 @@ public class CohortDetailsService {
         List<SessionSummary> mostRecentRunnerMission = mostRecentMissionsByType(perfReportSessions, "runner", highestMission);
         List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, "transference", highestMission);
 
+        if (highestMission == 15) {
+            if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
+                whatsNextMission.setMission(16);
+                whatsNextMission.setType("completed");
+                return whatsNextMission;
+            }
+        }
+
         if (mostRecentRunnerMission.size() >= 3 || mostRecentRunnerMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
             if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
                 if (mostRecentRunnerMission.get(0).getMissionId() == 15) {
