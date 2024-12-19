@@ -20,6 +20,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/portal/test").permitAll()
                 //.antMatchers("/portal/cohort/**").permitAll()
                 //.antMatchers("/portal/profile/**").permitAll()
+                //.antMatchers("/portal/children/**").permitAll()
                 .antMatchers("/portal/swagger-ui/**", "/portal/v3/api-docs/**", "/portal/swagger-ui.html", "/portal/swagger-resources/**", "/webjars/**").permitAll()
                 .anyRequest().authenticated().and()
                 .oauth2ResourceServer().jwt();

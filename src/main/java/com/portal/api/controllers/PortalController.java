@@ -36,8 +36,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalField;
+import java.time.temporal.WeekFields;
 import java.util.*;
 
 @RestController
@@ -190,6 +195,31 @@ public class PortalController {
         }
 
         return sessions;
+    }
+
+    @GetMapping("/children/{username}/sessions-per-week")
+    public ResponseEntity<Map<String, Integer>> getOpenSearchSessionInfo(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
+        //jwtService.decodeJwtFromRequest(request, false, username);
+
+        SearchResponse history = analyticsService.historicalProgress(username);
+        HistoricalProgressReport progressReport = HistoricalProgressReport.parse(history);
+
+        LocalDate firstPlayedDate = progressReport.getFirstPlayed();
+        int totalWeeks = (int) ChronoUnit.WEEKS.between(firstPlayedDate, LocalDate.now());
+
+        SearchResponse searchResponse = analyticsService.weeklyStats(username);
+
+        Aggregations aggregations = searchResponse.getAggregations();
+        Filter attempts = aggregations.get("attempts");
+
+        Histogram sessions = attempts.getAggregations().get("sessions");
+        int sessionsPerWeekCount = sessions.getBuckets().size();
+
+        Map<String, Integer> result = new HashMap<>();
+        result.put("totalWeeks", totalWeeks);
+        result.put("sessionsThisWeek", sessionsPerWeekCount);
+
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/children/{username}/missions/{missionId}/progress")

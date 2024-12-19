@@ -273,19 +273,19 @@ public class AnalyticsService {
 	public SearchResponse summaryStats(String userId) throws Exception {
 		return null;
 	}
-	
+
 	public SearchResponse sessions(String userId, Pageable pageable) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
-		
+
 		searchSourceBuilder.from((int)pageable.getOffset());
 		searchSourceBuilder.size(pageable.getPageSize());
 		searchSourceBuilder.sort("start_date", SortOrder.DESC);
@@ -295,7 +295,27 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
+	public SearchResponse sessions(String userId) throws Exception {
+
+		SSLContext sslContext = opensearchService.getSSLContext();
+		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+		BoolQueryBuilder boolQueryBuilder = QueryBuilders
+				.boolQuery()
+				.must(QueryBuilders.matchQuery("user_id", userId));
+
+		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+		searchSourceBuilder.query(boolQueryBuilder);
+
+		searchSourceBuilder.sort("start_date", SortOrder.DESC);
+
+		SearchRequest searchRequest = new SearchRequest("sessions");
+		searchRequest.source(searchSourceBuilder);
+
+		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
+	}
+
 	public SearchResponse sessions(String userId, String missionId, String type) throws Exception {
 		
 		SSLContext sslContext = opensearchService.getSSLContext();
