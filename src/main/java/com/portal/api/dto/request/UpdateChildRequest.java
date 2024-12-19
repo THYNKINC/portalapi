@@ -37,4 +37,7 @@ public class UpdateChildRequest {
     private String group;
 
     private boolean dropped;
+
+    private String headsetId;
+    private String headsetType;
 }

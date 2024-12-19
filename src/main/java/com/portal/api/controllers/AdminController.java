@@ -438,6 +438,8 @@ public class AdminController {
         child.setProvider(update.getProvider());
         child.setGroup(update.getGroup());
         child.setDropped(update.isDropped());
+        child.setHeadsetId(update.getHeadsetId());
+        child.setHeadsetType(update.getHeadsetType());
 
         if (isInCohort) {
             coachService.updateChild(children.get(0));

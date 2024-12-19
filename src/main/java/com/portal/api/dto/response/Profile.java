@@ -12,6 +12,8 @@ public class Profile extends Child {
 
     private String email;
     private PlayerStatus playerStatus;
+    private String parentFirstName;
+    private String parentLastName;
 
     public Profile(Child child, PlayerStatus playerStatus) {
         this.playerStatus = playerStatus;
@@ -33,6 +35,8 @@ public class Profile extends Child {
         this.setProvider(child.getProvider());
         this.setGroup(child.getGroup());
         this.setDropped(child.isDropped());
+        this.setHeadsetId(child.getHeadsetId());
+        this.setHeadsetType(child.getHeadsetType());
     }
 
     private String cohortType;

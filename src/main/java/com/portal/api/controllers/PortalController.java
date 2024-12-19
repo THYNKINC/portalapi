@@ -247,7 +247,7 @@ public class PortalController {
     @GetMapping("/profile/{username}")
     public Profile profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
 
-        //PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
+        PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
         List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
         if (children.size() != 1) {
@@ -296,9 +296,21 @@ public class PortalController {
             }
         }
 
-        Delegate coach = coachService.getCoachByChildName(username);
+        SearchResponse searchResponse = analyticsService.lastAttempt(username);
         Profile profile = new Profile(child, playerStatus);
-        profile.setEmail(coach.getEmail());
+        if (searchResponse.getHits().getHits().length != 0) {
+            SessionSummary session = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+            profile.setEmail(session.getParentEmail());
+            profile.setParentFirstName(session.getParentFirstName());
+            profile.setParentLastName(session.getParentLastName());
+        } else {
+            Delegate coach = coachService.getCoachByChildName(username);
+            profile.setEmail(coach.getEmail());
+            profile.setParentFirstName(coach.getFirstName());
+            profile.setParentLastName(coach.getLastName());
+        }
+
+
         String cohortId = child.getLabels().get("cohort");
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort != null) {

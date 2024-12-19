@@ -19,6 +19,7 @@ public class Child {
 	private Date updatedDate;
 	
 	private String headsetId;
+	private String headsetType;
 	private LocalDate startDate;
 	private Map<String, String> labels;
 	
