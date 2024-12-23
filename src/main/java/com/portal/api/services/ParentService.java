@@ -245,6 +245,18 @@ public class ParentService {
 		return new PaginatedResponse<Child>(paginatedChildren, total);
     }
 
+	public List<Child> getAllChildren() {
+		AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
+		AggregationOperation unwindOperation = Aggregation.unwind("children");
+
+		Aggregation aggregation = Aggregation.newAggregation(
+				unwindOperation,
+				replaceRootOperation
+		);
+
+		return mongoTemplate.aggregate(aggregation, "parent", Child.class).getMappedResults();
+	}
+
 	public void updateChild(Child child) {
 		
 		Parent parent = getParentByChildName(child.getUsername());

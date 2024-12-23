@@ -17,6 +17,7 @@ import org.opensearch.search.aggregations.bucket.filter.FilterAggregationBuilder
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramAggregationBuilder;
 import org.opensearch.search.aggregations.bucket.histogram.DateHistogramInterval;
 import org.opensearch.search.aggregations.bucket.histogram.LongBounds;
+import org.opensearch.search.aggregations.bucket.terms.ParsedTerms;
 import org.opensearch.search.aggregations.bucket.terms.Terms;
 import org.opensearch.search.aggregations.bucket.terms.TermsAggregationBuilder;
 import org.opensearch.search.aggregations.metrics.AvgAggregationBuilder;
@@ -34,6 +35,7 @@ import javax.net.ssl.SSLContext;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -154,6 +156,41 @@ public class AnalyticsService {
     	
     	return historicalProgress(userId, true);
     }
+
+    public List<String> getUniqueUsernamesForSessions() throws Exception {
+
+        // Create SSL context and credentials provider
+        SSLContext sslContext = opensearchService.getSSLContext();
+        BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
+
+        // Create a terms aggregation to fetch unique usernames
+        AggregationBuilder uniqueUsersAggregation = AggregationBuilders
+                .terms("unique_usernames")
+                .field("user_id")
+                .size(10000); // Adjust size based on expected unique usernames
+
+        // Build the search source with the aggregation
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
+                .aggregation(uniqueUsersAggregation)
+                .size(0); // set size to 0 since we only need aggregation results
+
+        // Create the search request for the sessions index
+        SearchRequest searchRequest = new SearchRequest("sessions");
+        searchRequest.source(searchSourceBuilder);
+
+        // Execute the search
+        SearchResponse searchResponse = opensearchService.search(sslContext, credentialsProvider, searchRequest);
+
+        // Parse the aggregation response to get list of usernames
+        ParsedTerms usernamesAggregation = searchResponse.getAggregations().get("unique_usernames");
+        List<String> usernames = new ArrayList<>();
+        for (Terms.Bucket bucket : usernamesAggregation.getBuckets()) {
+            usernames.add(bucket.getKeyAsString());
+        }
+
+        return usernames;
+    }
+    
 
 	public SearchResponse avgCompletedMissionsPerWeek(List<String> usernames, LocalDate startDate) throws Exception {
 

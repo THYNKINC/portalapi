@@ -10,6 +10,9 @@ import com.portal.api.model.PortalUser;
 import com.portal.api.repositories.DelegateRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
 
@@ -29,9 +32,13 @@ public class CoachService {
 
     private final AuthService authService;
 
-    public CoachService(DelegateRepository delegateRepository, AuthService authService) {
+    private final MongoTemplate mongoTemplate;
+
+
+    public CoachService(DelegateRepository delegateRepository, AuthService authService, MongoTemplate mongoTemplate) {
         this.delegateRepository = delegateRepository;
         this.authService = authService;
+        this.mongoTemplate = mongoTemplate;
     }
 
     public Page<Delegate> getCoaches(Pageable pageable) {
@@ -91,5 +98,18 @@ public class CoachService {
 
         coach.setChildren(children);
         delegateRepository.save(coach);
+    }
+
+
+    public List<Child> getAllChildren() {
+        AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");
+        AggregationOperation unwindOperation = Aggregation.unwind("children");
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                unwindOperation,
+                replaceRootOperation
+        );
+
+        return mongoTemplate.aggregate(aggregation, "delegate", Child.class).getMappedResults();
     }
 }
