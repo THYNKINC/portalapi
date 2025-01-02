@@ -9,11 +9,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class Profile extends Child {
-
-    private String email;
+    
     private PlayerStatus playerStatus;
-    private String parentFirstName;
-    private String parentLastName;
 
     public Profile(Child child, PlayerStatus playerStatus) {
         this.playerStatus = playerStatus;
@@ -37,6 +34,9 @@ public class Profile extends Child {
         this.setDropped(child.isDropped());
         this.setHeadsetId(child.getHeadsetId());
         this.setHeadsetType(child.getHeadsetType());
+        this.setParentFirstName(child.getParentFirstName());
+        this.setParentLastName(child.getParentLastName());
+        this.setEmail(child.getEmail());
     }
 
     private String cohortType;

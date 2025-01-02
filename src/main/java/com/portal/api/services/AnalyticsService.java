@@ -304,6 +304,9 @@ public class AnalyticsService {
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
 		searchRequest.source(searchSourceBuilder);
 
+		// Log the query and aggregations being sent to OpenSearch to system out
+		System.out.println("Executing SearchRequest with query: " + searchSourceBuilder.toString());
+
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
 	

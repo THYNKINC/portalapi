@@ -438,6 +438,16 @@ public class AdminController {
         child.setProvider(update.getProvider());
         child.setGroup(update.getGroup());
         child.setDropped(update.isDropped());
+
+        if (update.isDropped()) {
+            if (child.getDroppedTime() == null || child.getDroppedTime().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                child.setDroppedTime(dateFormat.format(new Date()));
+            }
+        } else {
+            child.setDroppedTime(null);
+        }
+        
         child.setHeadsetId(update.getHeadsetId());
         child.setHeadsetType(update.getHeadsetType());
 

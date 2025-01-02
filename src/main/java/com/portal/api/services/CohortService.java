@@ -44,12 +44,15 @@ public class CohortService {
 
     private final MongoTemplate mongoTemplate;
 
-    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository, MongoTemplate mongoTemplate) {
+    private final ImportWorkerService importWorkerService;
+
+    public CohortService(GameApiService gameApiService, DelegateRepository delegateRepository, ImportJobRepository importJobRepository, CohortsRepository cohortsRepository, MongoTemplate mongoTemplate, ImportWorkerService importWorkerService) {
         this.gameApiService = gameApiService;
         this.delegateRepository = delegateRepository;
         this.importJobRepository = importJobRepository;
         this.cohortsRepository = cohortsRepository;
         this.mongoTemplate = mongoTemplate;
+        this.importWorkerService = importWorkerService;
     }
 
     public void processUsersCsv(MultipartFile file, String coachUsername, String cohortId, String bearerToken) {
@@ -77,68 +80,7 @@ public class CohortService {
 
         importJobRepository.save(job);
 
-        processUsersAsync(file, cohort, coach, bearerToken, job.getJobId());
-    }
-
-    @Async
-    public void processUsersAsync(MultipartFile file, Cohort cohort, Delegate coach, String bearerToken, String jobId) {
-
-        ImportJob job = importJobRepository.findById(jobId).orElse(new ImportJob());
-
-        List<CreateCohortUserRequest> users = parseCsv(file);
-        if (users.isEmpty()) {
-            job.setStatus("failed");
-            job.setError("CSV parsing failed");
-            job.setUsers(new ArrayList<>());
-            importJobRepository.save(job);
-            return;
-        }
-
-        List<RegisterUserStatus> result = gameApiService.registerMultipleUsers(users, bearerToken);
-
-        if (result.isEmpty()) {
-            job.setStatus(ImportStatus.FAILED);
-            job.setError("No users where registered");
-            job.setUsers(new ArrayList<>());
-            importJobRepository.save(job);
-            return;
-        }
-
-        boolean allFailed = result.stream().allMatch(user -> user.getImportStatus().getStatus().equals(ImportStatus.FAILED));
-        if (allFailed) {
-            job.setStatus(ImportStatus.FAILED);
-            job.setError("No users where registered");
-            job.setUsers(new ArrayList<>());
-            importJobRepository.save(job);
-            return;
-        }
-
-        List<RegisterUserStatus> registeredUsers = result
-                .stream()
-                .filter(user -> user.getImportStatus().getStatus().equals(ImportStatus.REGISTERED))
-                .toList();
-
-        for (RegisterUserStatus user : registeredUsers) {
-            Child child = addToCohort(user, cohort);
-            coach.addChild(child);
-        }
-
-        delegateRepository.save(coach);
-
-        List<RegisterUserStatus> failedRegistrations = result
-                .stream()
-                .filter(user -> user.getImportStatus().getStatus().equals(ImportStatus.FAILED))
-                .toList();
-
-        if (failedRegistrations.isEmpty()) {
-            job.setStatus(ImportStatus.COMPLETED);
-            job.setUsers(result);
-            importJobRepository.save(job);
-        } else {
-            job.setStatus(ImportStatus.COMPLETED_WITH_ERRORS);
-            job.setUsers(result);
-            importJobRepository.save(job);
-        }
+        importWorkerService.processUsersAsync(file, cohort, coach, bearerToken, job.getJobId());
     }
 
     public List<Cohort> getCohorts(String username) {
@@ -211,41 +153,6 @@ public class CohortService {
         return child;
     }
 
-    private List<CreateCohortUserRequest> parseCsv(MultipartFile file) {
-
-        try (InputStreamReader reader = new InputStreamReader(file.getInputStream())) {
-
-            CsvToBean<CreateCohortUserRequest> csvToBean = new CsvToBeanBuilder<CreateCohortUserRequest>(reader)
-                    .withType(CreateCohortUserRequest.class)
-                    .withIgnoreLeadingWhiteSpace(true)
-                    .build();
-
-            return csvToBean.parse();
-
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
-    }
-
-    private Child addToCohort(RegisterUserStatus user, Cohort cohort) {
-        Child child = new Child();
-        child.setFirstName(user.getFirstName());
-        child.setLastName(user.getLastName());
-        child.setUsername(user.getUsername());
-        child.setDob(user.getDob());
-        child.setSchool(user.getSchool());
-        child.setClassName(user.getClassName());
-        child.setGender(child.getGender());
-        child.setGrade(user.getGrade());
-        child.setCreatedDate(new Date());
-        child.setDiagnosis(user.getDiagnosis());
-        child.setProvider(user.getProvider());
-        child.setGroup(user.getGroup());
-        child.setLabels(Map.of("cohort", cohort.getId()));
-
-        return child;
-    }
-
     private Child addToCohort(CreateCohortUserRequest user, Cohort cohort, String adminJwt) {
 
         gameApiService.createNewUserForCohort(user, adminJwt);
@@ -257,12 +164,22 @@ public class CohortService {
         child.setDob(user.getDob());
         child.setSchool(user.getSchool());
         child.setClassName(user.getClassName());
-        child.setGender(child.getGender());
+        child.setGender(user.getGender());
         child.setGrade(user.getGrade());
         child.setCreatedDate(new Date());
         child.setDiagnosis(user.getDiagnosis());
         child.setProvider(user.getProvider());
         child.setGroup(user.getGroup());
+        child.setLocked(false);
+        child.setDropped(false);
+        child.setStartDate(null);
+        child.setUpdatedDate(null);
+        child.setHeadsetId(null);
+        child.setHeadsetType(null);
+        child.setDroppedTime(null);
+        child.setParentFirstName(user.getParentFirstName());
+        child.setParentLastName(user.getParentLastName());
+        child.setEmail(user.getEmail());
         child.setLabels(Map.of("cohort", cohort.getId()));
 
         return child;

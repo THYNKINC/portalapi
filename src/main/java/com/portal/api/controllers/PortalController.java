@@ -36,10 +36,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalField;
 import java.time.temporal.WeekFields;
@@ -296,21 +294,7 @@ public class PortalController {
             }
         }
 
-        SearchResponse searchResponse = analyticsService.lastAttempt(username);
         Profile profile = new Profile(child, playerStatus);
-        if (searchResponse.getHits().getHits().length != 0) {
-            SessionSummary session = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
-            profile.setEmail(session.getParentEmail());
-            profile.setParentFirstName(session.getParentFirstName());
-            profile.setParentLastName(session.getParentLastName());
-        } else {
-            Delegate coach = coachService.getCoachByChildName(username);
-            profile.setEmail(coach.getEmail());
-            profile.setParentFirstName(coach.getFirstName());
-            profile.setParentLastName(coach.getLastName());
-        }
-
-
         String cohortId = child.getLabels().get("cohort");
         Cohort cohort = cohortService.getCohort(cohortId);
         if (cohort != null) {
@@ -340,6 +324,16 @@ public class PortalController {
 
         Child child = children.get(0);
         child.setDropped(setDroppedChild.isDropped());
+
+
+        if (setDroppedChild.isDropped()) {
+            if (child.getDroppedTime() == null || child.getDroppedTime().isEmpty()) {
+                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
+                child.setDroppedTime(dateFormat.format(new Date()));
+            }
+        } else {
+            child.setDroppedTime(null);
+        }
 
         if (isInCohort) {
             coachService.updateChild(children.get(0));

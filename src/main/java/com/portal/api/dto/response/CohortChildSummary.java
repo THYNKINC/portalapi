@@ -34,5 +34,10 @@ public class CohortChildSummary extends Child {
         this.setDiagnosis(child.getDiagnosis());
         this.setProvider(child.getProvider());
         this.setGroup(child.getGroup());
+        this.setDropped(child.isDropped());
+        this.setDroppedTime(child.getDroppedTime());
+        this.setParentFirstName(child.getParentFirstName());
+        this.setParentLastName(child.getParentLastName());
+        this.setEmail(child.getEmail());
     }
 }

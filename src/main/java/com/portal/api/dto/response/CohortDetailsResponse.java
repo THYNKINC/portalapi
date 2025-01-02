@@ -12,11 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class CohortDetailsResponse {
-
-    public CohortDetailsResponse(TotalUsers totalUsers) {
-        this.totalUsers = totalUsers;
-    }
-
+    
     private TotalUsers totalUsers;
 
     private double avgNoOfWeeks;

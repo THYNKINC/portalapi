@@ -247,15 +247,7 @@ public class SessionsComputer {
                 logger.error("Error computing session " + sessionId, e);
             }
 
-            summary.setFirstName(child.getFirstName());
-            summary.setLastName(child.getLastName());
-            summary.setParentFirstName(portalUser.getFirstName());
-            summary.setParentLastName(portalUser.getLastName());
-            summary.setParentEmail(portalUser.getEmail());
-
-            summary.setCreatedDate(startedAt);
-
-            sessions.add(summary);
+            setSummary(summary, child, portalUser, startedAt, sessions);
 
             // phase 1, insert session
             IndexRequest document = new IndexRequest("sessions");
@@ -282,6 +274,21 @@ public class SessionsComputer {
                 logger.error("Update failed for session: {}", session, e);
             }
         }
+    }
+
+    private void setSummary(SessionSummary summary, Child child, PortalUser portalUser, long startedAt, List<SessionSummary> sessions) {
+        summary.setFirstName(child.getFirstName());
+        summary.setLastName(child.getLastName());
+
+        String parentFirstName = child.getParentFirstName() != null && !child.getParentFirstName().isEmpty() ? child.getParentFirstName() : portalUser.getFirstName();
+        summary.setParentFirstName(parentFirstName);
+        String parentLastName = child.getParentLastName() != null && !child.getParentLastName().isEmpty() ? child.getParentLastName() : portalUser.getLastName();
+        summary.setParentLastName(parentLastName);
+        summary.setParentEmail(portalUser.getEmail());
+
+        summary.setCreatedDate(startedAt);
+
+        sessions.add(summary);
     }
 
     public UpdateByQueryRequest buildUpdateQuery(SessionSummary session) {

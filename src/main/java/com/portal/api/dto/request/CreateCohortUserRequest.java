@@ -58,4 +58,10 @@ public class CreateCohortUserRequest {
 
     @CsvBindByName(column = "group")
     private String group;
+
+    @CsvBindByName(column = "parentFirstName")
+    private String parentFirstName;
+
+    @CsvBindByName(column = "parentLastName")
+    private String parentLastName;
 }

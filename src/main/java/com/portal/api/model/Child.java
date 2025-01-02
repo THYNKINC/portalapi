@@ -8,36 +8,27 @@ import java.util.Map;
 
 @Data
 public class Child {
-	
-	private String username;
-	private String firstName;
-	private String lastName;
-
-	private String dob;
-	
-	private Date createdDate;
-	private Date updatedDate;
-	
-	private String headsetId;
-	private String headsetType;
-	private LocalDate startDate;
-	private Map<String, String> labels;
-	
-	private boolean locked;
-
-	private String school;
-
-	private String className;
-
-	private String gender;
-
-	private String grade;
-
-	private String diagnosis;
-
-	private String provider;
-
-	private String group;
-
-	private boolean dropped;
+    private String username;
+    private String firstName;
+    private String lastName;
+    private String dob;
+    private Date createdDate;
+    private Date updatedDate;
+    private String headsetId;
+    private String headsetType;
+    private LocalDate startDate;
+    private Map<String, String> labels;
+    private boolean locked;
+    private String school;
+    private String className;
+    private String gender;
+    private String grade;
+    private String diagnosis;
+    private String provider;
+    private String group;
+    private boolean dropped;
+    private String droppedTime;
+    private String parentFirstName;
+    private String parentLastName;
+    private String email;
 }
