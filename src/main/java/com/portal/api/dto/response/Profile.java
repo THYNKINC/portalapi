@@ -37,6 +37,7 @@ public class Profile extends Child {
         this.setParentFirstName(child.getParentFirstName());
         this.setParentLastName(child.getParentLastName());
         this.setEmail(child.getEmail());
+        this.setDroppedTime(child.getDroppedTime());
     }
 
     private String cohortType;
