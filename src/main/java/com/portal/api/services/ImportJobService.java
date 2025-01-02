@@ -18,4 +18,9 @@ public class ImportJobService {
     public Page<ImportJob> getImportJobs(Pageable pageRequest) {
         return importJobRepository.findAll(pageRequest);
     }
+
+    public ImportJob findById(String jobId) {
+        return importJobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("ImportJob with ID " + jobId + " not found"));
+    }
 }

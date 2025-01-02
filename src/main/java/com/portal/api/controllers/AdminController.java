@@ -61,7 +61,6 @@ import java.util.stream.Collectors;
 @Validated
 public class AdminController {
 
-    private final ImportJobService importJobService;
     private final CoachService coachService;
 
     @Value("${app-client-id}")
@@ -103,14 +102,14 @@ public class AdminController {
             AnalyticsService analyticsService,
             HeadsetRepository headsets,
             DelegateRepository delegates,
-            CohortService cohortService, ImportJobService importJobService, CoachService coachService) {
+            CohortService cohortService,
+            CoachService coachService) {
         this.jwtService = jwtService;
         this.parentService = parentService;
         this.analyticsService = analyticsService;
         this.headsets = headsets;
         this.delegates = delegates;
         this.cohortService = cohortService;
-        this.importJobService = importJobService;
         this.coachService = coachService;
     }
 
@@ -447,7 +446,7 @@ public class AdminController {
         } else {
             child.setDroppedTime(null);
         }
-        
+
         child.setHeadsetId(update.getHeadsetId());
         child.setHeadsetType(update.getHeadsetType());
 
@@ -635,15 +634,4 @@ public class AdminController {
         return ResponseEntity.accepted().body("CSV upload received");
     }
 
-    @GetMapping("/imports")
-    ResponseEntity<Page<ImportJob>> getImportJobs(HttpServletRequest request,
-                                                  @RequestParam(required = false) String partialName,
-                                                  @RequestParam(defaultValue = "0") int page,
-                                                  @RequestParam(defaultValue = "20") int size) throws Exception {
-        PortalUser user = jwtService.decodeJwtFromRequest(request, true, null);
-
-        Pageable pageRequest = PageRequest.of(page, size, Direction.DESC, "createdDate");
-
-        return ResponseEntity.ok(importJobService.getImportJobs(pageRequest));
-    }
 }
