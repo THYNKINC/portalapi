@@ -186,7 +186,7 @@ public class CohortDetailsService {
         List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, "transference", highestMission);
 
         if (highestMission == 15) {
-            if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
+            if (mostRecentTransferenceMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus())) || mostRecentTransferenceMission.stream().anyMatch(SessionSummary::isCompleted)) {
                 whatsNextMission.setMission(16);
                 whatsNextMission.setType("completed");
                 return whatsNextMission;
