@@ -61,6 +61,10 @@ public class WhatsNextMissionService {
                 whatsNextMission.setMission(2);
                 whatsNextMission.setType("runner");
                 return whatsNextMission;
+            } else {
+                whatsNextMission.setMission(1);
+                whatsNextMission.setType("transference");
+                return whatsNextMission;
             }
         }
 
