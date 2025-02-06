@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 @RestController
-@RequestMapping("/portal")
+@RequestMapping("/admin")
 
 public class InactiveUsersController {
 
@@ -30,7 +30,7 @@ public class InactiveUsersController {
     }
 
     @GetMapping("/inactive-users")
-    public ResponseEntity<byte[]> getAllInactiveUsers() throws Exception {
+    public ResponseEntity<String> getAllInactiveUsers() throws Exception {
         List<String> usernames = analyticService.getUniqueUsernamesForSessions();
 
         List<Child> parentsChildren = parentService.getAllChildren();
@@ -52,16 +52,12 @@ public class InactiveUsersController {
                     .append("\n");
         }
 
-        byte[] csvData = csvOutput.toString().getBytes();
-
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=inactive_users.csv")
-                .header("Content-Type", "text/csv")
-                .body(csvData);
+                .body(csvOutput.toString());
     }
 
     @GetMapping("/active-users")
-    public ResponseEntity<byte[]> getAllActiveUsers() throws Exception {
+    public ResponseEntity<String> getAllActiveUsers() throws Exception {
         List<String> usernames = analyticService.getUniqueUsernamesForSessions();
 
         List<Child> parentsChildren = parentService.getAllChildren();
@@ -83,11 +79,7 @@ public class InactiveUsersController {
                     .append("\n");
         }
 
-        byte[] csvData = csvOutput.toString().getBytes();
-
         return ResponseEntity.ok()
-                .header("Content-Disposition", "attachment; filename=active_users.csv")
-                .header("Content-Type", "text/csv")
-                .body(csvData);
+                .body(csvOutput.toString());
     }
 }
