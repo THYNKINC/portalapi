@@ -10,6 +10,8 @@ import org.opensearch.search.aggregations.metrics.TopHits;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -27,19 +29,7 @@ public class WhatsNextMissionService {
 
         List<SessionSummary> perfReportSessions = new ArrayList<>();
         if (highestMission == 15) {
-            SearchResponse response = analyticsService.latestSessionsPerMission(child.getUsername(), String.valueOf(highestMission));
-            Terms types = response.getAggregations().get("types");
-            List<SessionSummary> sessionSummaries = new ArrayList<>();
-
-            for (Terms.Bucket bucket : types.getBuckets()) {
-
-                TopHits latest = bucket.getAggregations().get("latest");
-
-                if (latest.getHits().getHits().length > 0)
-                    sessionSummaries.add(SearchResultsMapper.getSession(latest.getHits().getAt(0)));
-            }
-
-            perfReportSessions = sessionSummaries;
+            perfReportSessions = getSessionSummaries(child, highestMission);
         } else {
             SearchResponse perfReport = analyticsService.sessions(child.getUsername(), PageRequest.of(0, 20));
 
@@ -56,7 +46,16 @@ public class WhatsNextMissionService {
         List<SessionSummary> mostRecentTransferenceMission = mostRecentMissionsByType(perfReportSessions, "transference", highestMission);
         List<SessionSummary> mostRecentPvtMission = mostRecentMissionsByType(perfReportSessions, "pvt", 1);
 
-        if (highestMission == 0){
+        for (SessionSummary sessionSummary : mostRecentPvtMission) {
+            if ("PASS".equals(sessionSummary.getStatus())) {
+                Instant instant = Instant.ofEpochMilli(sessionSummary.getStartDate());
+                LocalDate localDate = instant.atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                whatsNextMission.setDateOfFirstMission(localDate);
+                break;
+            }
+        }
+
+        if (highestMission == 0) {
             if (mostRecentPvtMission.stream().anyMatch(mission -> "PASS".equals(mission.getStatus()))) {
                 whatsNextMission.setMission(2);
                 whatsNextMission.setType("runner");
@@ -100,6 +99,24 @@ public class WhatsNextMissionService {
         }
 
         return whatsNextMission;
+    }
+
+    private List<SessionSummary> getSessionSummaries(Child child, int highestMission) throws Exception {
+        List<SessionSummary> perfReportSessions;
+        SearchResponse response = analyticsService.latestSessionsPerMission(child.getUsername(), String.valueOf(highestMission));
+        Terms types = response.getAggregations().get("types");
+        List<SessionSummary> sessionSummaries = new ArrayList<>();
+
+        for (Terms.Bucket bucket : types.getBuckets()) {
+
+            TopHits latest = bucket.getAggregations().get("latest");
+
+            if (latest.getHits().getHits().length > 0)
+                sessionSummaries.add(SearchResultsMapper.getSession(latest.getHits().getAt(0)));
+        }
+
+        perfReportSessions = sessionSummaries;
+        return perfReportSessions;
     }
 
     private List<SessionSummary> mostRecentMissionsByType(List<SessionSummary> perfReport, String type, int highestMission) throws Exception {

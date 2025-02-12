@@ -11,4 +11,5 @@ public class WhatsNextMission {
     private Integer mission;
     private String type;
     private long lastCompletedMissionDate;
+    private LocalDate dateOfFirstMission;
 }
