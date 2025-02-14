@@ -78,7 +78,7 @@ public class CohortDetailsService {
                 totalMissionsCompleted = getTotalMissionsCompleted(totalMissionsCompleted, progressReport);
                 totalWeeksInTraining = getTotalWeeksInTraining(progressReport, totalWeeksInTraining);
 
-                LocalDate firstPlayDate = whatsNextMission.getDateOfFirstMission();
+                LocalDate firstPlayDate = progressReport.getFirstPlayed();
                 if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
                     earliestPlayDate = firstPlayDate;
                 }
