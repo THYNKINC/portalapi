@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import org.opensearch.action.search.SearchResponse;
 import org.opensearch.client.core.CountResponse;
 import org.opensearch.search.SearchHit;
+import org.opensearch.search.SearchHits;
 import org.opensearch.search.aggregations.Aggregations;
 import org.opensearch.search.aggregations.bucket.filter.Filter;
 import org.opensearch.search.aggregations.bucket.histogram.Histogram;
@@ -378,9 +379,16 @@ public class PortalController {
 
         // get the last attempt (could be different from highest mission if they went back to an old mission)
         searchResponse = analyticsService.lastAttempt(username);
-        SessionSummary lastSession = SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+        SessionSummary lastSession = null;
+        SearchHits searchHits = searchResponse.getHits();
+        if (searchHits != null) {
+            SearchHit[] hitsArray = searchHits.getHits();
 
-        progressResponse.setLastPlayed(lastSession.getStartDate());
+            if (hitsArray != null && hitsArray.length > 0) {
+                lastSession = SearchResultsMapper.getSession(hitsArray[0]);
+                progressResponse.setLastPlayed(lastSession.getStartDate());
+            }
+        }
 
         RunnerSummary runner = null;
 
@@ -389,14 +397,23 @@ public class PortalController {
             runner = (RunnerSummary) lastSession;
         else {
             searchResponse = analyticsService.lastNRunners(username, 1);
-            runner = (RunnerSummary) SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+
+            SearchHits hits = searchResponse.getHits();
+            if (hits != null) {
+                SearchHit[] hitsArray = hits.getHits();
+                if (hitsArray != null && hitsArray.length > 0) {
+                    runner = (RunnerSummary) SearchResultsMapper.getSession(searchResponse.getHits().getHits()[0]);
+                }
+            }
         }
 
-        // calculate thynk score
-        double thynkScore = (2.0 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
-                * (runner.getScores().getCompositeFocus() / 100 + 1);
+        if (runner != null) {
+            // calculate thynk score
+            double thynkScore = (2.0 * progressReport.getHighestMission() + progressReport.getTotalAttempts())
+                    * (runner.getScores().getCompositeFocus() / 100 + 1);
 
-        progressResponse.setThynkScore((int) Math.ceil(thynkScore));
+            progressResponse.setThynkScore((int) Math.ceil(thynkScore));
+        }
 
         return progressResponse;
     }
