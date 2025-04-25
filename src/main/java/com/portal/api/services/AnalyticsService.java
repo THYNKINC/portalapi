@@ -2,6 +2,7 @@ package com.portal.api.services;
 
 import com.portal.api.dto.response.CustomSearchResponse;
 import com.portal.api.util.OpensearchService;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.search.SearchRequest;
 import org.opensearch.action.search.SearchResponse;
@@ -45,7 +46,7 @@ import java.util.stream.Stream;
 public class AnalyticsService {
 
 	private final OpensearchService opensearchService;
-	
+
 	private static final Logger logger = LoggerFactory.getLogger(AnalyticsService.class);
 
 	@Autowired
@@ -54,7 +55,7 @@ public class AnalyticsService {
 	}
 
 	private static final DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-	
+
 	public SearchResponse completedSessions(String userId) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
@@ -82,15 +83,15 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse dashboardMetrics(String scale, String type) throws Exception {
-		
+
 		Map<String, String> ranges = Map.of("daily", "now-7d/d", "weekly", "now-12w/w", "monthly", "now-12M/M", "yearly", "now-3y/y");
 		Map<String, DateHistogramInterval> intervals = Map.of("daily", DateHistogramInterval.DAY, "weekly",  DateHistogramInterval.WEEK, "monthly",  DateHistogramInterval.MONTH, "yearly",  DateHistogramInterval.YEAR);
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		// aggregates
 		FilterAggregationBuilder days = AggregationBuilders
 				.filter("range", QueryBuilders
@@ -112,18 +113,18 @@ public class AnalyticsService {
 										.dateHistogramInterval(DateHistogramInterval.hours(12))))
 						.subAggregation(AggregationBuilders
 								.filter("missions", QueryBuilders.termsQuery("type", List.of("transference", "pvt")))));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-		
+
 		if (type != null) {
 			searchSourceBuilder
 				.aggregation(AggregationBuilders
 						.filter("by_type", QueryBuilders.matchQuery("type", type))
 						.subAggregation(days));
-		} else { 
+		} else {
 			searchSourceBuilder.aggregation(days);
 		}
-		
+
 		searchSourceBuilder
 			.aggregation(AggregationBuilders
 				.sum("playtime")
@@ -143,7 +144,7 @@ public class AnalyticsService {
 							.subAggregation(AggregationBuilders
 									.extendedStats("impulse")
 									.field("scores.composite_impulse"))));
-		
+
 		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("sessions");
@@ -151,9 +152,9 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
     public SearchResponse historicalProgress(String userId) throws Exception {
-    	
+
     	return historicalProgress(userId, true);
     }
 
@@ -190,7 +191,7 @@ public class AnalyticsService {
 
         return usernames;
     }
-    
+
 
 	public SearchResponse avgCompletedMissionsPerWeek(List<String> usernames, LocalDate startDate) throws Exception {
 
@@ -224,20 +225,20 @@ public class AnalyticsService {
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 
 	}
-    
+
 	public SearchResponse historicalProgress(String userId, boolean includePlayTime) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId));
-		
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
+
 		MinAggregationBuilder startDate = AggregationBuilders
 				.min("startDate")
 				.field("timestamp");
-		
+
 		FilterAggregationBuilder attempts = AggregationBuilders
 			.filter("attempts", QueryBuilders.termsQuery("event_type", List.of("RunnerEnd", "TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
@@ -248,17 +249,17 @@ public class AnalyticsService {
 					.field("timestamp")
 					.dateHistogramInterval(DateHistogramInterval.hours(12))
 					.minDocCount(1));
-		
+
 			// this is a slow operation, don't run if not needed
 			if (includePlayTime) {
-			
+
 				// here we're only looking at the end event, so no need to aggregate further
 				attempts.subAggregation(AggregationBuilders
 					.sum("playtime")
 					// limit to 30 min max to avoid weird unfinished sessions
 					.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())")));
 			}
-		
+
 		FilterAggregationBuilder missions = AggregationBuilders
 			.filter("missions", QueryBuilders.termsQuery("event_type", List.of("TransferenceStatsEnd", "PVTEnd")))
 			.subAggregation(AggregationBuilders
@@ -269,7 +270,7 @@ public class AnalyticsService {
 					.size(1)
 					.sort("MissionID", SortOrder.DESC)
 					.fetchSource(new String[] {"MissionID"}, null));
-		
+
 		FilterAggregationBuilder active = AggregationBuilders
 			.filter("active", QueryBuilders.existsQuery("MissionID"))
 			.subAggregation(AggregationBuilders
@@ -278,7 +279,7 @@ public class AnalyticsService {
 			.subAggregation(AggregationBuilders
 				.cardinality("starts-count")
 				.field("session_start.keyword"));
-		
+
 		// this is a slow operation, don't run if not needed
 		if (includePlayTime) {
 			active.subAggregation(AggregationBuilders
@@ -291,14 +292,14 @@ public class AnalyticsService {
 					// limit to 30 min max to avoid weird unfinished sessions
 					.script(new Script("Math.min(30*60000, doc['timestamp'].value.getMillis() - doc['session_start'].value.getMillis())"))));
 		}
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
 		searchSourceBuilder.aggregation(startDate);
 		searchSourceBuilder.aggregation(attempts);
 		searchSourceBuilder.aggregation(missions);
 		searchSourceBuilder.aggregation(active);
-		
+
 		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
@@ -306,7 +307,7 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse summaryStats(String userId) throws Exception {
 		return null;
 	}
@@ -354,19 +355,19 @@ public class AnalyticsService {
 	}
 
 	public SearchResponse sessions(String userId, String missionId, String type) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(QueryBuilders.matchQuery("mission_id", missionId))
 				.must(QueryBuilders.matchQuery("type", type));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
-		
+
 		searchSourceBuilder.sort("start_date", SortOrder.ASC);
 
 		SearchRequest searchRequest = new SearchRequest("sessions");
@@ -374,12 +375,12 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse latestSessionsPerMission(String userId, String missionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder
 			.query(QueryBuilders
@@ -401,17 +402,17 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse session(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(QueryBuilders.matchQuery("id", sessionId));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
 
@@ -431,7 +432,7 @@ public class AnalyticsService {
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(QueryBuilders.rangeQuery("start_date")
 						.gte("now/d-1w/d+1d"));
-		
+
 		FilterAggregationBuilder attempts = AggregationBuilders
 				.filter("attempts", QueryBuilders.termsQuery("completed", true))
 				.subAggregation(AggregationBuilders
@@ -516,7 +517,7 @@ public class AnalyticsService {
 
 	/**
 	 * Returns the last attempt for any session type
-	 * 
+	 *
 	 * @param userId
 	 * @return
 	 * @throws Exception
@@ -525,10 +526,10 @@ public class AnalyticsService {
 
 		return lastNAttempts(userId, 1);
 	}
-	
+
 	/**
 	 * Returns the last n sessions of any type
-	 * 
+	 *
 	 * @param userId
 	 * @param sessions the number of attempts you want to return
 	 * @return the attempts sorted by most recents first
@@ -538,10 +539,10 @@ public class AnalyticsService {
 
 		return lastNAttemptsOfType(userId, sessions, List.of("runner", "transference", "pvt"));
 	}
-	
+
 	/**
 	 * Returns the last n runners
-	 * 
+	 *
 	 * @param userId
 	 * @param sessions the number of attempts you want to return
 	 * @return the attempts sorted by most recents first
@@ -551,11 +552,11 @@ public class AnalyticsService {
 
 		return lastNAttemptsOfType(userId, sessions, List.of("runner"));
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * Returns the last attempts of a given type
-	 * 
+	 *
 	 * @param userId
 	 * @param sessions the number of attempts you want to return
 	 * @param eventTypes the list of event_type values you want to filter for (xference or runner for now)
@@ -585,11 +586,11 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	/**
-	 * 
+	 *
 	 * Returns the paginated attempts
-	 * 
+	 *
 	 * @return the attempts sorted by most recents first
 	 * @throws Exception
 	 */
@@ -603,7 +604,7 @@ public class AnalyticsService {
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("completed", true));
-		
+
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
@@ -618,7 +619,7 @@ public class AnalyticsService {
 		searchRequest.source(searchSourceBuilder);
 
 		SearchResponse response = opensearchService.search(sslContext, credentialsProvider, searchRequest);
-		
+
 		return response;
 	}
 
@@ -639,7 +640,7 @@ public class AnalyticsService {
 		MaxAggregationBuilder powerAgg = AggregationBuilders
 				.max("power")
 				.field("Score");
-		
+
 		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders
 				.dateHistogram("intervals")
 				.field("timestamp")
@@ -681,24 +682,24 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public List<String> parseAttempts(SearchResponse response) {
-		
+
 		return Stream
 			.of(response.getHits().getHits())
 			.map(hit -> (String)hit.getSourceAsMap().get("id"))
 			.collect(Collectors.toList());
 	}
-	
+
 	public SearchResponse avgCognitiveSkills(String userId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		// Build the match queries
 		QueryBuilder userIdQuery = QueryBuilders
 				.matchQuery("user_id", userId);
-		
+
 		SearchResponse sessions = lastNRunners(userId, 1000);
 
 		QueryBuilder sessionQuery = QueryBuilders
@@ -713,12 +714,12 @@ public class AnalyticsService {
 		AvgAggregationBuilder averageAgg = AggregationBuilders
 				.avg("average")
 				.field("metric_value");
-		
+
 		TermsAggregationBuilder typeAgg = AggregationBuilders
 				.terms("metrics")
 				.field("metric_type")
 				.subAggregation(averageAgg);
-		
+
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
@@ -731,9 +732,9 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse allCognitiveSkills(String userId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
@@ -742,7 +743,7 @@ public class AnalyticsService {
 				.boolQuery()
 				.must(QueryBuilders
 						.matchQuery("user_id", userId));
-		
+
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
@@ -796,7 +797,7 @@ public class AnalyticsService {
 		AvgAggregationBuilder averageBciAgg = AggregationBuilders
 				.avg("average_bci")
 				.field("bci");
-		
+
 		DateHistogramAggregationBuilder intervalsAgg = AggregationBuilders
 				.dateHistogram("intervals")
 				.field("timestamp")
@@ -814,7 +815,7 @@ public class AnalyticsService {
 	}
 
 	public CustomSearchResponse frozenDishes(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
@@ -845,7 +846,7 @@ public class AnalyticsService {
 		Terms dishCountAggregation = searchResponse
 				.getAggregations()
 				.get("dish_count");
-		
+
 		Map<String, Long> dishCount = dishCountAggregation
 				.getBuckets()
 				.stream()
@@ -873,7 +874,7 @@ public class AnalyticsService {
 	}
 
 	public SearchResponse transferenceEvents(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
@@ -896,12 +897,12 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse runner(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "runner"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
@@ -1003,11 +1004,11 @@ public class AnalyticsService {
 						.field("event_type")))
 				.subAggregation(AggregationBuilders
 					.filter("completed", QueryBuilders.termsQuery("event_type", "RunnerEnd")));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
 		searchSourceBuilder.aggregation(sessions);
-		
+
 		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
@@ -1015,12 +1016,12 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse pvt(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "pvt"))
 				.must(QueryBuilders.matchQuery("user_id", userId));
@@ -1048,11 +1049,11 @@ public class AnalyticsService {
 					.field("bci"))
 				.subAggregation(AggregationBuilders
 					.filter("completed", QueryBuilders.termsQuery("event_type", "PVTEnd", "UnlockLevelSuccess")));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQuery);
 		searchSourceBuilder.aggregation(sessions);
-		
+
 		searchSourceBuilder.size(0);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref");
@@ -1060,22 +1061,22 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse tierLevels(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
-		
+
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.matchQuery("user_id", userId))
 				.must(QueryBuilders.matchQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders.existsQuery("Tier"));
-		
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 			.query(boolQuery)
 			.fetchSource(new String[] {"session_start", "Tier", "timestamp"}, new String[] {})
 			.sort("timestamp", SortOrder.ASC);
-		
+
 		searchSourceBuilder.size(10000);
 
 		SearchRequest searchRequest = new SearchRequest("gamelogs");
@@ -1083,9 +1084,9 @@ public class AnalyticsService {
 
 		return opensearchService.search(sslContext, credentialsProvider, searchRequest);
 	}
-	
+
 	public SearchResponse transference(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
@@ -1155,7 +1156,7 @@ public class AnalyticsService {
 								.subAggregation(AggregationBuilders
 										.min("first_displayed")
 										.field("timestamp"))));
-						
+
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
 				.query(boolQuery)
 				.aggregation(sessions)
@@ -1168,7 +1169,7 @@ public class AnalyticsService {
 	}
 
 	public SearchResponse maxStarReached(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
@@ -1193,7 +1194,7 @@ public class AnalyticsService {
 	}
 
 	public SearchResponse targetMoleculesDecode(String userId, String sessionId) throws Exception {
-		
+
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
