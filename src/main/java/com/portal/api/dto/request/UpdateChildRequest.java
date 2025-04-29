@@ -19,7 +19,7 @@ public class UpdateChildRequest {
     private String lastName;
 
     private String dob;
-    
+
     private Map<String, String> labels;
 
     private String school;
@@ -40,4 +40,6 @@ public class UpdateChildRequest {
 
     private String headsetId;
     private String headsetType;
+
+    private String newCoachId;
 }

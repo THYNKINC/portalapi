@@ -5,9 +5,8 @@ import com.portal.api.dto.request.UpdateCoachRequest;
 import com.portal.api.exception.ResourceNotFoundException;
 import com.portal.api.model.Child;
 import com.portal.api.model.Delegate;
-import com.portal.api.model.Parent;
-import com.portal.api.model.PortalUser;
 import com.portal.api.repositories.DelegateRepository;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -90,16 +89,37 @@ public class CoachService {
     }
 
     public void updateChild(Child child) {
-        Delegate coach = getCoachByChildName(child.getUsername());
-
-        List<Child> children = coach.getChildren().stream()
-                .map(e -> e.getUsername().equals(child.getUsername()) ? child : e)
-                .collect(Collectors.toList());
-
-        coach.setChildren(children);
-        delegateRepository.save(coach);
+        updateChild(child, null);
     }
 
+    public void updateChild(Child child, String newCoachId) {
+        Delegate currentCoach = getCoachByChildName(child.getUsername());
+
+        if (StringUtils.isBlank(newCoachId) || currentCoach.getUsername().equals(newCoachId)) {
+            List<Child> children = currentCoach.getChildren().stream()
+                    .map(e -> e.getUsername().equals(child.getUsername()) ? child : e)
+                    .toList();
+
+            currentCoach.setChildren(children);
+            delegateRepository.save(currentCoach);
+        } else if (StringUtils.isNotBlank(newCoachId)) {
+            Delegate newCoach = getCoach(newCoachId);
+
+            newCoach.addChild(child);
+            delegateRepository.save(newCoach);
+
+            currentCoach.setChildren(
+                    currentCoach
+                            .getChildren()
+                            .stream()
+                            .filter(it -> !it.getUsername().equals(child.getUsername()))
+                            .collect(Collectors.toList())
+            );
+            delegateRepository.save(currentCoach);
+        }
+
+
+    }
 
     public List<Child> getAllChildren() {
         AggregationOperation replaceRootOperation = Aggregation.replaceRoot().withValueOf("$children");

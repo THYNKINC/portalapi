@@ -451,7 +451,7 @@ public class AdminController {
         child.setHeadsetType(update.getHeadsetType());
 
         if (isInCohort) {
-            coachService.updateChild(children.get(0));
+            coachService.updateChild(children.get(0), update.getNewCoachId());
         } else {
             parentService.updateChild(child);
         }
