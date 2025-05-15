@@ -516,6 +516,17 @@ public class AnalyticsService {
 	}
 
 	/**
+	 * Returns the last completed attempt for any session type
+	 *
+	 * @param userId
+	 * @return
+	 * @throws Exception
+	 */
+	public SearchResponse lastCompletedAttempt(String userId) throws Exception {
+		return lastNAttempts(userId, 1, true);
+	}
+
+	/**
 	 * Returns the last attempt for any session type
 	 *
 	 * @param userId
@@ -524,7 +535,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastAttempt(String userId) throws Exception {
 
-		return lastNAttempts(userId, 1);
+		return lastNAttempts(userId, 1, false);
 	}
 
 	/**
@@ -532,12 +543,13 @@ public class AnalyticsService {
 	 *
 	 * @param userId
 	 * @param sessions the number of attempts you want to return
+	 * @param completedOnly if true, only return completed attempts
 	 * @return the attempts sorted by most recents first
 	 * @throws Exception
 	 */
-	public SearchResponse lastNAttempts(String userId, int sessions) throws Exception {
+	public SearchResponse lastNAttempts(String userId, int sessions, boolean completedOnly) throws Exception {
 
-		return lastNAttemptsOfType(userId, sessions, List.of("runner", "transference", "pvt"));
+		return lastNAttemptsOfType(userId, sessions, List.of("runner", "transference", "pvt"), completedOnly);
 	}
 
 	/**
@@ -550,7 +562,7 @@ public class AnalyticsService {
 	 */
 	public SearchResponse lastNRunners(String userId, int sessions) throws Exception {
 
-		return lastNAttemptsOfType(userId, sessions, List.of("runner"));
+		return lastNAttemptsOfType(userId, sessions, List.of("runner"), false);
 	}
 
 	/**
@@ -560,10 +572,11 @@ public class AnalyticsService {
 	 * @param userId
 	 * @param sessions the number of attempts you want to return
 	 * @param eventTypes the list of event_type values you want to filter for (xference or runner for now)
+	 * @param completedOnly if true, only return completed attempts
 	 * @return the attempts sorted by most recents first
 	 * @throws Exception
 	 */
-	private SearchResponse lastNAttemptsOfType(String userId, int sessions, List<String> eventTypes) throws Exception {
+	private SearchResponse lastNAttemptsOfType(String userId, int sessions, List<String> eventTypes, boolean completedOnly) throws Exception {
 
 		SSLContext sslContext = opensearchService.getSSLContext();
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
@@ -574,6 +587,10 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("type", eventTypes))
 				.must(QueryBuilders.matchQuery("user_id", userId));
+
+		if (completedOnly) {
+			boolQuery.must(QueryBuilders.termsQuery("completed", true));
+		}
 
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();

@@ -423,7 +423,7 @@ public class PortalController {
 
         jwtService.decodeJwtFromRequest(request, false, username);
 
-        SearchResponse searchResponse = analyticsService.lastAttempt(username);
+        SearchResponse searchResponse = analyticsService.lastCompletedAttempt(username);
 
         if (searchResponse.getHits().getHits().length == 0)
             return new RecentMissionResponse();
