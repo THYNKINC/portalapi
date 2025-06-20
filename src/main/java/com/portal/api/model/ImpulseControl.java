@@ -16,19 +16,19 @@ public class ImpulseControl {
 	private String session;
 	private double focus;
 	private double impulse;
-	
+
 	public static ImpulseControl fromSkills(String attempt, CognitiveSkillsResponse skills, int missionNo) {
-		
+
 		double focus = 0;
 		int fa = skills.getFocusedAttention();
 		int sa = skills.getSustainedAttention();
-		
+
 		focus = (fa > 0 && sa > 0) ? (fa + sa) / 2 : Math.max(fa, sa);
 		focus = Math.max(focus, 0);
 
 		// apply weights to composite focus
-		focus *= Constants.COMPOSITE_SCORE_WEIGHT[missionNo - 1];
-		
+		focus *= Constants.FOCUS_COMPOSITE_SCORE_WEIGHT[missionNo - 1];
+
 		OptionalDouble impulse = IntStream
 				.of(
 						skills.getSelectiveAttention(),
@@ -39,7 +39,11 @@ public class ImpulseControl {
 						skills.getInterferenceControl())
 				.filter(i -> i >= 0)
 				.average();
-		
-		return new ImpulseControl(attempt, focus, impulse.orElse(-1));
+
+		double impulseValue = impulse.orElse(-1);
+		if (impulseValue != -1) {
+			impulseValue *= Constants.IMPULSE_COMPOSITE_SCORE_WEIGHT[missionNo - 1];
+		}
+		return new ImpulseControl(attempt, focus, impulseValue);
 	}
 }
