@@ -16,6 +16,8 @@ public class AuthService {
     public static final String EMAIL = "email";
     public static final String GIVEN_NAME = "given_name";
     public static final String FAMILY_NAME = "family_name";
+    public static final String EMAIL_VERIFIED = "email_verified";
+
     @Value("${app-client-id}")
     private String APP_CLIENT_ID;
 
@@ -70,11 +72,13 @@ public class AuthService {
         return authResult.idToken();
     }
 
-    public SignUpResponse registerCoach(CreateCoachRequest createCoachRequest) {
+    public AdminCreateUserResponse registerCoach(CreateCoachRequest createCoachRequest) {
 
-        SignUpResponse signUpResponse = signUpUser(
-                createCoachRequest.getEmail(), createCoachRequest.getPassword(),
-                createCoachRequest.getFirstName(), createCoachRequest.getLastName()
+        AdminCreateUserResponse createUserResponse = adminCreateUser(
+                createCoachRequest.getEmail(),
+                createCoachRequest.getPassword(),
+                createCoachRequest.getFirstName(),
+                createCoachRequest.getLastName()
         );
 
         // Add user to delegate group
@@ -86,7 +90,7 @@ public class AuthService {
 
         cognitoClient.adminAddUserToGroup(addUserToGroupRequest);
 
-        return signUpResponse;
+        return createUserResponse;
     }
 
     private SignUpResponse signUpUser(String email, String password, String firstName, String lastName) {
@@ -102,5 +106,35 @@ public class AuthService {
                 .build();
 
         return cognitoClient.signUp(signUpRequest);
+    }
+
+    private AdminCreateUserResponse adminCreateUser(String email, String password, String firstName, String lastName) {
+        AdminCreateUserRequest createUserRequest = AdminCreateUserRequest.builder()
+                .userPoolId(USER_POOL_ID)
+                .username(email)
+                // we're just setting something, we're going to change it to something else before we finish creating the user
+                .temporaryPassword("TemporaryPassword123!")
+                .messageAction(MessageActionType.SUPPRESS)
+                .userAttributes(
+                        AttributeType.builder().name(EMAIL).value(email).build(),
+                        AttributeType.builder().name(GIVEN_NAME).value(firstName).build(),
+                        AttributeType.builder().name(FAMILY_NAME).value(lastName).build(),
+                        // since we're admin creating the user, we'll just set the email to verified manually or it will never be verified
+                        AttributeType.builder().name(EMAIL_VERIFIED).value("true").build()
+                )
+                .build();
+
+        AdminCreateUserResponse createUserResponse = cognitoClient.adminCreateUser(createUserRequest);
+
+        AdminSetUserPasswordRequest setUserPasswordRequest = AdminSetUserPasswordRequest.builder()
+                .userPoolId(USER_POOL_ID)
+                .username(email)
+                .password(password)
+                .permanent(true)
+                .build();
+
+        cognitoClient.adminSetUserPassword(setUserPasswordRequest);
+
+        return createUserResponse;
     }
 }

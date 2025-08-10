@@ -13,7 +13,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserResponse;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -46,7 +47,12 @@ public class CoachService {
 
     public Delegate createCoach(CreateCoachRequest createCoachRequest) {
 
-        SignUpResponse signUpResponse = authService.registerCoach(createCoachRequest);
+        AdminCreateUserResponse createUserResponse = authService.registerCoach(createCoachRequest);
+        String generatedUserName = createUserResponse.user().attributes().stream()
+                .filter(attribute -> attribute.name().equals("sub"))
+                .findFirst()
+                .map(AttributeType::value)
+                .orElse(createUserResponse.user().username());
 
         Delegate coach = new Delegate();
 
@@ -55,7 +61,7 @@ public class CoachService {
         coach.setEmail(createCoachRequest.getEmail());
         coach.setFirstName(createCoachRequest.getFirstName());
         coach.setLastName(createCoachRequest.getLastName());
-        coach.setUsername(signUpResponse.userSub());
+        coach.setUsername(generatedUserName);
         coach.setSalutation(createCoachRequest.getSalutation());
         coach.setType(COACH);
 
