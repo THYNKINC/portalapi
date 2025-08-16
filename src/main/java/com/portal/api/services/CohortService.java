@@ -119,6 +119,10 @@ public class CohortService {
         cohort.setDescription(updateCohortRequest.getDescription());
         cohort.setPlayerType(updateCohortRequest.getPlayerType());
 
+        if (updateCohortRequest.getCurriculumEndDate() != null) {
+            cohort.setCurriculumEndDate(updateCohortRequest.getCurriculumEndDate());
+        }
+
         cohortsRepository.save(cohort);
 
         return cohort;
