@@ -1,8 +1,5 @@
 package com.portal.api.services;
 
-import com.opencsv.bean.CsvToBean;
-import com.opencsv.bean.CsvToBeanBuilder;
-import com.portal.api.dto.WhatsNextMission;
 import com.portal.api.dto.request.CreateCohortRequest;
 import com.portal.api.dto.request.CreateCohortUserRequest;
 import com.portal.api.dto.response.*;
@@ -11,25 +8,17 @@ import com.portal.api.model.*;
 import com.portal.api.repositories.CohortsRepository;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.search.SearchHit;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.aggregation.TypedAggregation;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class CohortService {
@@ -119,9 +108,7 @@ public class CohortService {
         cohort.setDescription(updateCohortRequest.getDescription());
         cohort.setPlayerType(updateCohortRequest.getPlayerType());
 
-        if (updateCohortRequest.getCurriculumEndDate() != null) {
-            cohort.setCurriculumEndDate(updateCohortRequest.getCurriculumEndDate());
-        }
+        cohort.setCurriculumEndDate(updateCohortRequest.getCurriculumEndDate());
 
         cohortsRepository.save(cohort);
 

@@ -60,9 +60,7 @@ public class PlayerServiceImpl implements PlayerService {
         Child child = children.get(0);
         child = setPlayerDropStatus(child, updatePlayerProfileRequest.isDropped());
 
-        if (updatePlayerProfileRequest.getCurriculumEndDate() != null) {
-            child.setCurriculumEndDate(updatePlayerProfileRequest.getCurriculumEndDate());
-        }
+        child.setCurriculumEndDate(updatePlayerProfileRequest.getCurriculumEndDate());
 
         if (isInCohort) {
             coachService.updateChild(children.get(0));

@@ -12,7 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 public class CohortDetailsResponse {
-    
+
     private TotalUsers totalUsers;
 
     private double avgNoOfWeeks;
@@ -29,4 +29,8 @@ public class CohortDetailsResponse {
     private List<DaysSinceLastPlayedPerUser> daysSinceLastPlayedPerUser = new ArrayList<>();
 
     private String cohortType;
+
+    private LocalDate curriculumEndDate;
+
+    private double totalWeeksInTraining;
 }
