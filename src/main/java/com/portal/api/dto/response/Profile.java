@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class Profile extends Child {
-    
+
     private PlayerStatus playerStatus;
 
     public Profile(Child child, PlayerStatus playerStatus) {
@@ -38,6 +38,7 @@ public class Profile extends Child {
         this.setParentLastName(child.getParentLastName());
         this.setEmail(child.getEmail());
         this.setDroppedTime(child.getDroppedTime());
+        this.setCurriculumEndDate(child.getCurriculumEndDate());
     }
 
     private String cohortType;

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portal.api.dto.request.CreateChildRequest;
 import com.portal.api.dto.request.CreateParentRequest;
 import com.portal.api.dto.request.LoginRequest;
-import com.portal.api.dto.request.SetDroppedChild;
+import com.portal.api.dto.request.UpdatePlayerProfileRequest;
 import com.portal.api.dto.response.*;
 import com.portal.api.model.*;
 import com.portal.api.services.*;
@@ -38,10 +38,7 @@ import javax.validation.Valid;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalField;
-import java.time.temporal.WeekFields;
 import java.util.*;
 
 @RestController
@@ -60,26 +57,28 @@ public class PortalController {
     private String assetsBaseUrl;
 
     private final JwtService jwtService;
-
     private final ParentService parentService;
-
     private final AnalyticsService analyticsService;
-
     private final GameApiService gameApiService;
-
     private final AuthService authService;
-
     private final MissionDialogService missionService;
-
     private final CohortService cohortService;
-
     private final CoachService coachService;
+    private final PlayerService playerService;
 
     @Autowired
     public PortalController(
             JwtService jwtService,
             ParentService mongoService,
-            AnalyticsService analyticsService, GameApiService gameApiService, AuthService authService, MissionDialogService missionService, MissionDialogService missionDialogService, CohortService cohortService, CoachService coachService) {
+            AnalyticsService analyticsService,
+            GameApiService gameApiService,
+            AuthService authService,
+            MissionDialogService missionService,
+            MissionDialogService missionDialogService,
+            CohortService cohortService,
+            CoachService coachService,
+            PlayerService playerService
+    ) {
         this.jwtService = jwtService;
         this.parentService = mongoService;
         this.analyticsService = analyticsService;
@@ -89,6 +88,7 @@ public class PortalController {
         this.missionDialogService = missionDialogService;
         this.cohortService = cohortService;
         this.coachService = coachService;
+        this.playerService = playerService;
     }
 
     @GetMapping("/mission-dialog/{id}/{username}/{sessionId}")
@@ -244,105 +244,24 @@ public class PortalController {
     }
 
     @GetMapping("/profile/{username}")
-    public Profile profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
-
+    public ResponseEntity<Profile> profile(@PathVariable("username") String username, HttpServletRequest request) throws Exception {
         PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
-
-        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
-        if (children.size() != 1) {
-            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
-            if (children.size() != 1) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
-            }
-        }
-
-        Child child = children.get(0);
-
-        boolean skipPlayerStatus = false;
-        SearchResponse response = analyticsService.historicalProgress(child.getUsername());
-        HistoricalProgressReport progressReport = null;
-        PlayerStatus playerStatus = new PlayerStatus();
-        try {
-            progressReport = HistoricalProgressReport.parse(response);
-        } catch (ParseException e) {
-            playerStatus.setStarted("Not yet started");
-            playerStatus.setCompleted("N/A");
-            playerStatus.setDropped(child.isDropped() ? "Yes" : "No");
-            playerStatus.setGeneralStatus(GeneralStatus.ACTIVE);
-            skipPlayerStatus = true;
-        }
-
-        if (!skipPlayerStatus) {
-            playerStatus.setStarted(progressReport.getStartDate().toString());
-            playerStatus.setDropped(child.isDropped() ? "Yes" : "No");
-            playerStatus.setCompleted("N/A");
-            playerStatus.setGeneralStatus(GeneralStatus.ACTIVE);
-
-            List<TransferenceSummary> mappedSessions = new ArrayList<>();
-            if (progressReport.getHighestMission() == 15) {
-                SearchResponse sessions = analyticsService.sessions(child.getUsername(), String.valueOf(progressReport.getHighestMission()), "transference");
-                for (SearchHit hit : sessions.getHits().getHits()) {
-                    mappedSessions.add((TransferenceSummary) SearchResultsMapper.getSession(hit));
-                }
-
-                Optional<TransferenceSummary> passTransference = mappedSessions.stream().filter(session -> session.isCompleted() && session.getStatus().equals("PASS")).findFirst();
-                passTransference.ifPresent(transferenceSummary -> {
-                    if (transferenceSummary.getEndDate() > 0) {
-                        playerStatus.setCompleted(LocalDate.ofEpochDay(transferenceSummary.getEndDate() / 86_400_000L).toString());
-                        playerStatus.setGeneralStatus(GeneralStatus.COMPLETED);
-                    }
-                });
-            }
-        }
-
-        Profile profile = new Profile(child, playerStatus);
-        String cohortId = child.getLabels().get("cohort");
-        Cohort cohort = cohortService.getCohort(cohortId);
-        if (cohort != null) {
-            profile.setCohortType(cohort.getPlayerType());
-            profile.setCohortName(cohort.getName());
-        }
-
-        return profile;
+        return ResponseEntity.ok(playerService.getPlayerProfile(username));
     }
 
     @PutMapping("/profile/{username}")
-    public ResponseEntity<Boolean> setDropped(@PathVariable("username") String username, @RequestBody SetDroppedChild setDroppedChild, HttpServletRequest request) throws Exception {
+    public ResponseEntity<Boolean> setDropped(@PathVariable("username") String username, @RequestBody UpdatePlayerProfileRequest updatePlayerProfileRequest, HttpServletRequest request) throws Exception {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
-        boolean isInCohort = false;
-
-        List<Child> children = parentService.getChildrenByUsername(Collections.singletonList(username));
-        if (children.size() != 1) {
-            children = cohortService.getChildrenByUsername(Collections.singletonList(username));
-            if (children.size() != 1) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Unable to find child with username " + username);
-            } else {
-                isInCohort = true;
-            }
+        boolean response;
+        try {
+            response = playerService.updatePlayerProfile(username, updatePlayerProfileRequest);
+        } catch (NoSuchElementException nse) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, nse.getMessage());
         }
 
-        Child child = children.get(0);
-        child.setDropped(setDroppedChild.isDropped());
-
-
-        if (setDroppedChild.isDropped()) {
-            if (child.getDroppedTime() == null || child.getDroppedTime().isEmpty()) {
-                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                child.setDroppedTime(dateFormat.format(new Date()));
-            }
-        } else {
-            child.setDroppedTime(null);
-        }
-
-        if (isInCohort) {
-            coachService.updateChild(children.get(0));
-        } else {
-            parentService.updateChild(child);
-        }
-
-        return ResponseEntity.ok(true);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/children/{username}/progress")

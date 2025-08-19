@@ -6,6 +6,8 @@ import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDate;
+
 @SuperBuilder
 @Data
 @NoArgsConstructor
@@ -22,4 +24,6 @@ public class Cohort {
     private String coachUsername;
 
     private String playerType;
+
+    private LocalDate curriculumEndDate;
 }

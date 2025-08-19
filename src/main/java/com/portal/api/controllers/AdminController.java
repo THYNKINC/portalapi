@@ -14,6 +14,7 @@ import com.portal.api.model.*;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.HeadsetRepository;
 import com.portal.api.services.*;
+import com.portal.api.services.impl.PlayerServiceImpl;
 import com.portal.api.util.DateTimeUtil;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
@@ -92,6 +93,7 @@ public class AdminController {
     private final HeadsetRepository headsets;
 
     private final CohortService cohortService;
+    private final PlayerService playerService;
 
     private static final Logger logger = LoggerFactory.getLogger(AdminController.class);
 
@@ -103,7 +105,8 @@ public class AdminController {
             HeadsetRepository headsets,
             DelegateRepository delegates,
             CohortService cohortService,
-            CoachService coachService) {
+            CoachService coachService,
+            PlayerService playerService) {
         this.jwtService = jwtService;
         this.parentService = parentService;
         this.analyticsService = analyticsService;
@@ -111,6 +114,7 @@ public class AdminController {
         this.delegates = delegates;
         this.cohortService = cohortService;
         this.coachService = coachService;
+        this.playerService = playerService;
     }
 
     @PostMapping("/delegates")
@@ -436,16 +440,7 @@ public class AdminController {
         child.setDiagnosis(update.getDiagnosis());
         child.setProvider(update.getProvider());
         child.setGroup(update.getGroup());
-        child.setDropped(update.isDropped());
-
-        if (update.isDropped()) {
-            if (child.getDroppedTime() == null || child.getDroppedTime().isEmpty()) {
-                SimpleDateFormat dateFormat = new SimpleDateFormat("MM/dd/yyyy");
-                child.setDroppedTime(dateFormat.format(new Date()));
-            }
-        } else {
-            child.setDroppedTime(null);
-        }
+        child = playerService.setPlayerDropStatus(child, update.isDropped());
 
         child.setHeadsetId(update.getHeadsetId());
         child.setHeadsetType(update.getHeadsetType());

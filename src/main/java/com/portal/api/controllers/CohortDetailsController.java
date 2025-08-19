@@ -1,11 +1,8 @@
 package com.portal.api.controllers;
 
 import com.portal.api.dto.response.CohortDetailsResponse;
-import com.portal.api.model.Child;
-import com.portal.api.model.Cohort;
 import com.portal.api.model.PortalUser;
 import com.portal.api.services.CohortDetailsService;
-import com.portal.api.services.CohortService;
 import com.portal.api.util.JwtService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.List;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/portal/cohort/{cohortId}/details")
@@ -22,13 +19,11 @@ public class CohortDetailsController {
 
     private final CohortDetailsService cohortDetailsService;
 
-    private final CohortService cohortService;
 
     private final JwtService jwtService;
 
-    public CohortDetailsController(CohortDetailsService cohortDetailsService, CohortService cohortService, JwtService jwtService) {
+    public CohortDetailsController(CohortDetailsService cohortDetailsService, JwtService jwtService) {
         this.cohortDetailsService = cohortDetailsService;
-        this.cohortService = cohortService;
         this.jwtService = jwtService;
     }
 
@@ -37,19 +32,10 @@ public class CohortDetailsController {
 
         PortalUser user = jwtService.decodeJwtFromRequest(request, false, null);
 
-        Cohort cohort = cohortService.getCohort(cohortId);
-        if (cohort == null) {
+        try {
+            return ResponseEntity.ok(cohortDetailsService.getCohortDetails(cohortId));
+        } catch (NoSuchElementException nse) {
             return ResponseEntity.notFound().build();
         }
-
-        List<Child> children = cohortService.getChildrenFromCohort(cohort.getId());
-        if (children == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        CohortDetailsResponse cohortDetailsResponse = cohortDetailsService.getCohortDetails(children);
-        cohortDetailsResponse.setCohortType(cohort.getPlayerType());
-
-        return ResponseEntity.ok(cohortDetailsResponse);
     }
 }

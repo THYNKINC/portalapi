@@ -31,4 +31,5 @@ public class Child {
     private String parentFirstName;
     private String parentLastName;
     private String email;
+    private LocalDate curriculumEndDate;
 }

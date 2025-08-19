@@ -9,10 +9,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 
 @Service
 public class CohortDetailsService {
@@ -20,19 +18,34 @@ public class CohortDetailsService {
     private static final int SCALE = 2;
 
     private final AnalyticsService analyticsService;
-
     private final WhatsNextMissionService whatsNextMissionService;
+    private final CohortService cohortService;
 
-    public CohortDetailsService(AnalyticsService analyticsService, WhatsNextMissionService whatsNextMissionService) {
+    public CohortDetailsService(
+        AnalyticsService analyticsService,
+        WhatsNextMissionService whatsNextMissionService,
+        CohortService cohortService
+    ) {
         this.analyticsService = analyticsService;
         this.whatsNextMissionService = whatsNextMissionService;
+        this.cohortService = cohortService;
     }
 
-    public CohortDetailsResponse getCohortDetails(List<Child> children) {
+    public CohortDetailsResponse getCohortDetails(String cohortId) {
+        Cohort cohort = cohortService.getCohort(cohortId);
+        if (cohort == null) {
+            throw new NoSuchElementException();
+        }
+
+        List<Child> children = cohortService.getChildrenFromCohort(cohort.getId());
+        if (children == null) {
+            throw new NoSuchElementException();
+        }
+
         double avgNoOfMissionsCompleted = 0;
         double avgWeeksInTraining = 0.0;
         int totalMissionsCompleted = 0;
-        double totalWeeksInTraining = 0.0;
+        double totalWeeksInTraining;
         int childrenCount = children.size();
         LocalDate earliestPlayDate = null;
         int mostRecentTrainingSessionDaysAgo = Integer.MAX_VALUE;
@@ -64,7 +77,7 @@ public class CohortDetailsService {
                     daysSinceLastPlayedPerUser.add(new DaysSinceLastPlayedPerUser(child.getUsername(), lastSession.getStartDate()));
                 }
 
-                if (whatsNextMission.getType().equals("completed")) {
+                if (whatsNextMission.getType().equals("completed") || childCurriculumCompleted(child) || cohortCurriculumCompleted(cohort)) {
                     totalUsers.setCompleted(totalUsers.getCompleted() + 1);
                     missionCompletedPerUser.setCompleted(missionCompletedPerUser.getCompleted() + 1);
                 } else if (whatsNextMission.getType().equals("runner")) {
@@ -76,7 +89,6 @@ public class CohortDetailsService {
                 }
 
                 totalMissionsCompleted = getTotalMissionsCompleted(totalMissionsCompleted, progressReport);
-                totalWeeksInTraining = getTotalWeeksInTraining(progressReport, totalWeeksInTraining);
 
                 LocalDate firstPlayDate = progressReport.getFirstPlayed();
                 if (earliestPlayDate == null || (firstPlayDate != null && firstPlayDate.isBefore(earliestPlayDate))) {
@@ -91,6 +103,8 @@ public class CohortDetailsService {
                 handleChildError(child, cohortChildSummaries, totalUsers);
             }
         }
+
+        totalWeeksInTraining = getTotalWeeksInTraining(cohort, earliestPlayDate);
 
         if (childrenCount > 0) {
             BigDecimal averageMissionsCompleted = BigDecimal.valueOf(totalMissionsCompleted / (double) childrenCount).setScale(SCALE, RoundingMode.HALF_UP);
@@ -109,6 +123,9 @@ public class CohortDetailsService {
                 .avgNoOfWeeks(avgWeeksInTraining)
                 .children(cohortChildSummaries)
                 .missionsCompletedPerUser(missionCompletionCount.values().stream().toList())
+                .totalWeeksInTraining(totalWeeksInTraining)
+                .curriculumEndDate(cohort.getCurriculumEndDate())
+                .cohortType(cohort.getPlayerType())
                 .build();
     }
 
@@ -145,12 +162,10 @@ public class CohortDetailsService {
         return totalMissionsCompleted;
     }
 
-    private double getTotalWeeksInTraining(HistoricalProgressReport progressReport, double totalWeeksInTraining) {
-        double weeksInTraining = Math.max(progressReport.getDaysSinceStart() / 7.0, 1.0);
-        totalWeeksInTraining += weeksInTraining;
-        return totalWeeksInTraining;
+    private long getTotalWeeksInTraining(Cohort cohort, LocalDate gamePlayStartDate) {
+        LocalDate curriculumEndDate = cohort.getCurriculumEndDate() != null ? cohort.getCurriculumEndDate() : LocalDate.now();
+        return ChronoUnit.WEEKS.between(gamePlayStartDate, curriculumEndDate);
     }
-
 
     private void setSummary(Child child, List<CohortChildSummary> cohortChildSummaries, WhatsNextMission whatsNextMission, long daysSinceLastPlayed, long lastCompletedMissionDate) {
         CohortChildSummary cohortChildSummary = new CohortChildSummary(child);
@@ -164,6 +179,19 @@ public class CohortDetailsService {
         cohortChildSummary.setNextMission(nexMission);
         cohortChildSummary.setLastCompletedMission(lastCompletedMissionDate);
         cohortChildSummaries.add(cohortChildSummary);
+    }
+
+    private boolean childCurriculumCompleted(Child child) {
+        return child.getCurriculumEndDate() != null && isOnOrBeforeToday(child.getCurriculumEndDate());
+    }
+
+    private boolean cohortCurriculumCompleted(Cohort cohort) {
+        return cohort.getCurriculumEndDate() != null && isOnOrBeforeToday(cohort.getCurriculumEndDate());
+    }
+
+    private boolean isOnOrBeforeToday(LocalDate date) {
+        LocalDate now = LocalDate.now();
+        return date != null && (date.isBefore(now) || date.isEqual(now));
     }
 
 }
