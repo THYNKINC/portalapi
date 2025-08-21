@@ -3,11 +3,12 @@ package com.portal.api.scheduled;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.portal.api.model.*;
+import com.portal.api.repositories.DelegateRepository;
+import com.portal.api.repositories.ParentRepository;
 import com.portal.api.services.AnalyticsService;
-import com.portal.api.services.CoachService;
-import com.portal.api.services.ParentService;
 import com.portal.api.services.SearchResultsMapper;
 import com.portal.api.util.OpensearchService;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.opensearch.action.index.IndexRequest;
@@ -26,7 +27,6 @@ import org.opensearch.search.aggregations.metrics.TopHits;
 import org.opensearch.search.builder.SearchSourceBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -42,17 +42,22 @@ public class SessionsComputer {
 
     private static final Logger logger = LoggerFactory.getLogger(SessionsComputer.class);
 
-    @Autowired
-    private OpensearchService opensearchService;
+    private final OpensearchService opensearchService;
+    private final AnalyticsService analytics;
+    private final DelegateRepository delegateRepository;
+    private final ParentRepository parentRepository;
 
-    @Autowired
-    private ParentService parents;
-
-    @Autowired
-    private CoachService coaches;
-
-    @Autowired
-    private AnalyticsService analytics;
+    public SessionsComputer(
+            OpensearchService opensearchService,
+            AnalyticsService analyticsService,
+            DelegateRepository delegateRepository,
+            ParentRepository parentRepository
+    ) {
+        this.opensearchService = opensearchService;
+        this.analytics = analyticsService;
+        this.delegateRepository = delegateRepository;
+        this.parentRepository = parentRepository;
+    }
 
     @Scheduled(fixedDelay = 300000)
     private void computeSessions() throws Exception {
@@ -147,33 +152,33 @@ public class SessionsComputer {
             String username = (String) hit.getSourceAsMap().get("user_id");
 
             if (sessionType == null || "null".equals(sessionType)) {
-                logger.warn("Unsupported session type: " + hit.getSourceAsString());
+                logger.warn("Unsupported session type: {}", hit.getSourceAsString());
                 continue;
             }
 
-            PortalUser portalUser = portalUserCache.get(username);
+            PortalUser portalUser = portalUserCache.get(StringUtils.lowerCase(username));
 
             if (portalUser == null) {
 
-                portalUser = parents.getParentByChildName(username);
+                portalUser = parentRepository.findOneByChildrenUsernameIgnoreCase(StringUtils.lowerCase(username));
 
                 // if null then belogs to a coach
                 if (portalUser == null) {
 
-                    portalUser = coaches.getCoachByChildName(username);
+                    portalUser = delegateRepository.findOneByChildrenUsernameIgnoreCase(StringUtils.lowerCase(username));
 
                     if (portalUser == null) {
-                        logger.warn("Orphaned child found during sessions processing: " + username);
+                        logger.warn("Orphaned child found during sessions processing: {}", username);
                         continue;
                     }
 
                 }
 
-                portalUserCache.put(username, portalUser);
+                portalUserCache.put(StringUtils.lowerCase(username), portalUser);
             }
 
             Child child = portalUser.getChildren().stream()
-                    .filter(c -> c.getUsername().equals(username))
+                    .filter(c -> c.getUsername().equalsIgnoreCase(StringUtils.lowerCase(username)))
                     .findFirst()
                     .orElseThrow();
             try {
@@ -291,7 +296,7 @@ public class SessionsComputer {
         sessions.add(summary);
     }
 
-    public UpdateByQueryRequest buildUpdateQuery(SessionSummary session) {
+    private UpdateByQueryRequest buildUpdateQuery(SessionSummary session) {
 
         String script = String.format("ctx._source.completed = %s; ctx._source.status = '%s';", session.isCompleted(), session.getStatus());
 
