@@ -163,6 +163,8 @@ public class CohortDetailsService {
     }
 
     private long getTotalWeeksInTraining(Cohort cohort, LocalDate gamePlayStartDate) {
+        if (gamePlayStartDate == null) return 0L;
+
         LocalDate curriculumEndDate = cohort.getCurriculumEndDate() != null ? cohort.getCurriculumEndDate() : LocalDate.now();
         return ChronoUnit.WEEKS.between(gamePlayStartDate, curriculumEndDate);
     }
