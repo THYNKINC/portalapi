@@ -64,7 +64,7 @@ public class AnalyticsService {
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		DateHistogramAggregationBuilder dateHistogramAgg = AggregationBuilders
 				.dateHistogram("documents_per_bucket")
@@ -319,7 +319,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
@@ -341,7 +341,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
 		searchSourceBuilder.query(boolQueryBuilder);
@@ -361,7 +361,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)))
 				.must(QueryBuilders.matchQuery("mission_id", missionId))
 				.must(QueryBuilders.matchQuery("type", type));
 
@@ -385,7 +385,7 @@ public class AnalyticsService {
 		searchSourceBuilder
 			.query(QueryBuilders
 					.boolQuery()
-					.must(QueryBuilders.matchQuery("user_id", userId))
+					.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)))
 					.must(QueryBuilders.matchQuery("mission_id", missionId)))
 			.size(0)
 			.aggregation(AggregationBuilders
@@ -410,7 +410,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)))
 				.must(QueryBuilders.matchQuery("id", sessionId));
 
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -429,7 +429,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders
 				.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)))
 				.must(QueryBuilders.rangeQuery("start_date")
 						.gte("now/d-1w/d+1d"));
 
@@ -461,7 +461,7 @@ public class AnalyticsService {
 		QueryBuilder eventTypeQuery = QueryBuilders
 				.termsQuery("event_type", "TransferenceStatsEnd", "PVTEnd");
 		QueryBuilder userIdQuery = QueryBuilders
-				.matchQuery("user_id", userId);
+				.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders
@@ -498,7 +498,7 @@ public class AnalyticsService {
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(QueryBuilders.termQuery("TaskID", missionId))
 				.must(QueryBuilders.termsQuery("event_type", "RunnerEnd", "TransferenceStatsEnd", "PVTEnd"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Set up the source builder
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -586,7 +586,7 @@ public class AnalyticsService {
 		// Create queries
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("type", eventTypes))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		if (completedOnly) {
 			boolQuery.must(QueryBuilders.termsQuery("completed", true));
@@ -647,7 +647,7 @@ public class AnalyticsService {
 		// Build the match queries
 		QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
 		QueryBuilder sessionTypeQuery = QueryBuilders.matchQuery("session_type", "runner");
-		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(sessionTypeQuery)
@@ -683,7 +683,7 @@ public class AnalyticsService {
 
 		// Build the match queries
 		QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(userIdQuery);
@@ -715,7 +715,7 @@ public class AnalyticsService {
 
 		// Build the match queries
 		QueryBuilder userIdQuery = QueryBuilders
-				.matchQuery("user_id", userId);
+				.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		SearchResponse sessions = lastNRunners(userId, 1000);
 
@@ -759,7 +759,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders
 				.boolQuery()
 				.must(QueryBuilders
-						.matchQuery("user_id", userId));
+						.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Build the search source with the boolean query, the aggregation, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder()
@@ -783,7 +783,7 @@ public class AnalyticsService {
 		// Build the match queries
 		QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
 		QueryBuilder eventTypeQuery = QueryBuilders.matchQuery("event_type", "RunnerStart");
-		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(eventTypeQuery)
@@ -792,7 +792,6 @@ public class AnalyticsService {
 		// Build the search source with the boolean query, and the size
 		SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder().query(boolQuery).size(1)
 				.fetchSource(new String[] { "StarValues" }, new String[] {});
-		;
 
 		// Build the search request
 		SearchRequest searchRequest = new SearchRequest("gamelogs-ref").source(searchSourceBuilder);
@@ -806,7 +805,7 @@ public class AnalyticsService {
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		QueryBuilder sessionStartQuery = QueryBuilders.matchQuery("session_start.keyword", sessionId);
-		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", userId);
+		QueryBuilder userIdQuery = QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId));
 
 		// Combine the match queries into a boolean query
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(sessionStartQuery).must(userIdQuery);
@@ -841,7 +840,7 @@ public class AnalyticsService {
 						.termQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders
 						.termsQuery("event_type", "TransferenceStatsDishStart", "TransferenceStatsDishCorrupted"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Build the aggregation
 		TermsAggregationBuilder aggregation = AggregationBuilders
@@ -882,7 +881,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery()
 				.must(new MatchQueryBuilder("session_start.keyword", sessionId))
 				.must(new TermQueryBuilder("event_type", "TransferenceStatsMoleculeDecodeEnd"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		CountRequest countRequest = new CountRequest("gamelogs-ref");
 		countRequest.query(boolQueryBuilder);
@@ -898,7 +897,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders.termsQuery("event_type", "TransferenceStatsStart", "TransferenceStatsDishStart", "TransferenceStatsMoleculeDecodeStart", "TransferenceStatsMoleculeDecodeEnd", "TransferenceStatsDishEnd", "TransferenceStatsDishCorrupted"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Specify the fields to return
 		String[] includeFields = new String[] { "timestamp", "event_type", "DecodeThreshold", "TargetDecodes" };
@@ -922,7 +921,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "runner"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		AggregationBuilder sessions = AggregationBuilders
 				.filter("session", QueryBuilders.termsQuery("session_start.keyword", sessionId))
@@ -1041,7 +1040,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "pvt"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		AggregationBuilder sessions = AggregationBuilders
 				.filter("session", QueryBuilders.termsQuery("session_start.keyword", sessionId))
@@ -1085,7 +1084,7 @@ public class AnalyticsService {
 		BasicCredentialsProvider credentialsProvider = opensearchService.getBasicCredentialsProvider();
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
-				.must(QueryBuilders.matchQuery("user_id", userId))
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)))
 				.must(QueryBuilders.matchQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders.existsQuery("Tier"));
 
@@ -1109,7 +1108,7 @@ public class AnalyticsService {
 
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termsQuery("session_type", "transference"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		AggregationBuilder sessions = AggregationBuilders
 				.filter("session", QueryBuilders.termsQuery("session_start.keyword", sessionId))
@@ -1193,7 +1192,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders.existsQuery("StarReached"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Specify the fields to return
 		String[] includeFields = new String[] { "StarReached" };
@@ -1218,7 +1217,7 @@ public class AnalyticsService {
 		BoolQueryBuilder boolQuery = QueryBuilders.boolQuery()
 				.must(QueryBuilders.termQuery("session_start.keyword", sessionId))
 				.must(QueryBuilders.termQuery("event_type", "TransferenceStatsStart"))
-				.must(QueryBuilders.matchQuery("user_id", userId));
+				.must(QueryBuilders.matchQuery("user_id", StringUtils.toRootLowerCase(userId)));
 
 		// Specify the fields to return
 		String[] includeFields = new String[] { "TargetDecodes" };
