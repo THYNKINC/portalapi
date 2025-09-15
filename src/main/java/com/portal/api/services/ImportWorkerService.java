@@ -11,13 +11,15 @@ import com.portal.api.model.Delegate;
 import com.portal.api.model.ImportJob;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.ImportJobRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStreamReader;
 import java.util.*;
 
+@Slf4j
 @Service
 public class ImportWorkerService {
 
@@ -34,11 +36,11 @@ public class ImportWorkerService {
     }
 
     @Async
-    public void processUsersAsync(MultipartFile file, Cohort cohort, Delegate coach, String bearerToken, String jobId) {
+    public void processUsersAsync(byte[] fileContent, String originalFilename, Cohort cohort, Delegate coach, String bearerToken, String jobId) {
 
         ImportJob job = importJobRepository.findById(jobId).orElse(new ImportJob());
 
-        List<CreateCohortUserRequest> users = parseCsv(file);
+        List<CreateCohortUserRequest> users = parseCsv(fileContent, originalFilename);
         if (users.isEmpty()) {
             job.setStatus("failed");
             job.setError("CSV parsing failed");
@@ -95,9 +97,9 @@ public class ImportWorkerService {
     }
 
 
-    private List<CreateCohortUserRequest> parseCsv(MultipartFile file) {
+    private List<CreateCohortUserRequest> parseCsv(byte[] fileContent, String originalFilename) {
 
-        try (InputStreamReader reader = new InputStreamReader(file.getInputStream())) {
+        try (InputStreamReader reader = new InputStreamReader(new ByteArrayInputStream(fileContent))) {
 
             CsvToBean<CreateCohortUserRequest> csvToBean = new CsvToBeanBuilder<CreateCohortUserRequest>(reader)
                     .withType(CreateCohortUserRequest.class)
@@ -107,6 +109,7 @@ public class ImportWorkerService {
             return csvToBean.parse();
 
         } catch (Exception e) {
+            log.warn("Error parsing CSV file: {}", originalFilename, e);
             return Collections.emptyList();
         }
     }

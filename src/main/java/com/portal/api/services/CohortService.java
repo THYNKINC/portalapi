@@ -69,7 +69,16 @@ public class CohortService {
 
         importJobRepository.save(job);
 
-        importWorkerService.processUsersAsync(file, cohort, coach, bearerToken, job.getJobId());
+        try {
+            byte[] fileContent = file.getBytes();
+            String originalFilename = file.getOriginalFilename();
+            importWorkerService.processUsersAsync(fileContent, originalFilename, cohort, coach, bearerToken, job.getJobId());
+        } catch (Exception e) {
+            job.setStatus(ImportStatus.FAILED);
+            job.setError("Failed to read uploaded file: " + e.getMessage());
+            importJobRepository.save(job);
+            throw new RuntimeException("Failed to process CSV file", e);
+        }
     }
 
     public List<Cohort> getCohorts(String username) {
