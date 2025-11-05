@@ -35,8 +35,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -395,7 +393,10 @@ public class PortalController {
         if (searchHits.length == 0)
             return runner;
 
-        int starReached = (int) searchHits[0].getSourceAsMap().get("StarReached");
+        Object starReachedObj = searchHits[0].getSourceAsMap().get("StarReached");
+        int starReached = 0;
+        if (starReachedObj instanceof Number)
+            starReached = ((Number) starReachedObj).intValue();
 
         runner.setStarReached(starReached);
         runner.setPass(starReached > 0);
@@ -612,8 +613,8 @@ public class PortalController {
             Object o = hit.getSourceAsMap().get("metric_value");
             Double value = 0d;
 
-            if (o != null)
-                value = (Double) o;
+            if (o instanceof Number)
+                value = ((Number) o).doubleValue();
 
             switch (metricName) {
                 case "alternating_attention":
@@ -705,13 +706,17 @@ public class PortalController {
                 // start of xfer session
                 case "TransferenceStatsStart":
 
-                    target = (int) source.get("TargetDecodes");
+                    Object targetObj = source.get("TargetDecodes");
+                    if (targetObj instanceof Number)
+                        target = ((Number) targetObj).intValue();
                     break;
 
                 // start of dish session
                 case "TransferenceStatsDishStart":
 
-                    threshold = (Double) source.get("DecodeThreshold");
+                    Object thresholdObj = source.get("DecodeThreshold");
+                    if (thresholdObj instanceof Number)
+                        threshold = ((Number) thresholdObj).doubleValue();
                     break;
 
                 // start of decoding session

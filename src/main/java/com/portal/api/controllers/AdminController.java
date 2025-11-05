@@ -14,7 +14,6 @@ import com.portal.api.model.*;
 import com.portal.api.repositories.DelegateRepository;
 import com.portal.api.repositories.HeadsetRepository;
 import com.portal.api.services.*;
-import com.portal.api.services.impl.PlayerServiceImpl;
 import com.portal.api.util.DateTimeUtil;
 import com.portal.api.util.HttpService;
 import com.portal.api.util.JwtService;
@@ -253,7 +252,11 @@ public class AdminController {
             AttemptSummary attempt = new AttemptSummary();
             attempt.setDate(df.format(new Date((Long) sourceAsMap.get("start_date"))));
             attempt.setUsername((String) sourceAsMap.get("user_id"));
-            attempt.setMission((Integer) sourceAsMap.get("mission_id") + "");
+            Object missionIdObj = sourceAsMap.get("mission_id");
+            String missionId = "";
+            if (missionIdObj instanceof Number)
+                missionId = String.valueOf(((Number) missionIdObj).intValue());
+            attempt.setMission(missionId);
             attempt.setType((String) sourceAsMap.get("type"));
 
             // TODO
@@ -484,7 +487,10 @@ public class AdminController {
 
             Date start = df.parse((String) hit.getSourceAsMap().get("session_start"));
             Date at = df.parse((String) hit.getSourceAsMap().get("timestamp"));
-            int tier = (int) hit.getSourceAsMap().get("Tier");
+            Object tierObj = hit.getSourceAsMap().get("Tier");
+            int tier = 0;
+            if (tierObj instanceof Number)
+                tier = ((Number) tierObj).intValue();
 
             long diffInMillies = at.getTime() - start.getTime();
 
