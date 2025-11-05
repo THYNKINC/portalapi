@@ -383,9 +383,9 @@ public class SearchResultsMapper {
     		
     		Object o = hit.getSourceAsMap().get("metric_value");
     		Double value = 0d;
-    		
-    		if (o != null)
-    			value = (Double)o ;
+
+    		if (o instanceof Number)
+    			value = ((Number) o).doubleValue();
     	    
     	    switch (metricName) {
     	    	case "alternating_attention": 
