@@ -29,17 +29,31 @@ import org.opensearch.index.reindex.DeleteByQueryRequest;
 import org.opensearch.index.reindex.UpdateByQueryRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OpensearchService {
-	
-	
+
+
 	private static final Logger log = LoggerFactory.getLogger(OpensearchService.class);
+
+	private final String opensearchHost;
+	private final String opensearchUser;
+	private final String opensearchPassword;
+
+	public OpensearchService(
+			@Value("${opensearch.host}") String opensearchHost,
+			@Value("${opensearch.user}") String opensearchUser,
+			@Value("${opensearch.password}") String opensearchPassword) {
+		this.opensearchHost = opensearchHost;
+		this.opensearchUser = opensearchUser;
+		this.opensearchPassword = opensearchPassword;
+	}
 
 
 	public SSLContext getSSLContext() throws NoSuchAlgorithmException, KeyManagementException {
-		SSLContext sslContext = SSLContext.getInstance("SSL");
+		SSLContext sslContext = SSLContext.getInstance("TLS");
 	    sslContext.init(null, new TrustManager[]{new X509TrustManager() {
 	        public void checkClientTrusted(X509Certificate[] arg0, String arg1) {
 	        }
@@ -54,113 +68,111 @@ public class OpensearchService {
 	
 	public BasicCredentialsProvider getBasicCredentialsProvider() {
 		BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-	    credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("admin", "admin"));
+	    credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(opensearchUser, opensearchPassword));
 	    return credentialsProvider;
 	}
 	
 	public SearchResponse search(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, SearchRequest searchRequest) throws IOException {
-	
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
+
 	        // Execute the search request
-	    	SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-	        return searchResponse;
-	    }  
-	    
+	    	return client.search(searchRequest, RequestOptions.DEFAULT);
+	    }
+
 	}
 	
 	public void insert(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, IndexRequest request) throws IOException {
-		
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
+
 	        client.index(request, RequestOptions.DEFAULT);
-	    }  
-	    
+	    }
+
 	}
 	
 	public void delete(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, DeleteByQueryRequest request) throws IOException {
-		
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
+
 	        client.deleteByQuery(request, RequestOptions.DEFAULT);
-	    }  
-	    
+	    }
+
 	}
 	
 	public void update(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, UpdateRequest request) throws IOException {
-		
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
+
 	        client.update(request, RequestOptions.DEFAULT);
-	    }  
-	    
+	    }
+
 	}
 	
 	public void updateByQuery(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, UpdateByQueryRequest request) throws IOException {
-		
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	    	
+
 	        client.updateByQueryAsync(request, RequestOptions.DEFAULT, new ActionListener<BulkByScrollResponse>() {
-				
+
 				@Override
 				public void onResponse(BulkByScrollResponse response) {
 					log.info("Updated {} records, Failed {}", response.getUpdated(), response.getBulkFailures());
 				}
-				
+
 				@Override
 				public void onFailure(Exception e) {
 					log.error("Unable to update records", e);
 				}
 			});
-	        
+
 //	    	client.updateByQuery(request, RequestOptions.DEFAULT);
 	    }
 	}
 	
 	public CountResponse count(SSLContext sslContext, BasicCredentialsProvider credentialsProvider, CountRequest countRequest) throws IOException {
-		
+
 		// Build the rest client
 	    try (RestHighLevelClient client = new RestHighLevelClient(
-	            RestClient.builder(new HttpHost("opensearch", 9200, "https"))
+	            RestClient.builder(new HttpHost(opensearchHost, 443, "https"))
 	                    .setHttpClientConfigCallback(httpClientBuilder -> httpClientBuilder
 	                            .setDefaultCredentialsProvider(credentialsProvider)
 	                            .setSSLContext(sslContext)
 	                            .setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE)))) {
-	
-	    	CountResponse countResponse = client.count(countRequest, RequestOptions.DEFAULT);
-	        return countResponse;
-	    }  
-	    
+
+	    	return client.count(countRequest, RequestOptions.DEFAULT);
+	    }
+
 	}
 	
 }
