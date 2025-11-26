@@ -68,7 +68,12 @@ public class HistoricalProgressReport {
 
         if (highestMissions.getHits().getHits().length > 0) {
             highestMission = (String) highestMissions.getHits().getHits()[0].getSourceAsMap().get("MissionID");
-            highestMissionNo = Integer.valueOf(MappingService.getKey(highestMission));
+            if (highestMission != null) {
+                String highestMissionKey = MappingService.getKey(highestMission);
+                if (highestMissionKey != null) {
+                    highestMissionNo = Integer.parseInt(highestMissionKey);
+                }
+            }
         }
 
         long totalPlaytime = 0;
